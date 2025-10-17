@@ -1,0 +1,230 @@
+"""
+Orchestrator
+Orquestador de agentes - Coordina la ejecución del análisis completo
+"""
+
+import time
+from typing import Dict, Any
+from src.database.connection import get_session
+from src.database.models import Mercado, Categoria
+from src.analytics.agents import (
+    QuantitativeAgent,
+    SentimentAgent,
+    AttributesAgent,
+    CompetitiveAgent,
+    TrendsAgent,
+    StrategicAgent,
+    ExecutiveAgent
+)
+from src.utils.logger import setup_logger, log_agent_analysis
+
+logger = setup_logger(__name__)
+
+
+class AnalysisOrchestrator:
+    """
+    Orquestador de análisis multi-agente
+    Ejecuta agentes en el orden correcto respetando dependencias
+    """
+    
+    def __init__(self):
+        self.agent_order = [
+            ('quantitative', QuantitativeAgent),
+            ('sentiment', SentimentAgent),
+            ('attributes', AttributesAgent),
+            ('competitive', CompetitiveAgent),
+            ('trends', TrendsAgent),
+            ('strategic', StrategicAgent),
+            ('executive', ExecutiveAgent)
+        ]
+    
+    def run_analysis(self, categoria_id: int, periodo: str) -> int:
+        """
+        Ejecuta análisis completo para una categoría y periodo
+        
+        Args:
+            categoria_id: ID de categoría
+            periodo: Periodo (YYYY-MM)
+        
+        Returns:
+            ID del report generado
+        """
+        with get_session() as session:
+            # Verificar categoría existe
+            categoria = session.query(Categoria).get(categoria_id)
+            if not categoria:
+                raise ValueError(f"Categoría {categoria_id} no encontrada")
+            
+            mercado = session.query(Mercado).get(categoria.mercado_id)
+            categoria_nombre = f"{mercado.nombre}/{categoria.nombre}"
+            
+            logger.info(
+                "starting_analysis",
+                categoria=categoria_nombre,
+                categoria_id=categoria_id,
+                periodo=periodo
+            )
+            
+            # Ejecutar agentes en orden
+            results = {}
+            report_id = None
+            
+            for agent_name, AgentClass in self.agent_order:
+                start_time = time.time()
+                
+                try:
+                    logger.info(
+                        "executing_agent",
+                        agent=agent_name,
+                        categoria=categoria_nombre
+                    )
+                    
+                    # Crear instancia del agente
+                    agent = AgentClass(session)
+                    
+                    # Ejecutar análisis
+                    result = agent.analyze(categoria_id, periodo)
+                    
+                    # Verificar errores
+                    if 'error' in result:
+                        logger.warning(
+                            "agent_returned_error",
+                            agent=agent_name,
+                            error=result['error']
+                        )
+                        results[agent_name] = {'status': 'error', 'error': result['error']}
+                        
+                        # Algunos agentes son críticos
+                        if agent_name in ['quantitative', 'sentiment']:
+                            raise Exception(f"Agente crítico {agent_name} falló: {result['error']}")
+                        
+                        continue
+                    
+                    execution_time = time.time() - start_time
+                    
+                    # Log
+                    log_agent_analysis(
+                        logger=logger,
+                        agent_name=agent_name,
+                        categoria_id=categoria_id,
+                        periodo=periodo,
+                        execution_time_seconds=execution_time,
+                        result_summary=self._get_result_summary(agent_name, result)
+                    )
+                    
+                    results[agent_name] = {
+                        'status': 'success',
+                        'execution_time': execution_time
+                    }
+                    
+                    # Si es el agente ejecutivo, guardamos el report_id
+                    if agent_name == 'executive' and 'report_id' in result:
+                        report_id = result['report_id']
+                
+                except Exception as e:
+                    execution_time = time.time() - start_time
+                    
+                    logger.error(
+                        "agent_execution_failed",
+                        agent=agent_name,
+                        categoria=categoria_nombre,
+                        error=str(e),
+                        exc_info=True
+                    )
+                    
+                    results[agent_name] = {
+                        'status': 'failed',
+                        'error': str(e),
+                        'execution_time': execution_time
+                    }
+                    
+                    # Si un agente crítico falla, abortar
+                    if agent_name in ['quantitative', 'sentiment', 'executive']:
+                        raise
+            
+            # Resumen final
+            total_time = sum(r.get('execution_time', 0) for r in results.values())
+            successful = sum(1 for r in results.values() if r.get('status') == 'success')
+            failed = sum(1 for r in results.values() if r.get('status') == 'failed')
+            
+            logger.info(
+                "analysis_completed",
+                categoria=categoria_nombre,
+                periodo=periodo,
+                report_id=report_id,
+                total_time_seconds=total_time,
+                agents_successful=successful,
+                agents_failed=failed,
+                results=results
+            )
+            
+            if not report_id:
+                raise Exception("No se pudo generar el report (executive agent falló)")
+            
+            return report_id
+    
+    def _get_result_summary(self, agent_name: str, result: Dict) -> Dict[str, Any]:
+        """Extrae un resumen del resultado para logging"""
+        summary = {}
+        
+        if agent_name == 'quantitative':
+            summary = {
+                'total_menciones': result.get('total_menciones', 0),
+                'marcas_mencionadas': result.get('num_marcas_mencionadas', 0)
+            }
+        elif agent_name == 'sentiment':
+            summary = {
+                'sentimiento_global': result.get('sentimiento_global', 0)
+            }
+        elif agent_name == 'competitive':
+            summary = {
+                'lider': result.get('lider_mercado', 'N/A'),
+                'gaps_encontrados': len(result.get('gaps_competitivos', []))
+            }
+        elif agent_name == 'strategic':
+            summary = {
+                'oportunidades': len(result.get('oportunidades', [])),
+                'riesgos': len(result.get('riesgos', []))
+            }
+        elif agent_name == 'executive':
+            summary = {
+                'report_id': result.get('report_id', 0)
+            }
+        
+        return summary
+
+
+# Función helper para uso desde CLI
+def run_analysis(category_path: str, periodo: str) -> int:
+    """
+    Ejecuta análisis completo desde un path de categoría
+    
+    Args:
+        category_path: Ruta de categoría (Mercado/Categoría)
+        periodo: Periodo (YYYY-MM)
+    
+    Returns:
+        ID del report generado
+    """
+    try:
+        market_name, cat_name = category_path.split('/')
+    except ValueError:
+        raise ValueError("Formato de categoría inválido. Usa: Mercado/Categoría")
+    
+    with get_session() as session:
+        # Buscar categoría
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            raise ValueError(f"Mercado '{market_name}' no encontrado")
+        
+        categoria = session.query(Categoria).filter_by(
+            mercado_id=mercado.id,
+            nombre=cat_name
+        ).first()
+        if not categoria:
+            raise ValueError(f"Categoría '{category_path}' no encontrada")
+        
+        # Ejecutar análisis
+        orchestrator = AnalysisOrchestrator()
+        return orchestrator.run_analysis(categoria.id, periodo)
+

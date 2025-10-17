@@ -1,0 +1,118 @@
+# TwoLaps Intelligence Platform - Global Settings
+
+database:
+  # Connection pool settings
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  echo: false  # Set to true for SQL query logging
+
+polling:
+  # Default polling interval if not specified
+  default_interval_minutes: 60
+  # Max concurrent query executions
+  max_concurrent_queries: 5
+  # Retry settings
+  max_retries: 3
+  retry_backoff_seconds: 5
+
+llm_providers:
+  # Which providers are enabled
+  enabled:
+    - openai
+    - anthropic
+    - google
+  
+  # Temperature settings by use case
+  temperature:
+    analysis: 0.3  # Low temperature for factual analysis
+    synthesis: 0.5  # Medium for creative synthesis
+  
+  # Token limits
+  max_tokens:
+    analysis: 2000
+    synthesis: 4000
+    executive_summary: 3000
+  
+  # Cost tracking
+  cost_per_1k_tokens:
+    openai:
+      gpt-4o:
+        input: 0.0025
+        output: 0.01
+      gpt-4-turbo:
+        input: 0.01
+        output: 0.03
+      text-embedding-3-small:
+        input: 0.00002
+    anthropic:
+      claude-3-5-sonnet-20241022:
+        input: 0.003
+        output: 0.015
+      claude-3-opus:
+        input: 0.015
+        output: 0.075
+    google:
+      gemini-1.5-pro:
+        input: 0.00125
+        output: 0.005
+
+analytics:
+  # Analysis parameters
+  top_keywords: 20
+  min_keyword_frequency: 2
+  sentiment_scale: [-1, 1]  # -1 (negative) to 1 (positive)
+  
+  # SOV (Share of Voice) settings
+  sov:
+    min_mentions: 1
+    include_indirect: true  # Include indirect mentions
+  
+  # RAG settings
+  rag:
+    enabled: true
+    top_k_similar: 3  # Number of historical periods to retrieve
+    similarity_threshold: 0.75
+    embedding_model: text-embedding-3-small
+
+reporting:
+  # PDF generation settings
+  format: A4
+  orientation: portrait
+  
+  # Required sections for all reports
+  required_sections:
+    - resumen_ejecutivo
+    - mercado
+    - competencia
+    - sentimiento_reputacion
+    - oportunidades_riesgos
+    - plan_90_dias
+    - anexos
+  
+  # Quality thresholds
+  quality:
+    min_hallazgos: 3
+    min_oportunidades: 3
+    min_riesgos: 3
+    min_plan_acciones: 3
+    min_kpi_references: 10
+
+logging:
+  # Log format and levels
+  format: json
+  level: INFO
+  # Where to store logs
+  file: logs/twolaps.log
+  # Rotation
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Query frequency options (in days)
+query_frequencies:
+  daily: 1
+  weekly: 7
+  biweekly: 14
+  monthly: 30
+  quarterly: 90
+

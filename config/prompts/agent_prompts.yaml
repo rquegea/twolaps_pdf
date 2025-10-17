@@ -1,0 +1,202 @@
+# Agent-Specific Prompts - Prompts especializados para cada agente
+
+sentiment_agent:
+  task: |
+    Analiza el sentimiento sobre las marcas en el siguiente texto.
+    
+    MARCAS A ANALIZAR: {marcas}
+    
+    TEXTO:
+    {texto}
+    
+    INSTRUCCIONES:
+    1. Para cada marca mencionada, determina el sentimiento (-1 negativo, 0 neutral, +1 positivo)
+    2. Identifica atributos mencionados: sabor, precio, calidad, sostenibilidad, packaging
+    3. Detecta ocasiones de consumo: fiesta, comida, regalo, casual, premium
+    4. Evalúa el tono general de la mención
+    
+    DEVUELVE JSON:
+    {{
+      "marca": {{
+        "score": float,  # -1 a 1
+        "tono": "positivo|neutral|negativo",
+        "atributos": {{"sabor": score, "precio": score, ...}},
+        "ocasiones": ["fiesta", "comida", ...],
+        "quote": "fragmento relevante del texto"
+      }}
+    }}
+
+attributes_agent:
+  task: |
+    Extrae y clasifica los atributos asociados a cada marca en el contexto FMCG.
+    
+    MARCAS: {marcas}
+    TEXTO: {texto}
+    
+    ATRIBUTOS A IDENTIFICAR:
+    
+    1. CALIDAD: premium, estándar, económica, artesanal, industrial
+    2. PRECIO: caro, accesible, económico, valor, lujo
+    3. SABOR: intenso, suave, equilibrado, único, tradicional
+    4. SOSTENIBILIDAD: ecológico, orgánico, local, responsable
+    5. PACKAGING: innovador, clásico, premium, práctico
+    6. OCASIÓN: celebración, cotidiano, regalo, especial
+    7. PERFIL: joven, familiar, profesional, premium, masivo
+    
+    DEVUELVE JSON:
+    {{
+      "marca": {{
+        "calidad": ["premium", "artesanal"],
+        "precio": ["accesible"],
+        "sabor": ["equilibrado"],
+        "sostenibilidad": [],
+        "packaging": ["premium"],
+        "ocasion": ["celebración", "regalo"],
+        "perfil": ["premium", "profesional"]
+      }}
+    }}
+
+competitive_agent:
+  task: |
+    Analiza el posicionamiento competitivo relativo entre marcas.
+    
+    DATOS DE SOV: {sov_data}
+    DATOS DE SENTIMIENTO: {sentiment_data}
+    MENCIONES POR MARCA: {menciones}
+    
+    ANÁLISIS REQUERIDO:
+    
+    1. POSICIONAMIENTO: ¿Qué marca domina? ¿Cuál es el orden de preferencia?
+    2. GAPS COMPETITIVOS: ¿Qué NO se menciona sobre cada marca?
+    3. FORTALEZAS: ¿Qué atributos positivos destaca cada marca?
+    4. DEBILIDADES: ¿Qué criticidades o ausencias se notan?
+    5. COMPARACIONES DIRECTAS: ¿Cómo se comparan marca A vs marca B?
+    
+    DEVUELVE JSON estructurado con hallazgos específicos y cuantificados.
+
+strategic_agent:
+  task: |
+    Genera oportunidades y riesgos estratégicos basados en el análisis competitivo.
+    
+    CONTEXTO:
+    - SOV: {sov}
+    - Sentimiento: {sentiment}
+    - Tendencias: {trends}
+    - Posicionamiento: {competitive}
+    
+    GENERA:
+    
+    1. OPORTUNIDADES (mínimo 3, máximo 5):
+       - Título claro y accionable
+       - Descripción específica (2-3 líneas)
+       - Datos de soporte (KPIs relevantes)
+       - Prioridad: Alta/Media/Baja
+       - Impacto esperado: Alto/Medio/Bajo
+       - Esfuerzo: Alto/Medio/Bajo
+    
+    2. RIESGOS (mínimo 3, máximo 5):
+       - Título del riesgo
+       - Descripción del impacto potencial
+       - Probabilidad: Alta/Media/Baja
+       - Severidad: Alta/Media/Baja
+       - Mitigación sugerida (accionable)
+    
+    DEVUELVE JSON bien estructurado.
+
+executive_agent:
+  task: |
+    Genera un informe ejecutivo completo de consultoría basándote en todos los análisis previos.
+    
+    DATOS DISPONIBLES:
+    
+    KPIs Cuantitativos:
+    {quantitative_results}
+    
+    Análisis de Sentimiento:
+    {sentiment_results}
+    
+    Atributos de Marca:
+    {attributes_results}
+    
+    Posicionamiento Competitivo:
+    {competitive_results}
+    
+    Tendencias:
+    {trends_results}
+    
+    Oportunidades y Riesgos:
+    {strategic_results}
+    
+    Contexto Histórico (periodos similares):
+    {historical_context}
+    
+    GENERA EL INFORME CON ESTAS SECCIONES EXACTAS:
+    
+    1. resumen_ejecutivo:
+       - 3-5 hallazgos clave del periodo (bullets)
+       - Cada hallazgo debe citar KPIs específicos
+       - Prioriza por impacto para el negocio
+    
+    2. mercado:
+       - Estado general del mercado en el periodo
+       - Volumen de conversación (menciones totales)
+       - Principales temas de discusión
+       - Comparación con periodo anterior (si hay contexto histórico)
+    
+    3. competencia:
+       - Tabla de SOV por marca
+       - Análisis de líderes vs. seguidores
+       - Comparativas directas marca vs marca
+       - Gaps y oportunidades competitivas
+    
+    4. sentimiento_reputacion:
+       - Sentimiento por marca (con scores)
+       - Atributos asociados por marca
+       - Ocasiones de consumo mencionadas
+       - Evolución vs. periodo anterior
+    
+    5. oportunidades_riesgos:
+       - Oportunidades: lista priorizada (Alta/Media/Baja)
+       - Riesgos: lista con severidad y mitigación
+       - Quick wins identificados
+    
+    6. plan_90_dias:
+       - 3-5 iniciativas priorizadas
+       - Para cada una: QUÉ, POR QUÉ (datos), CÓMO (pasos), CUÁNDO (timeline)
+       - Priorización RICE: Reach, Impact, Confidence, Effort
+       - Timeline sugerido (Mes 1, Mes 2, Mes 3)
+    
+    FORMATO DE SALIDA: JSON estructurado
+    
+    RECUERDA:
+    - Cita SIEMPRE los KPIs y datos específicos
+    - Sé accionable y específico
+    - Evita vaguedades
+    - Tono ejecutivo y consultivo
+    - Longitud: completo pero conciso
+
+trends_agent:
+  task: |
+    Detecta tendencias emergentes y cambios significativos comparando con periodos anteriores.
+    
+    DATOS PERIODO ACTUAL:
+    {current_period_data}
+    
+    DATOS HISTÓRICOS:
+    {historical_periods}
+    
+    ANÁLISIS REQUERIDO:
+    
+    1. TOPIC SHIFT: ¿Qué temas nuevos aparecen? ¿Cuáles desaparecen?
+    2. MARCAS EMERGENTES: ¿Qué marcas ganan visibilidad?
+    3. CAMBIOS DE SENTIMIENTO: ¿Qué marcas mejoran/empeoran?
+    4. NUEVOS ATRIBUTOS: ¿Qué características se mencionan por primera vez?
+    5. CAMBIOS EN SOV: ¿Quién gana/pierde share of voice?
+    
+    Para cada tendencia detectada:
+    - Cuantificar el cambio (%, absolutos)
+    - Indicar dirección (↑ crecimiento, ↓ decrecimiento, ↔ estable)
+    - Evaluar significancia (Alta/Media/Baja)
+    
+    DEVUELVE JSON con tendencias priorizadas.
+

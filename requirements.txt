@@ -1,0 +1,46 @@
+# Core
+python-dotenv==1.0.0
+pyyaml==6.0.1
+click==8.1.7
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+pgvector==0.2.4
+
+# LLM Providers
+openai==1.6.1
+anthropic==0.8.1
+google-generativeai==0.3.2
+
+# LangChain & Orchestration
+langchain==0.1.0
+langchain-openai==0.0.2
+langchain-anthropic==0.0.1
+langchain-google-genai==0.0.5
+langgraph==0.0.20
+
+# PDF Generation
+weasyprint==60.1
+jinja2==3.1.2
+
+# Utilities
+requests==2.31.0
+tenacity==8.2.3
+pydantic==2.5.3
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Logging
+structlog==23.2.0
+
+# CLI utilities
+tabulate==0.9.0
+
+# Web Interface
+streamlit==1.29.0
+plotly==5.18.0
+

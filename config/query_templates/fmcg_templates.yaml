@@ -1,0 +1,156 @@
+# Query Templates para FMCG - Preguntas reutilizables por categoría
+
+# Variables disponibles:
+# {producto} - nombre del producto (cerveza, galleta, ron, etc.)
+# {categoria} - categoría plural (cervezas, galletas, rones)
+# {marca_lider} - marca líder a comparar
+# {marca_competidor} - marca competidora
+
+base_questions:
+  recommendation:
+    - "¿Cuál es la mejor {producto} en 2025?"
+    - "¿Qué {producto} recomendarías?"
+    - "¿Cuál es tu {producto} favorito y por qué?"
+  
+  quality_price:
+    - "¿Qué {producto} tiene mejor relación calidad-precio?"
+    - "¿Cuál es el {producto} más económico de buena calidad?"
+    - "¿Vale la pena pagar más por {producto} premium?"
+  
+  comparison:
+    - "¿{marca_lider} o {marca_competidor}? ¿Cuál es mejor?"
+    - "¿Cuál es la diferencia entre {marca_lider} y {marca_competidor}?"
+    - "Compara {marca_lider} vs {marca_competidor}"
+  
+  trends:
+    - "¿Cuáles son las tendencias en {categoria} para 2025?"
+    - "¿Qué {categoria} son más populares actualmente?"
+    - "¿Qué está de moda en el mercado de {categoria}?"
+  
+  occasions:
+    - "¿Qué {producto} recomendarías para un regalo?"
+    - "¿Qué {producto} es mejor para una celebración?"
+    - "¿Cuál es el mejor {producto} para uso diario?"
+  
+  attributes:
+    - "¿Qué {producto} tiene mejor sabor?"
+    - "¿Cuál es el {producto} más saludable?"
+    - "¿Qué {producto} es el más sostenible o ecológico?"
+
+# Templates específicos por tipo de producto FMCG
+
+bebidas:
+  especificas:
+    - "¿Qué {producto} combina mejor con comida?"
+    - "¿Cuál es el {producto} más refrescante?"
+    - "¿Qué {producto} tiene menos calorías?"
+    - "¿Cuál es el mejor {producto} para cócteles?"
+
+alimentos:
+  especificas:
+    - "¿Qué {producto} es mejor para el desayuno?"
+    - "¿Cuál es el {producto} más nutritivo?"
+    - "¿Qué {producto} dura más tiempo fresco?"
+    - "¿Cuál es el {producto} más natural sin aditivos?"
+
+premium:
+  especificas:
+    - "¿Cuál es el {producto} más exclusivo del mercado?"
+    - "¿Qué {producto} premium vale realmente la pena?"
+    - "¿Cuál es el {producto} preferido por expertos?"
+    - "¿Qué {producto} de lujo recomendarías?"
+
+# Ejemplos pre-configurados por categoría
+
+ejemplos:
+  cervezas:
+    producto: "cerveza"
+    categoria: "cervezas"
+    preguntas:
+      - "¿Cuál es la mejor cerveza artesanal en 2025?"
+      - "¿Qué cerveza tiene mejor relación calidad-precio?"
+      - "¿Heineken o Corona? ¿Cuál es mejor?"
+      - "¿Cuáles son las tendencias en cervezas para 2025?"
+      - "¿Qué cerveza recomendarías para un regalo?"
+      - "¿Qué cerveza combina mejor con comida?"
+      - "¿Cuál es la mejor cerveza para el verano?"
+      - "¿Qué cerveza artesanal española es la mejor?"
+  
+  refrescos:
+    producto: "refresco"
+    categoria: "refrescos"
+    preguntas:
+      - "¿Cuál es el mejor refresco de cola en 2025?"
+      - "¿Coca-Cola o Pepsi? ¿Cuál es mejor?"
+      - "¿Qué refresco tiene menos azúcar?"
+      - "¿Cuál es el refresco más refrescante?"
+      - "¿Qué refresco es mejor para niños?"
+      - "¿Cuáles son los refrescos más saludables?"
+      - "¿Qué refresco tiene mejor sabor natural?"
+      - "¿Cuál es el mejor refresco sin cafeína?"
+  
+  rones:
+    producto: "ron"
+    categoria: "rones"
+    preguntas:
+      - "¿Cuál es el mejor ron para cócteles en 2025?"
+      - "¿Bacardí o Havana Club? ¿Cuál es mejor?"
+      - "¿Qué ron premium recomendarías?"
+      - "¿Cuál es el mejor ron añejo?"
+      - "¿Qué ron tiene mejor relación calidad-precio?"
+      - "¿Cuál es el mejor ron para mojitos?"
+      - "¿Qué ron caribeño es el mejor?"
+      - "¿Cuál es el ron más suave para tomar solo?"
+  
+  champagnes:
+    producto: "champagne"
+    categoria: "champagnes"
+    preguntas:
+      - "¿Cuál es el mejor champagne para celebraciones?"
+      - "¿Moët & Chandon o Veuve Clicquot? ¿Cuál es mejor?"
+      - "¿Qué champagne premium vale realmente la pena?"
+      - "¿Cuál es el mejor champagne para regalar?"
+      - "¿Qué champagne tiene mejor relación calidad-precio?"
+      - "¿Cuál es el champagne más exclusivo?"
+      - "¿Qué champagne recomendarías para una boda?"
+      - "¿Cuál es el mejor champagne para brindis?"
+  
+  galletas:
+    producto: "galleta"
+    categoria: "galletas"
+    preguntas:
+      - "¿Cuál es la mejor marca de galletas en 2025?"
+      - "¿Oreo o Príncipe? ¿Cuáles son mejores?"
+      - "¿Qué galletas son más saludables?"
+      - "¿Cuáles son las mejores galletas para el desayuno?"
+      - "¿Qué galletas tienen mejor sabor?"
+      - "¿Cuál es la mejor galleta para niños?"
+      - "¿Qué galletas integrales recomendarías?"
+      - "¿Cuáles son las galletas más vendidas?"
+  
+  cereales:
+    producto: "cereal"
+    categoria: "cereales"
+    preguntas:
+      - "¿Cuál es el mejor cereal para el desayuno en 2025?"
+      - "¿Qué cereales son más nutritivos?"
+      - "¿Kellogg's o Nestlé? ¿Cuál es mejor?"
+      - "¿Qué cereales tienen menos azúcar?"
+      - "¿Cuál es el mejor cereal integral?"
+      - "¿Qué cereales recomendarías para niños?"
+      - "¿Cuáles son los cereales más saludables?"
+      - "¿Qué cereal tiene mejor sabor?"
+  
+  snacks:
+    producto: "snack"
+    categoria: "snacks"
+    preguntas:
+      - "¿Cuál es el mejor snack salado en 2025?"
+      - "¿Lays o Pringles? ¿Cuál es mejor?"
+      - "¿Qué snacks son más saludables?"
+      - "¿Cuál es el mejor snack para fiestas?"
+      - "¿Qué snacks tienen mejor sabor?"
+      - "¿Cuál es el snack más vendido?"
+      - "¿Qué snacks son mejores para niños?"
+      - "¿Cuáles son los snacks más adictivos?"
+

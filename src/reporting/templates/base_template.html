@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }} - {{ periodo }}</title>
+</head>
+<body>
+    <!-- PORTADA -->
+    <div class="portada">
+        <div class="portada-header">
+            <h1 class="portada-titulo">{{ titulo }}</h1>
+            <div class="portada-subtitulo">{{ mercado }} / {{ categoria }}</div>
+        </div>
+        <div class="portada-periodo">
+            <div class="periodo-label">PERIODO</div>
+            <div class="periodo-value">{{ periodo }}</div>
+        </div>
+        <div class="portada-footer">
+            <div class="generado">Generado automáticamente</div>
+            <div class="fecha">{{ fecha_generacion }}</div>
+            <div class="powered">TwoLaps Intelligence Platform</div>
+        </div>
+    </div>
+
+    <!-- RESUMEN EJECUTIVO -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Resumen Ejecutivo</h1>
+        
+        {% if resumen_ejecutivo.contexto %}
+        <p class="contexto">{{ resumen_ejecutivo.contexto }}</p>
+        {% endif %}
+        
+        {% if resumen_ejecutivo.hallazgos_clave %}
+        <h2>Hallazgos Clave</h2>
+        <ul class="hallazgos">
+            {% for hallazgo in resumen_ejecutivo.hallazgos_clave %}
+            <li>{{ hallazgo }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- ESTADO DEL MERCADO -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Estado del Mercado</h1>
+        
+        {% if mercado_section.estado_general %}
+        <p>{{ mercado_section.estado_general }}</p>
+        {% endif %}
+        
+        {% if mercado_section.volumen_conversacion %}
+        <div class="kpi-box">
+            <div class="kpi-label">Volumen de Conversación</div>
+            <div class="kpi-value">{{ mercado_section.volumen_conversacion }}</div>
+            <div class="kpi-unit">menciones totales</div>
+        </div>
+        {% endif %}
+        
+        {% if mercado_section.principales_temas %}
+        <h2>Principales Temas</h2>
+        <ul>
+            {% for tema in mercado_section.principales_temas %}
+            <li>{{ tema }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- ANÁLISIS COMPETITIVO -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Análisis Competitivo</h1>
+        
+        {% if competencia.lider %}
+        <div class="lider-box">
+            <strong>Líder del Mercado:</strong> {{ competencia.lider }}
+        </div>
+        {% endif %}
+        
+        {% if competencia.analisis_sov %}
+        <h2>Share of Voice (SOV)</h2>
+        <p>{{ competencia.analisis_sov }}</p>
+        {% endif %}
+        
+        {% if competencia.comparativas %}
+        <h2>Análisis Comparativo</h2>
+        <ul>
+            {% for comp in competencia.comparativas %}
+            <li>{{ comp }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- SENTIMIENTO Y REPUTACIÓN -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Sentimiento y Reputación</h1>
+        
+        {% if sentimiento.resumen %}
+        <p>{{ sentimiento.resumen }}</p>
+        {% endif %}
+        
+        {% if sentimiento.por_marca_destacado %}
+        <h2>Análisis por Marca</h2>
+        <ul>
+            {% for analisis in sentimiento.por_marca_destacado %}
+            <li>{{ analisis }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <!-- OPORTUNIDADES Y RIESGOS -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Oportunidades y Riesgos</h1>
+        
+        {% if oportunidades_riesgos.oportunidades %}
+        <h2 class="oportunidades-titulo">🎯 Oportunidades</h2>
+        {% for opp in oportunidades_riesgos.oportunidades %}
+        <div class="oportunidad-box">
+            <div class="oportunidad-titulo">{{ opp.titulo }}</div>
+            <p class="oportunidad-desc">{{ opp.descripcion }}</p>
+            <div class="oportunidad-meta">
+                <span class="prioridad prioridad-{{ opp.prioridad }}">Prioridad: {{ opp.prioridad }}</span>
+                <span class="impacto">Impacto: {{ opp.impacto }}</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        
+        {% if oportunidades_riesgos.riesgos %}
+        <h2 class="riesgos-titulo">⚠️ Riesgos</h2>
+        {% for riesgo in oportunidades_riesgos.riesgos %}
+        <div class="riesgo-box">
+            <div class="riesgo-titulo">{{ riesgo.titulo }}</div>
+            <p class="riesgo-desc">{{ riesgo.descripcion }}</p>
+            <div class="riesgo-meta">
+                <span class="probabilidad">Probabilidad: {{ riesgo.probabilidad }}</span>
+                <span class="severidad">Severidad: {{ riesgo.severidad }}</span>
+            </div>
+            {% if riesgo.mitigacion %}
+            <div class="mitigacion">
+                <strong>Mitigación:</strong> {{ riesgo.mitigacion }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- PLAN DE ACCIÓN 90 DÍAS -->
+    <div class="seccion">
+        <h1 class="seccion-titulo">Plan de Acción 90 Días</h1>
+        
+        {% if plan_90_dias.iniciativas %}
+        {% for iniciativa in plan_90_dias.iniciativas %}
+        <div class="iniciativa-box">
+            <div class="iniciativa-header">
+                <h3 class="iniciativa-titulo">{{ iniciativa.titulo }}</h3>
+                <span class="prioridad prioridad-{{ iniciativa.prioridad }}">{{ iniciativa.prioridad }}</span>
+            </div>
+            
+            {% if iniciativa.descripcion %}
+            <div class="iniciativa-seccion">
+                <strong>QUÉ:</strong> {{ iniciativa.descripcion }}
+            </div>
+            {% endif %}
+            
+            {% if iniciativa.por_que %}
+            <div class="iniciativa-seccion">
+                <strong>POR QUÉ:</strong> {{ iniciativa.por_que }}
+            </div>
+            {% endif %}
+            
+            {% if iniciativa.como %}
+            <div class="iniciativa-seccion">
+                <strong>CÓMO:</strong> {{ iniciativa.como }}
+            </div>
+            {% endif %}
+            
+            {% if iniciativa.timeline %}
+            <div class="iniciativa-timeline">
+                <strong>CUÁNDO:</strong> {{ iniciativa.timeline }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- ANEXOS -->
+    <div class="seccion anexos">
+        <h1 class="seccion-titulo">Anexos</h1>
+        
+        <h2>Metodología</h2>
+        <p>
+            Este informe ha sido generado automáticamente mediante un sistema de inteligencia 
+            competitiva que analiza respuestas de múltiples modelos de IA (GPT-4, Claude, Gemini) 
+            a preguntas estructuradas sobre el mercado y marcas.
+        </p>
+        
+        <h2>Métricas de Calidad</h2>
+        <ul class="metricas">
+            <li><strong>Hallazgos identificados:</strong> {{ metricas_calidad.hallazgos or 'N/A' }}</li>
+            <li><strong>Oportunidades detectadas:</strong> {{ metricas_calidad.oportunidades or 'N/A' }}</li>
+            <li><strong>Riesgos identificados:</strong> {{ metricas_calidad.riesgos or 'N/A' }}</li>
+            <li><strong>Iniciativas en plan 90 días:</strong> {{ metricas_calidad.plan_acciones or 'N/A' }}</li>
+        </ul>
+        
+        <div class="disclaimer">
+            <strong>Nota:</strong> Este informe es una herramienta de inteligencia competitiva 
+            basada en análisis automatizado. Las recomendaciones deben ser validadas por expertos 
+            del sector antes de implementarse.
+        </div>
+    </div>
+
+    <!-- FOOTER EN TODAS LAS PÁGINAS -->
+    <div class="page-footer">
+        TwoLaps Intelligence Platform | {{ periodo }} | Confidencial
+    </div>
+</body>
+</html>
+
