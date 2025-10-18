@@ -431,6 +431,20 @@ def seed_fmcg():
         logger.error("Error en seed_fmcg", exc_info=True)
 
 
+@admin.command()
+def seed_health():
+    """Poblar base de datos con datos del mercado Salud"""
+    from src.admin.seed_health import seed_health_market
+    
+    click.echo("🌱 Poblando base de datos con datos de Salud...")
+    try:
+        seed_health_market()
+        click.echo("✓ Datos de Salud creados exitosamente")
+    except Exception as e:
+        click.echo(f"✗ Error al crear datos de Salud: {e}", err=True)
+        logger.error("Error en seed_health", exc_info=True)
+
+
 @admin.group()
 def candidates():
     """Gestionar candidatos de marcas detectados automáticamente"""

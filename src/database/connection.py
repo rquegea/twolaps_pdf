@@ -91,17 +91,27 @@ def reset_db():
     print("✓ Database reset completed")
 
 
-# Event listener para habilitar pgvector en cada conexión
+# Event listener para habilitar pgvector en cada conexión con manejo de errores
 @event.listens_for(engine, "connect")
 def connect(dbapi_connection, connection_record):
-    """Enable pgvector extension on connection"""
+    """Enable pgvector extension if available and keep transaction clean"""
     cursor = dbapi_connection.cursor()
     try:
-        cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        dbapi_connection.commit()
+        # Verificar si la extensión está disponible en el servidor
+        cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector')")
+        available = cursor.fetchone()[0]
+        if available:
+            cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            dbapi_connection.commit()
+        else:
+            # Asegura que no quede transacción abierta si no está disponible
+            dbapi_connection.rollback()
     except Exception:
-        # Extension might already exist or user lacks permissions
-        pass
+        # Asegura limpiar la transacción si algo falla
+        try:
+            dbapi_connection.rollback()
+        except Exception:
+            pass
     finally:
         cursor.close()
 

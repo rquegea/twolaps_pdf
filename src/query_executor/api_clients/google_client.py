@@ -29,6 +29,11 @@ class GoogleClient(BaseAIClient):
             "gemini-1.5-pro": "gemini-1.5-pro-latest",
             "models/gemini-1.5-pro": "gemini-1.5-pro-latest",
             "models/gemini-1.5-pro-latest": "gemini-1.5-pro-latest",
+            # 1.5 Flash
+            "gemini-1.5-flash": "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-latest": "gemini-1.5-flash-latest",
+            "models/gemini-1.5-flash": "gemini-1.5-flash-latest",
+            "models/gemini-1.5-flash-latest": "gemini-1.5-flash-latest",
             # 2.0/2.5 Flash (por si se configura en entorno)
             "gemini-2.0-flash": "gemini-2.0-flash",
             "gemini-2.0-flash-latest": "gemini-2.0-flash-latest",
