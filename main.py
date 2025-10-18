@@ -196,6 +196,55 @@ def generate_batch(categories, all_categories, period):
         click.echo(f"  ✗ Fallidos: {failed}")
 
 
+@cli.command()
+@click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google). Por defecto usa los de cada query')
+@click.option('--market', '-m', help='Limitar a un mercado (opcional)')
+def execute_all(provider, market):
+    """Ejecutar AHORA todas las queries activas ignorando el scheduler"""
+    from src.database.connection import get_session
+    from src.database.models import Mercado, Categoria
+    from src.query_executor.poller import execute_category_queries
+
+    with get_session() as session:
+        mercados = session.query(Mercado).filter_by(activo=True).all()
+        if market:
+            mercados = [m for m in mercados if m.nombre == market]
+            if not mercados:
+                click.echo(f"✗ Mercado '{market}' no encontrado", err=True)
+                raise click.Abort()
+
+        total_stats = {
+            'queries_executed': 0,
+            'total_executions': 0,
+            'successful_executions': 0,
+            'failed_executions': 0,
+            'total_cost': 0.0
+        }
+
+        for m in mercados:
+            categorias = session.query(Categoria).filter_by(mercado_id=m.id, activo=True).all()
+            for c in categorias:
+                category_path = f"{m.nombre}/{c.nombre}"
+                click.echo(f"🔄 Ejecutando: {category_path}")
+                try:
+                    stats = execute_category_queries(category_path, providers=list(provider) if provider else None)
+                    total_stats['queries_executed'] += stats['queries_executed']
+                    total_stats['total_executions'] += stats['total_executions']
+                    total_stats['successful_executions'] += stats['successful_executions']
+                    total_stats['failed_executions'] += stats['failed_executions']
+                    total_stats['total_cost'] += stats['total_cost']
+                except Exception as e:
+                    click.echo(f"  ✗ Error: {e}")
+                click.echo("")
+
+        click.echo("\n✅ Ejecución global completada")
+        click.echo(f"  Queries ejecutadas: {total_stats['queries_executed']}")
+        click.echo(f"  Respuestas:        {total_stats['total_executions']}")
+        click.echo(f"  Éxitos:            {total_stats['successful_executions']}")
+        click.echo(f"  Fallos:            {total_stats['failed_executions']}")
+        click.echo(f"  Coste total:       ${total_stats['total_cost']:.4f}")
+
+
 # Registrar grupo de comandos admin
 cli.add_command(admin)
 

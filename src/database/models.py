@@ -211,6 +211,53 @@ class Marca(Base):
         return f"<Marca(id={self.id}, nombre='{self.nombre}', tipo='{self.tipo}')>"
 
 
+class BrandCandidate(Base):
+    """
+    Candidatos de marcas detectadas automáticamente en respuestas de IA
+    Permite revisión humana antes de promover a `Marca`.
+    """
+    __tablename__ = "brand_candidates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    categoria_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("categorias.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    fuente_execution_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("query_executions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    nombre_detectado: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    aliases_detectados: Mapped[Optional[Dict[str, Any]]] = mapped_column("aliases", JSON)
+    confianza: Mapped[Optional[float]] = mapped_column(Float)
+    estado: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending"
+    )  # pending, approved, rejected
+    ocurrencias: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relaciones
+    categoria: Mapped["Categoria"] = relationship("Categoria")
+    fuente_execution: Mapped["QueryExecution"] = relationship("QueryExecution")
+
+    __table_args__ = (
+        Index('idx_brand_candidate_unique', 'categoria_id', 'nombre_detectado', unique=False),
+        CheckConstraint(
+            "estado IN ('pending', 'approved', 'rejected')",
+            name="check_estado_brand_candidate"
+        ),
+    )
+
+    def __repr__(self):
+        return f"<BrandCandidate(id={self.id}, nombre='{self.nombre_detectado}', estado='{self.estado}')>"
+
 class QueryExecution(Base):
     """
     Ejecuciones de queries - Respuestas de las IAs

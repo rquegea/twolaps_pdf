@@ -10,7 +10,7 @@ from sqlalchemy import func, extract
 from src.database.connection import get_session
 from src.database.models import (
     Mercado, Categoria, Query, Marca, QueryExecution, 
-    AnalysisResult, Report
+    AnalysisResult, Report, BrandCandidate
 )
 from src.query_executor.poller import execute_category_queries
 from src.analytics.orchestrator import run_analysis
@@ -72,6 +72,7 @@ with st.sidebar:
             "📊 Mercados & Categorías",
             "❓ Queries",
             "🏷️ Marcas",
+            "🧪 Candidatos",
             "🤖 Ejecuciones",
             "📈 Análisis",
             "📄 Informes",
@@ -378,6 +379,73 @@ elif page == "🏷️ Marcas":
                             st.write(f"• {m.nombre}")
                 else:
                     st.info("No hay marcas configuradas")
+
+# PÁGINA: CANDIDATOS
+elif page == "🧪 Candidatos":
+    st.markdown('<p class="main-header">Candidatos de Marcas Detectados</p>', unsafe_allow_html=True)
+    with get_session() as session:
+        # Filtros
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            mercados = session.query(Mercado).filter_by(activo=True).all()
+            mercado_names = [m.nombre for m in mercados]
+            selected_mercado = st.selectbox("Mercado", mercado_names) if mercado_names else None
+        with col2:
+            categorias = []
+            if selected_mercado:
+                mercado = session.query(Mercado).filter_by(nombre=selected_mercado).first()
+                categorias = session.query(Categoria).filter_by(mercado_id=mercado.id, activo=True).all()
+            cat_names = [c.nombre for c in categorias]
+            selected_categoria = st.selectbox("Categoría", cat_names) if cat_names else None
+        with col3:
+            status = st.selectbox("Estado", ["pending", "approved", "rejected"], index=0)
+
+        st.markdown("---")
+
+        if selected_mercado and selected_categoria:
+            categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=selected_categoria).first()
+            rows = session.query(BrandCandidate).filter_by(categoria_id=categoria.id, estado=status).order_by(BrandCandidate.ocurrencias.desc()).all()
+
+            st.subheader(f"{len(rows)} candidatos ({status})")
+
+            if not rows:
+                st.info("No hay candidatos con estos filtros")
+            else:
+                for bc in rows:
+                    with st.expander(f"{bc.nombre_detectado}  (conf: {bc.confianza or 0:.2f}, occ: {bc.ocurrencias})", expanded=False):
+                        st.caption(f"Aliases: {', '.join(bc.aliases_detectados or []) if bc.aliases_detectados else '—'}")
+                        cols = st.columns(3)
+
+                        # Aprobar
+                        with cols[0]:
+                            tipo = st.selectbox("Tipo", ["lider", "competidor", "emergente"], index=1, key=f"tipo_{bc.id}")
+                            if st.button("✅ Aprobar y crear marca", key=f"approve_{bc.id}"):
+                                # Crear marca si no existe
+                                existing = session.query(Marca).filter_by(categoria_id=categoria.id, nombre=bc.nombre_detectado).first()
+                                if not existing:
+                                    marca = Marca(
+                                        categoria_id=categoria.id,
+                                        nombre=bc.nombre_detectado,
+                                        tipo=tipo,
+                                        aliases=list(set([bc.nombre_detectado] + (bc.aliases_detectados or [])))
+                                    )
+                                    session.add(marca)
+                                    session.flush()
+                                bc.estado = 'approved'
+                                session.commit()
+                                st.success("Candidato aprobado y marca creada")
+
+                        # Rechazar
+                        with cols[1]:
+                            if st.button("❌ Rechazar", key=f"reject_{bc.id}"):
+                                bc.estado = 'rejected'
+                                session.commit()
+                                st.warning("Candidato rechazado")
+
+                        # Metadata
+                        with cols[2]:
+                            st.caption(f"Visto por primera vez: {bc.first_seen.strftime('%Y-%m-%d %H:%M')}")
+                            st.caption(f"Última vez: {bc.last_seen.strftime('%Y-%m-%d %H:%M')}")
 
 # PÁGINA: EJECUCIONES
 elif page == "🤖 Ejecuciones":

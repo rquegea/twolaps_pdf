@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from tabulate import tabulate
 from src.database.connection import get_session
-from src.database.models import Mercado, Categoria, Query, Marca, QueryExecution
+from src.database.models import Mercado, Categoria, Query, Marca, QueryExecution, BrandCandidate
 from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import setup_logger
 
@@ -430,3 +430,116 @@ def seed_fmcg():
         click.echo(f"✗ Error al crear datos: {e}", err=True)
         logger.error("Error en seed_fmcg", exc_info=True)
 
+
+@admin.group()
+def candidates():
+    """Gestionar candidatos de marcas detectados automáticamente"""
+    pass
+
+
+@candidates.command("list")
+@click.option('--category', '-c', required=True, help='Categoría (Mercado/Categoría)')
+@click.option('--status', '-s', type=click.Choice(['pending', 'approved', 'rejected']), default='pending')
+def list_candidates(category, status):
+    """Listar candidatos de una categoría por estado"""
+    with get_session() as session:
+        try:
+            market_name, cat_name = category.split('/')
+        except ValueError:
+            click.echo("✗ Formato inválido. Usa Mercado/Categoría", err=True)
+            return
+
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            return
+        categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=cat_name).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            return
+
+        rows = session.query(BrandCandidate).filter_by(categoria_id=categoria.id, estado=status).order_by(BrandCandidate.ocurrencias.desc()).all()
+        if not rows:
+            click.echo("(sin candidatos)")
+            return
+        click.echo(f"\nCandidatos ({status}) en {category}\n")
+        for bc in rows:
+            click.echo(f"- {bc.nombre_detectado}  (conf: {bc.confianza or 0:.2f}, occ: {bc.ocurrencias})")
+
+
+@candidates.command("approve")
+@click.option('--category', '-c', required=True, help='Categoría (Mercado/Categoría)')
+@click.option('--name', '-n', required=True, help='Nombre del candidato a aprobar')
+@click.option('--type', '-t', type=click.Choice(['lider', 'competidor', 'emergente']), default='competidor')
+def approve_candidate(category, name, type):
+    """Aprueba un candidato y lo promueve a `Marca`"""
+    with get_session() as session:
+        try:
+            market_name, cat_name = category.split('/')
+        except ValueError:
+            click.echo("✗ Formato inválido. Usa Mercado/Categoría", err=True)
+            return
+
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            return
+        categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=cat_name).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            return
+
+        bc = session.query(BrandCandidate).filter_by(categoria_id=categoria.id, nombre_detectado=name).first()
+        if not bc:
+            click.echo(f"✗ Candidato '{name}' no encontrado", err=True)
+            return
+
+        # Crear marca si no existe
+        existing = session.query(Marca).filter_by(categoria_id=categoria.id, nombre=bc.nombre_detectado).first()
+        if existing:
+            click.echo(f"✓ Ya existe marca '{bc.nombre_detectado}' (ID: {existing.id})")
+        else:
+            marca = Marca(
+                categoria_id=categoria.id,
+                nombre=bc.nombre_detectado,
+                tipo=type,
+                aliases=list(set([bc.nombre_detectado] + (bc.aliases_detectados or [])))
+            )
+            session.add(marca)
+            session.flush()
+            click.echo(f"✓ Marca creada: {marca.nombre} (ID: {marca.id})")
+
+        # Actualizar candidato
+        bc.estado = 'approved'
+        session.commit()
+        click.echo("✓ Candidato aprobado")
+
+
+@candidates.command("reject")
+@click.option('--category', '-c', required=True, help='Categoría (Mercado/Categoría)')
+@click.option('--name', '-n', required=True, help='Nombre del candidato a rechazar')
+def reject_candidate(category, name):
+    """Rechaza un candidato"""
+    with get_session() as session:
+        try:
+            market_name, cat_name = category.split('/')
+        except ValueError:
+            click.echo("✗ Formato inválido. Usa Mercado/Categoría", err=True)
+            return
+
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            return
+        categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=cat_name).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            return
+
+        bc = session.query(BrandCandidate).filter_by(categoria_id=categoria.id, nombre_detectado=name).first()
+        if not bc:
+            click.echo(f"✗ Candidato '{name}' no encontrado", err=True)
+            return
+        bc.estado = 'rejected'
+        session.commit()
+        click.echo("✓ Candidato rechazado")
