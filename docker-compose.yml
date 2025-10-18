@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: twolaps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: twolaps
+      POSTGRES_PASSWORD: twolaps
+      POSTGRES_DB: twolaps
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
+
+volumes:
+  db_data:
+    driver: local
+
+
