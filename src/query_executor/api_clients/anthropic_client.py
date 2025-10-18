@@ -25,6 +25,7 @@ class AnthropicClient(BaseAIClient):
         
         super().__init__(api_key, model)
         
+        # Inicializa cliente Anthropic
         self.client = Anthropic(api_key=api_key)
     
     def generate(
@@ -46,19 +47,36 @@ class AnthropicClient(BaseAIClient):
         """
         max_tokens = max_tokens or 4096
         
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        
-        return {
-            'response_text': response.content[0].text,
-            'tokens_input': response.usage.input_tokens,
-            'tokens_output': response.usage.output_tokens,
-            'model': self.model
-        }
+        # Compatibilidad: algunos entornos exponen client.completions (sin messages)
+        if hasattr(self.client, "messages"):
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return {
+                'response_text': response.content[0].text if getattr(response, 'content', None) else '',
+                'tokens_input': getattr(getattr(response, 'usage', None), 'input_tokens', 0),
+                'tokens_output': getattr(getattr(response, 'usage', None), 'output_tokens', 0),
+                'model': self.model
+            }
+        else:
+            # Fallback a completions API
+            import anthropic as _anth
+            resp = self.client.completions.create(
+                model=self.model,
+                max_tokens_to_sample=max_tokens,
+                temperature=temperature,
+                prompt=f"{_anth.HUMAN_PROMPT} {prompt}{_anth.AI_PROMPT}",
+            )
+            text = getattr(resp, 'completion', '')
+            return {
+                'response_text': text,
+                'tokens_input': 0,
+                'tokens_output': 0,
+                'model': self.model
+            }
 

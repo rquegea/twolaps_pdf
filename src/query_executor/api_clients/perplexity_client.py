@@ -1,5 +1,51 @@
 """
 Perplexity Client
+Usa la API compatible con OpenAI en https://api.perplexity.ai
+"""
+
+import os
+from typing import Dict, Optional
+from openai import OpenAI
+from src.query_executor.api_clients.base import BaseAIClient
+
+
+class PerplexityClient(BaseAIClient):
+    """Cliente para Perplexity AI (endpoint OpenAI-compatible)."""
+
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        api_key = api_key or os.getenv("PPLX_API_KEY")
+        model = model or os.getenv("PPLX_MODEL", "sonar-small-online")
+
+        super().__init__(api_key, model)
+
+        # OpenAI SDK apuntando al endpoint de Perplexity
+        self.client = OpenAI(api_key=api_key, base_url=os.getenv("PPLX_BASE_URL", "https://api.perplexity.ai"))
+
+    def generate(
+        self,
+        prompt: str,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None
+    ) -> Dict:
+        max_tokens = max_tokens or 800
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+        usage = response.usage
+        return {
+            'response_text': response.choices[0].message.content,
+            'tokens_input': getattr(usage, 'prompt_tokens', 0),
+            'tokens_output': getattr(usage, 'completion_tokens', 0),
+            'model': self.model
+        }
+
+"""
+Perplexity Client
 Cliente para Perplexity AI (modelos Sonar con búsqueda online)
 """
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.database.connection import get_session
 from src.database.models import Query, QueryExecution, Mercado, Categoria
 from src.query_executor.scheduler import QueryScheduler
-from src.query_executor.api_clients import OpenAIClient, AnthropicClient, GoogleClient
+from src.query_executor.api_clients import OpenAIClient, AnthropicClient, GoogleClient, PerplexityClient
 from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import setup_logger, log_query_execution
 from src.analytics.competitor_discovery import discover_competitors_from_execution
@@ -25,6 +25,8 @@ def get_client(provider: str):
         'openai': OpenAIClient,
         'anthropic': AnthropicClient,
         'google': GoogleClient,
+        'perplexity': PerplexityClient,
+        'pplx': PerplexityClient,
     }
     
     client_class = clients.get(provider.lower())
