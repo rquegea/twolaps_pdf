@@ -197,7 +197,7 @@ def generate_batch(categories, all_categories, period):
 
 
 @cli.command()
-@click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google). Por defecto usa los de cada query')
+@click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google, perplexity). Por defecto usa los de cada query')
 @click.option('--market', '-m', help='Limitar a un mercado (opcional)')
 def execute_all(provider, market):
     """Ejecutar AHORA todas las queries activas ignorando el scheduler"""

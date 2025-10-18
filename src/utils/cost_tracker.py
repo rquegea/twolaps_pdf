@@ -71,7 +71,15 @@ class CostTracker:
             Coste en USD
         """
         try:
-            model_pricing = self.pricing.get(provider, {}).get(model, {})
+            # Normalización simple de alias de modelos (p.ej., "models/..." y sufijo "-latest")
+            normalized_model = model or ""
+            if normalized_model.startswith("models/"):
+                normalized_model = normalized_model.split("/", 1)[1]
+            if normalized_model.endswith("-latest"):
+                normalized_model = normalized_model.replace("-latest", "")
+
+            provider_pricing = self.pricing.get(provider, {})
+            model_pricing = provider_pricing.get(model, {}) or provider_pricing.get(normalized_model, {})
             
             cost_input = (tokens_input / 1000) * model_pricing.get('input', 0)
             cost_output = (tokens_output / 1000) * model_pricing.get('output', 0)

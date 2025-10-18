@@ -103,7 +103,7 @@ def seed_cervezas(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "anthropic", "google"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     
@@ -157,7 +157,7 @@ def seed_refrescos(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "anthropic", "google"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     
@@ -415,7 +415,7 @@ def seed_snacks(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "anthropic", "google"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     

@@ -23,13 +23,19 @@ class GoogleClient(BaseAIClient):
         api_key = api_key or os.getenv("GOOGLE_API_KEY")
         model = model or os.getenv("GOOGLE_MODEL", "gemini-1.5-pro-latest")
 
-        # Normalizar alias y prefijos comunes para evitar 404 por nombre de modelo
+        # Normalización de alias para evitar 404 por prefijos/sufijos
         alias_map = {
+            # 1.5 Pro
             "gemini-1.5-pro": "gemini-1.5-pro-latest",
             "models/gemini-1.5-pro": "gemini-1.5-pro-latest",
             "models/gemini-1.5-pro-latest": "gemini-1.5-pro-latest",
+            # 2.0/2.5 Flash (por si se configura en entorno)
+            "gemini-2.0-flash": "gemini-2.0-flash",
+            "gemini-2.0-flash-latest": "gemini-2.0-flash-latest",
             "models/gemini-2.0-flash": "gemini-2.0-flash",
             "models/gemini-2.0-flash-latest": "gemini-2.0-flash-latest",
+            "gemini-2.5-flash": "gemini-2.5-flash",
+            "gemini-2.5-flash-latest": "gemini-2.5-flash-latest",
             "models/gemini-2.5-flash": "gemini-2.5-flash",
             "models/gemini-2.5-flash-latest": "gemini-2.5-flash-latest",
         }
