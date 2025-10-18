@@ -44,6 +44,10 @@ class CostTracker:
                 },
                 'google': {
                     'gemini-1.5-pro': {'input': 0.00125, 'output': 0.005}
+                },
+                'perplexity': {
+                    'sonar-small-online': {'input': 0.001, 'output': 0.002},
+                    'sonar-medium-online': {'input': 0.002, 'output': 0.004}
                 }
             }
     

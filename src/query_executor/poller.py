@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.database.connection import get_session
 from src.database.models import Query, QueryExecution, Mercado, Categoria
 from src.query_executor.scheduler import QueryScheduler
-from src.query_executor.api_clients import OpenAIClient, AnthropicClient, GoogleClient
+from src.query_executor.api_clients import OpenAIClient, AnthropicClient, GoogleClient, PerplexityClient
 from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import setup_logger, log_query_execution
 
@@ -23,7 +23,9 @@ def get_client(provider: str):
     clients = {
         'openai': OpenAIClient,
         'anthropic': AnthropicClient,
-        'google': GoogleClient
+        'google': GoogleClient,
+        'perplexity': PerplexityClient,
+        'pplx': PerplexityClient,
     }
     
     client_class = clients.get(provider.lower())
@@ -39,7 +41,7 @@ def execute_query(query: Query, provider: str, session: Session) -> Dict:
     
     Args:
         query: Query a ejecutar
-        provider: Proveedor (openai, anthropic, google)
+        provider: Proveedor (openai, anthropic, google, perplexity)
         session: Sesión de BD
     
     Returns:

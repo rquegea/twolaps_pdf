@@ -391,7 +391,7 @@ elif page == "🤖 Ejecuciones":
             dias = st.selectbox("Últimos", [1, 7, 30, 90], index=2)
         
         with col2:
-            proveedores = ['Todos', 'openai', 'anthropic', 'google']
+            proveedores = ['Todos', 'openai', 'anthropic', 'google', 'perplexity']
             proveedor_filter = st.selectbox("Proveedor", proveedores)
         
         with col3:

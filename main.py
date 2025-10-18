@@ -50,7 +50,7 @@ def test_db():
 @cli.command()
 @click.option('--category', '-c', required=True, help='Categoría (formato: Mercado/Categoría)')
 @click.option('--all-providers', is_flag=True, help='Ejecutar en todos los proveedores configurados')
-@click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google)')
+@click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google, perplexity)')
 def execute_queries(category, all_providers, provider):
     """
     Ejecutar queries de una categoría manualmente
