@@ -21,7 +21,7 @@ class AnthropicClient(BaseAIClient):
             model: Modelo a usar (si None, se lee de env)
         """
         api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+        model = model or os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-latest")
         
         super().__init__(api_key, model)
         

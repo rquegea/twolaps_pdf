@@ -39,7 +39,7 @@ class CostTracker:
                     'text-embedding-3-small': {'input': 0.00002}
                 },
                 'anthropic': {
-                    'claude-3-5-sonnet-20241022': {'input': 0.003, 'output': 0.015},
+                    'claude-3-7-sonnet-latest': {'input': 0.003, 'output': 0.015},
                     'claude-3-opus': {'input': 0.015, 'output': 0.075}
                 },
                 'google': {
