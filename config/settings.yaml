@@ -47,14 +47,11 @@ llm_providers:
       text-embedding-3-small:
         input: 0.00002
     anthropic:
-      claude-3-7-sonnet-latest:
+      claude-sonnet-4-5:
         input: 0.003
         output: 0.015
-      claude-3-opus:
-        input: 0.015
-        output: 0.075
     google:
-      gemini-1.5-pro:
+      gemini-1.5-pro-latest:
         input: 0.00125
         output: 0.005
     perplexity:
