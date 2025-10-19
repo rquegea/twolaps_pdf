@@ -384,6 +384,116 @@ li {
     font-size: 10pt;
 }
 
+/* DASHBOARD EJECUTIVO */
+.dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20pt;
+    border-radius: 8pt;
+    color: white;
+    margin-bottom: 30pt;
+}
+
+.dashboard .seccion-titulo {
+    border-bottom: 2pt solid white;
+    color: white;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16pt;
+    margin-top: 20pt;
+}
+
+.kpi-card {
+    background-color: white;
+    color: #333;
+    padding: 16pt;
+    border-radius: 8pt;
+    text-align: center;
+    box-shadow: 0 4pt 6pt rgba(0, 0, 0, 0.1);
+}
+
+.kpi-card.success {
+    border-top: 4pt solid #28a745;
+}
+
+.kpi-card.danger {
+    border-top: 4pt solid #dc3545;
+}
+
+.kpi-card.info {
+    border-top: 4pt solid #0066cc;
+}
+
+.kpi-icon {
+    font-size: 32pt;
+    margin-bottom: 8pt;
+}
+
+.kpi-titulo {
+    font-size: 10pt;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1pt;
+    margin-bottom: 8pt;
+}
+
+.kpi-valor {
+    font-size: 24pt;
+    font-weight: 700;
+    color: #0066cc;
+}
+
+/* GRÁFICOS */
+.chart-container {
+    margin: 20pt 0;
+    text-align: center;
+    page-break-inside: avoid;
+}
+
+.chart-img {
+    max-width: 100%;
+    height: auto;
+    border: 1pt solid #dee2e6;
+    border-radius: 4pt;
+    padding: 8pt;
+    background-color: white;
+}
+
+/* TABLAS */
+.metricas-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 4pt;
+    overflow: hidden;
+    margin: 16pt 0;
+}
+
+.metricas-table tr {
+    border-bottom: 1pt solid #eee;
+}
+
+.metricas-table tr:last-child {
+    border-bottom: none;
+}
+
+.metricas-table td {
+    padding: 10pt 12pt;
+}
+
+.metricas-table td:first-child {
+    background-color: #f8f9fa;
+    width: 60%;
+}
+
+.metricas-table td:last-child {
+    text-align: right;
+    font-weight: 600;
+    color: #0066cc;
+}
+
 /* FOOTER */
 .page-footer {
     position: fixed;

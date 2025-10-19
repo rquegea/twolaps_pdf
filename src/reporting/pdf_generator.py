@@ -15,6 +15,7 @@ def _load_weasyprint():
 from src.database.connection import get_session
 from src.database.models import Report, Categoria, Mercado
 from src.utils.logger import setup_logger, log_report_generation
+from src.reporting.chart_generator import generate_all_charts
 import time
 
 logger = setup_logger(__name__)
@@ -104,6 +105,10 @@ class PDFGenerator:
         """Prepara contexto para el template"""
         contenido = report.contenido
         
+        # Generar gráficos
+        logger.info("Generando visualizaciones...", report_id=report.id)
+        charts = generate_all_charts(contenido)
+        
         return {
             'titulo': f"Análisis Competitivo - {categoria.nombre}",
             'mercado': mercado.nombre,
@@ -116,7 +121,8 @@ class PDFGenerator:
             'sentimiento': contenido.get('sentimiento_reputacion', {}),
             'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),
             'plan_90_dias': contenido.get('plan_90_dias', {}),
-            'metricas_calidad': report.metricas_calidad or {}
+            'metricas_calidad': report.metricas_calidad or {},
+            'charts': charts  # Gráficos en base64
         }
     
     def _format_percent(self, value: float) -> str:

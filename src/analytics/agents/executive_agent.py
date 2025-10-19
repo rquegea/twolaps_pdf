@@ -4,12 +4,14 @@ Síntesis ejecutiva final - Genera el informe completo
 """
 
 import json
+from datetime import datetime
 import yaml
 from pathlib import Path
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult, Report, Categoria, Mercado
 from src.query_executor.api_clients import OpenAIClient
+from sqlalchemy.exc import IntegrityError
 
 
 class ExecutiveAgent(BaseAgent):
@@ -85,42 +87,115 @@ class ExecutiveAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.5,
-                max_tokens=4000
+                max_tokens=4000,
+                json_mode=True
             )
             
-            # Parsear JSON
-            informe = json.loads(result['response_text'])
+            # Obtener respuesta
+            response_text = result.get('response_text', '')
+            
+            # Log para debug
+            self.logger.debug(f"Respuesta del LLM (primeros 500 chars): {response_text[:500]}")
+            
+            # Limpiar respuesta: extraer JSON si está dentro de markdown code blocks
+            response_text = response_text.strip()
+            
+            # Si está en un code block de markdown, extraerlo
+            if response_text.startswith('```'):
+                # Buscar el inicio del JSON
+                lines = response_text.split('\n')
+                json_lines = []
+                in_json = False
+                
+                for line in lines:
+                    if line.strip().startswith('```'):
+                        if not in_json:
+                            in_json = True
+                            continue
+                        else:
+                            break
+                    if in_json:
+                        json_lines.append(line)
+                
+                response_text = '\n'.join(json_lines).strip()
+            
+            # Validar que no esté vacío
+            if not response_text:
+                self.logger.error("Respuesta vacía del LLM")
+                return {'error': 'Respuesta vacía del LLM'}
+            
+            # Parsear JSON (intentando extraer el primer objeto JSON válido si hay ruido)
+            try:
+                informe = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Intento de extracción simple del primer bloque JSON con llaves
+                start = response_text.find('{')
+                end = response_text.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    candidate = response_text[start:end+1]
+                    try:
+                        informe = json.loads(candidate)
+                    except json.JSONDecodeError as e2:
+                        self.logger.error(f"Error parseando JSON (2do intento): {e2}")
+                        self.logger.error(f"Texto recibido: {response_text[:1000]}")
+                        return {'error': f'Error parseando JSON del LLM: {str(e2)}'}
+                else:
+                    self.logger.error("No se encontró bloque JSON en la respuesta")
+                    self.logger.error(f"Texto recibido: {response_text[:1000]}")
+                    return {'error': 'Respuesta del LLM no contiene JSON válido'}
             
             # Validar estructura
             informe = self._validate_and_complete_report(informe, quantitative, strategic)
             
-            # Guardar en tabla reports
-            report = Report(
-                categoria_id=categoria_id,
-                periodo=periodo,
-                estado='draft',
-                contenido=informe,
-                generado_por=f"executive_agent_v{self.version}",
-                metricas_calidad={
-                    'hallazgos': len(informe.get('resumen_ejecutivo', {}).get('hallazgos', [])),
-                    'oportunidades': len(informe.get('oportunidades_riesgos', {}).get('oportunidades', [])),
-                    'riesgos': len(informe.get('oportunidades_riesgos', {}).get('riesgos', [])),
-                    'plan_acciones': len(informe.get('plan_90_dias', {}).get('iniciativas', []))
-                }
-            )
-            
-            self.session.add(report)
-            self.session.commit()
-            
-            return {
-                'report_id': report.id,
-                'informe': informe,
-                'metadata': {
-                    'categoria': categoria_nombre,
-                    'periodo': periodo,
-                    'tokens_usados': result.get('tokens_input', 0) + result.get('tokens_output', 0)
-                }
+            # Guardar/actualizar en tabla reports (UPSERT por categoria_id + periodo)
+            metrics = {
+                'hallazgos': len(informe.get('resumen_ejecutivo', {}).get('hallazgos_clave', [])),
+                'oportunidades': len(informe.get('oportunidades_riesgos', {}).get('oportunidades', [])),
+                'riesgos': len(informe.get('oportunidades_riesgos', {}).get('riesgos', [])),
+                'plan_acciones': len(informe.get('plan_90_dias', {}).get('iniciativas', []))
             }
+
+            try:
+                existing = self.session.query(Report).filter_by(
+                    categoria_id=categoria_id,
+                    periodo=periodo
+                ).first()
+
+                if existing:
+                    existing.estado = 'draft'
+                    existing.contenido = informe
+                    existing.pdf_path = None
+                    existing.generado_por = f"executive_agent_v{self.version}"
+                    existing.timestamp = datetime.utcnow()
+                    existing.metricas_calidad = metrics
+                    self.session.commit()
+                    report = existing
+                else:
+                    report = Report(
+                        categoria_id=categoria_id,
+                        periodo=periodo,
+                        estado='draft',
+                        contenido=informe,
+                        pdf_path=None,
+                        generado_por=f"executive_agent_v{self.version}",
+                        timestamp=datetime.utcnow(),
+                        metricas_calidad=metrics
+                    )
+                    self.session.add(report)
+                    self.session.commit()
+                
+                return {
+                    'report_id': report.id,
+                    'informe': informe,
+                    'metadata': {
+                        'categoria': categoria_nombre,
+                        'periodo': periodo,
+                        'tokens_usados': result.get('tokens_input', 0) + result.get('tokens_output', 0)
+                    }
+                }
+            except IntegrityError as e:
+                self.session.rollback()
+                return {'error': f'Error al guardar reporte: {str(e)}'}
         
         except Exception as e:
             return {'error': f'Error al generar informe: {str(e)}'}
@@ -209,6 +284,8 @@ IMPORTANTE:
 - Sé específico y accionable
 - Evita vaguedades
 - Todas las afirmaciones deben tener soporte cuantitativo
+- RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
+- NO uses bloques de código markdown (```), solo el JSON puro
 """
         
         return prompt

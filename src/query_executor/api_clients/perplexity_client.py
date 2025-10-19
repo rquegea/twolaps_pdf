@@ -23,7 +23,7 @@ class PerplexityClient(BaseAIClient):
             model: Modelo a usar (si None, se lee de env PPLX_MODEL)
         """
         api_key = api_key or os.getenv("PPLX_API_KEY")
-        model = model or os.getenv("PPLX_MODEL", "sonar-small-online")
+        model = model or os.getenv("PPLX_MODEL", "sonar-reasoning")
 
         super().__init__(api_key, model)
 

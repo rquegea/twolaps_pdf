@@ -121,6 +121,7 @@ dmypy.json
 .pyre/
 
 # Project-specific
+.env
 logs/
 *.log
 .twolaps/

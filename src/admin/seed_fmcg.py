@@ -208,7 +208,7 @@ def seed_rones(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "anthropic"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     
@@ -258,7 +258,7 @@ def seed_champagnes(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="monthly",
-            proveedores_ia=["openai", "anthropic"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     
@@ -310,7 +310,7 @@ def seed_galletas(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "google"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     
@@ -361,7 +361,7 @@ def seed_cereales(session, categoria):
             pregunta=pregunta,
             activa=True,
             frecuencia="weekly",
-            proveedores_ia=["openai", "google"]
+            proveedores_ia=["openai", "anthropic", "google", "perplexity"]
         )
         session.add(query)
     

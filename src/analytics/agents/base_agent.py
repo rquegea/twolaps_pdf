@@ -29,6 +29,9 @@ class BaseAgent(ABC):
         self.session = session
         self.version = version
         self.agent_name = self.__class__.__name__.replace('Agent', '').lower()
+        # Logger específico del agente
+        # Usamos el nombre de la clase para separar logs por agente
+        self.logger = setup_logger(self.__class__.__name__)
     
     @abstractmethod
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:

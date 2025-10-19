@@ -31,7 +31,8 @@ class OpenAIClient(BaseAIClient):
         self,
         prompt: str,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False
     ) -> Dict:
         """
         Genera una respuesta usando OpenAI
@@ -40,6 +41,7 @@ class OpenAIClient(BaseAIClient):
             prompt: Texto del prompt
             temperature: Temperatura (0-2)
             max_tokens: Máximo de tokens
+            json_mode: Si True, fuerza respuesta en formato JSON
         
         Returns:
             Dict con respuesta y métricas
@@ -54,6 +56,10 @@ class OpenAIClient(BaseAIClient):
         
         if max_tokens:
             kwargs["max_tokens"] = max_tokens
+        
+        # Activar JSON mode si se solicita y el modelo lo soporta
+        if json_mode and self.model in ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]:
+            kwargs["response_format"] = {"type": "json_object"}
         
         response = self.client.chat.completions.create(**kwargs)
         

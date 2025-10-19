@@ -86,7 +86,8 @@ def add_category(market, name, description):
 @click.option('--frequency', '-f', default='weekly', 
               type=click.Choice(['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']),
               help='Frecuencia de ejecución')
-@click.option('--providers', '-p', default='openai,anthropic,google,perplexity', help='Proveedores (separados por coma)')
+@click.option('--providers', '-p', default='openai,anthropic,google,perplexity', 
+              help='Proveedores (separados por coma). Por defecto: openai,anthropic,google,perplexity')
 @click.option('--active/--inactive', default=True, help='Query activa o inactiva')
 def add_query(category, question, frequency, providers, active):
     """Añadir una nueva query a una categoría"""

@@ -1,48 +1,42 @@
 # Core
-python-dotenv==1.0.0
-pyyaml==6.0.1
-click==8.1.7
+python-dotenv
+pyyaml
+click
 
 # Database
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-alembic==1.12.1
-pgvector==0.2.4
+sqlalchemy
+psycopg2-binary
+alembic
+pgvector
 
 # LLM Providers
-openai==1.6.1
-anthropic>=0.36.1
-google-generativeai>=0.7.2
-
-# LangChain & Orchestration
-# Fijamos versiones específicas de Langchain para ayudar a pip
-langchain==0.1.20
-langchain-core==0.1.52
-langchain-community==0.0.38
-# Dejamos que pip elija la última compatible de estas con las anteriores
-langchain-anthropic>=0.1.0
-langchain-google-genai>=0.1.0
-langgraph==0.0.20 # Manteniendo la versión original por ahora
+openai
+anthropic
+google-generativeai
 
 # PDF Generation
-weasyprint==60.1
-jinja2==3.1.2
+weasyprint
+jinja2
+
+# Visualization & Charts
+matplotlib
+kaleido
+plotly
 
 # Utilities
-requests==2.31.0
-tenacity==8.2.3
-pydantic==2.5.3 # Langchain podría necesitar Pydantic v1 o v2, esta es v2.5.3
+requests
+tenacity
+pydantic
 
 # Data Processing
-pandas==2.1.4
-numpy==1.26.2
+pandas
+numpy
 
 # Logging
-structlog==23.2.0
+structlog
 
 # CLI utilities
-tabulate==0.9.0
+tabulate
 
 # Web Interface
-streamlit==1.29.0
-plotly==5.18.0
+streamlit

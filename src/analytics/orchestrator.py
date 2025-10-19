@@ -159,6 +159,11 @@ class AnalysisOrchestrator:
             )
             
             if not report_id:
+                exec_error = None
+                if 'executive' in results:
+                    exec_error = results['executive'].get('error') or results['executive'].get('status')
+                if exec_error:
+                    raise Exception(f"No se pudo generar el report (executive agent falló): {exec_error}")
                 raise Exception("No se pudo generar el report (executive agent falló)")
             
             return report_id

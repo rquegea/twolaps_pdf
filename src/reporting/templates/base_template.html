@@ -22,6 +22,45 @@
         </div>
     </div>
 
+    <!-- DASHBOARD EJECUTIVO -->
+    <div class="seccion dashboard">
+        <h1 class="seccion-titulo">Dashboard Ejecutivo</h1>
+        
+        <div class="kpi-grid">
+            {% if competencia.lider %}
+            <div class="kpi-card">
+                <div class="kpi-icon">🏆</div>
+                <div class="kpi-titulo">Líder de Mercado</div>
+                <div class="kpi-valor">{{ competencia.lider }}</div>
+            </div>
+            {% endif %}
+            
+            {% if metricas_calidad.oportunidades %}
+            <div class="kpi-card success">
+                <div class="kpi-icon">🎯</div>
+                <div class="kpi-titulo">Oportunidades</div>
+                <div class="kpi-valor">{{ metricas_calidad.oportunidades }}</div>
+            </div>
+            {% endif %}
+            
+            {% if metricas_calidad.riesgos %}
+            <div class="kpi-card danger">
+                <div class="kpi-icon">⚠️</div>
+                <div class="kpi-titulo">Riesgos</div>
+                <div class="kpi-valor">{{ metricas_calidad.riesgos }}</div>
+            </div>
+            {% endif %}
+            
+            {% if metricas_calidad.plan_acciones %}
+            <div class="kpi-card info">
+                <div class="kpi-icon">📋</div>
+                <div class="kpi-titulo">Iniciativas</div>
+                <div class="kpi-valor">{{ metricas_calidad.plan_acciones }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- RESUMEN EJECUTIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Resumen Ejecutivo</h1>
@@ -76,8 +115,14 @@
         </div>
         {% endif %}
         
-        {% if competencia.analisis_sov %}
+        {% if charts.sov_chart %}
         <h2>Share of Voice (SOV)</h2>
+        <div class="chart-container">
+            <img src="{{ charts.sov_chart }}" alt="Share of Voice" class="chart-img">
+        </div>
+        {% endif %}
+        
+        {% if competencia.analisis_sov %}
         <p>{{ competencia.analisis_sov }}</p>
         {% endif %}
         
@@ -99,6 +144,12 @@
         <p>{{ sentimiento.resumen }}</p>
         {% endif %}
         
+        {% if charts.sentiment_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.sentiment_chart }}" alt="Análisis de Sentimiento" class="chart-img">
+        </div>
+        {% endif %}
+        
         {% if sentimiento.por_marca_destacado %}
         <h2>Análisis por Marca</h2>
         <ul>
@@ -113,22 +164,36 @@
     <div class="seccion">
         <h1 class="seccion-titulo">Oportunidades y Riesgos</h1>
         
+        {% if charts.opportunity_matrix %}
+        <h2 class="oportunidades-titulo">🎯 Matriz de Oportunidades</h2>
+        <div class="chart-container">
+            <img src="{{ charts.opportunity_matrix }}" alt="Matriz de Oportunidades" class="chart-img">
+        </div>
+        {% endif %}
+        
         {% if oportunidades_riesgos.oportunidades %}
-        <h2 class="oportunidades-titulo">🎯 Oportunidades</h2>
+        <h2 class="oportunidades-titulo">Detalle de Oportunidades</h2>
         {% for opp in oportunidades_riesgos.oportunidades %}
         <div class="oportunidad-box">
             <div class="oportunidad-titulo">{{ opp.titulo }}</div>
             <p class="oportunidad-desc">{{ opp.descripcion }}</p>
             <div class="oportunidad-meta">
-                <span class="prioridad prioridad-{{ opp.prioridad }}">Prioridad: {{ opp.prioridad }}</span>
+                <span class="prioridad prioridad-{{ opp.prioridad|lower }}">Prioridad: {{ opp.prioridad }}</span>
                 <span class="impacto">Impacto: {{ opp.impacto }}</span>
             </div>
         </div>
         {% endfor %}
         {% endif %}
         
+        {% if charts.risk_matrix %}
+        <h2 class="riesgos-titulo">⚠️ Matriz de Riesgos</h2>
+        <div class="chart-container">
+            <img src="{{ charts.risk_matrix }}" alt="Matriz de Riesgos" class="chart-img">
+        </div>
+        {% endif %}
+        
         {% if oportunidades_riesgos.riesgos %}
-        <h2 class="riesgos-titulo">⚠️ Riesgos</h2>
+        <h2 class="riesgos-titulo">Detalle de Riesgos</h2>
         {% for riesgo in oportunidades_riesgos.riesgos %}
         <div class="riesgo-box">
             <div class="riesgo-titulo">{{ riesgo.titulo }}</div>
@@ -151,12 +216,19 @@
     <div class="seccion">
         <h1 class="seccion-titulo">Plan de Acción 90 Días</h1>
         
+        {% if charts.timeline_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.timeline_chart }}" alt="Timeline 90 Días" class="chart-img">
+        </div>
+        {% endif %}
+        
         {% if plan_90_dias.iniciativas %}
+        <h2>Detalle de Iniciativas</h2>
         {% for iniciativa in plan_90_dias.iniciativas %}
         <div class="iniciativa-box">
             <div class="iniciativa-header">
                 <h3 class="iniciativa-titulo">{{ iniciativa.titulo }}</h3>
-                <span class="prioridad prioridad-{{ iniciativa.prioridad }}">{{ iniciativa.prioridad }}</span>
+                <span class="prioridad prioridad-{{ iniciativa.prioridad|lower }}">{{ iniciativa.prioridad }}</span>
             </div>
             
             {% if iniciativa.descripcion %}
@@ -194,17 +266,42 @@
         <h2>Metodología</h2>
         <p>
             Este informe ha sido generado automáticamente mediante un sistema de inteligencia 
-            competitiva que analiza respuestas de múltiples modelos de IA (GPT-4, Claude, Gemini) 
-            a preguntas estructuradas sobre el mercado y marcas.
+            competitiva multi-agente que analiza respuestas de 4 modelos de IA líderes 
+            (GPT-4, Claude, Gemini, Perplexity) a preguntas estructuradas sobre el mercado y marcas.
         </p>
         
-        <h2>Métricas de Calidad</h2>
-        <ul class="metricas">
-            <li><strong>Hallazgos identificados:</strong> {{ metricas_calidad.hallazgos or 'N/A' }}</li>
-            <li><strong>Oportunidades detectadas:</strong> {{ metricas_calidad.oportunidades or 'N/A' }}</li>
-            <li><strong>Riesgos identificados:</strong> {{ metricas_calidad.riesgos or 'N/A' }}</li>
-            <li><strong>Iniciativas en plan 90 días:</strong> {{ metricas_calidad.plan_acciones or 'N/A' }}</li>
+        <p>
+            El sistema procesa las respuestas mediante 7 agentes especializados:
+        </p>
+        <ul>
+            <li><strong>Quantitative Agent:</strong> Análisis cuantitativo y SOV</li>
+            <li><strong>Sentiment Agent:</strong> Análisis de sentimiento y reputación</li>
+            <li><strong>Attributes Agent:</strong> Atributos y percepciones de marca</li>
+            <li><strong>Competitive Agent:</strong> Análisis competitivo</li>
+            <li><strong>Trends Agent:</strong> Identificación de tendencias</li>
+            <li><strong>Strategic Agent:</strong> Análisis estratégico</li>
+            <li><strong>Executive Agent:</strong> Síntesis y recomendaciones</li>
         </ul>
+        
+        <h2>Métricas de Calidad</h2>
+        <table class="metricas-table">
+            <tr>
+                <td><strong>Hallazgos identificados:</strong></td>
+                <td>{{ metricas_calidad.hallazgos or 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td><strong>Oportunidades detectadas:</strong></td>
+                <td>{{ metricas_calidad.oportunidades or 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td><strong>Riesgos identificados:</strong></td>
+                <td>{{ metricas_calidad.riesgos or 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td><strong>Iniciativas en plan 90 días:</strong></td>
+                <td>{{ metricas_calidad.plan_acciones or 'N/A' }}</td>
+            </tr>
+        </table>
         
         <div class="disclaimer">
             <strong>Nota:</strong> Este informe es una herramienta de inteligencia competitiva 
@@ -219,4 +316,3 @@
     </div>
 </body>
 </html>
-
