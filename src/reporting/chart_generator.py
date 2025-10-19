@@ -301,6 +301,121 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
+    def generate_sov_trend_chart(self, sov_trend_data: Dict[str, List[Dict[str, Any]]]) -> str:
+        """
+        Genera gráfico de líneas con tendencias de SOV por marca a lo largo del tiempo
+        
+        Args:
+            sov_trend_data: Dict con marcas y sus datos temporales
+                Ej: {"Heineken": [{"periodo": "2025-09", "sov": 25.5}, {"periodo": "2025-10", "sov": 27.3}]}
+        
+        Returns:
+            String base64 del gráfico
+        """
+        if not sov_trend_data:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(self.fig_width, self.fig_height))
+        
+        # Colores para diferentes marcas
+        colors = [BRAND_COLOR, SUCCESS_COLOR, WARNING_COLOR, DANGER_COLOR, NEUTRAL_COLOR, 
+                 '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd']
+        
+        for idx, (marca, datos) in enumerate(sov_trend_data.items()):
+            if not datos:
+                continue
+            
+            periodos = [d['periodo'] for d in datos]
+            valores = [d['sov'] for d in datos]
+            
+            color = colors[idx % len(colors)]
+            ax.plot(periodos, valores, marker='o', linewidth=2.5, 
+                   markersize=8, label=marca, color=color, alpha=0.8)
+            
+            # Añadir valor en el último punto
+            if valores:
+                ax.text(len(periodos)-1, valores[-1], f'{valores[-1]:.1f}%', 
+                       fontsize=9, fontweight='bold', 
+                       ha='left', va='bottom', color=color)
+        
+        # Estilo
+        ax.set_xlabel('Período', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Share of Voice (%)', fontsize=12, fontweight='bold')
+        ax.set_title('Evolución del Share of Voice por Marca', fontsize=14, fontweight='bold', pad=20)
+        ax.legend(loc='best', framealpha=0.9)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        # Rotar etiquetas si hay muchas
+        plt.xticks(rotation=45, ha='right')
+        
+        plt.tight_layout()
+        
+        return self._fig_to_base64(fig)
+    
+    def generate_sentiment_trend_chart(self, sentiment_trend_data: Dict[str, List[Dict[str, Any]]]) -> str:
+        """
+        Genera gráfico de líneas con evolución del sentimiento por marca
+        
+        Args:
+            sentiment_trend_data: Dict con marcas y scores temporales
+                Ej: {"Heineken": [{"periodo": "2025-09", "score": 0.65}, {"periodo": "2025-10", "score": 0.72}]}
+        
+        Returns:
+            String base64 del gráfico
+        """
+        if not sentiment_trend_data:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(self.fig_width, self.fig_height))
+        
+        # Colores para diferentes marcas
+        colors = [BRAND_COLOR, SUCCESS_COLOR, WARNING_COLOR, DANGER_COLOR, NEUTRAL_COLOR, 
+                 '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd']
+        
+        for idx, (marca, datos) in enumerate(sentiment_trend_data.items()):
+            if not datos:
+                continue
+            
+            periodos = [d['periodo'] for d in datos]
+            scores = [d['score'] for d in datos]
+            
+            color = colors[idx % len(colors)]
+            ax.plot(periodos, scores, marker='o', linewidth=2.5, 
+                   markersize=8, label=marca, color=color, alpha=0.8)
+            
+            # Añadir valor en el último punto
+            if scores:
+                ax.text(len(periodos)-1, scores[-1], f'{scores[-1]:.2f}', 
+                       fontsize=9, fontweight='bold', 
+                       ha='left', va='bottom', color=color)
+        
+        # Líneas de referencia
+        ax.axhline(y=0, color='red', linestyle='--', linewidth=1, alpha=0.3, label='Neutral')
+        ax.axhline(y=0.5, color='orange', linestyle='--', linewidth=1, alpha=0.3)
+        
+        # Zonas de sentimiento
+        ax.axhspan(-1, 0, alpha=0.1, color='red', label='Negativo')
+        ax.axhspan(0, 1, alpha=0.1, color='green', label='Positivo')
+        
+        # Estilo
+        ax.set_xlabel('Período', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Score de Sentimiento (-1 a 1)', fontsize=12, fontweight='bold')
+        ax.set_title('Evolución del Sentimiento por Marca', fontsize=14, fontweight='bold', pad=20)
+        ax.set_ylim(-1, 1)
+        ax.legend(loc='best', framealpha=0.9)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        # Rotar etiquetas
+        plt.xticks(rotation=45, ha='right')
+        
+        plt.tight_layout()
+        
+        return self._fig_to_base64(fig)
+    
     def generate_timeline_chart(self, initiatives: List[Dict[str, Any]]) -> str:
         """
         Genera timeline visual para el plan de 90 días
@@ -411,15 +526,23 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     generator = ChartGenerator()
     charts = {}
     
-    # SOV Chart
+    # SOV Chart (snapshot actual)
     competencia = report_data.get('competencia', {})
     if competencia.get('sov_data'):
         charts['sov_chart'] = generator.generate_sov_chart(competencia['sov_data'])
     
-    # Sentiment Chart
+    # SOV Trend Chart (evolución temporal)
+    if competencia.get('sov_trend_data'):
+        charts['sov_trend_chart'] = generator.generate_sov_trend_chart(competencia['sov_trend_data'])
+    
+    # Sentiment Chart (snapshot actual)
     sentimiento = report_data.get('sentimiento_reputacion', {})
     if sentimiento.get('sentiment_data'):
         charts['sentiment_chart'] = generator.generate_sentiment_chart(sentimiento['sentiment_data'])
+    
+    # Sentiment Trend Chart (evolución temporal)
+    if sentimiento.get('sentiment_trend_data'):
+        charts['sentiment_trend_chart'] = generator.generate_sentiment_trend_chart(sentimiento['sentiment_trend_data'])
     
     # Opportunity Matrix
     opp_riesgos = report_data.get('oportunidades_riesgos', {})

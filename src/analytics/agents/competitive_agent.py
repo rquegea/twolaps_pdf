@@ -27,14 +27,14 @@ class CompetitiveAgent(BaseAgent):
         """
         # Obtener análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
-        sentiment = self._get_analysis('sentiment', categoria_id, periodo)
+        qualitative = self._get_analysis('qualitative', categoria_id, periodo)
         
-        if not quantitative or not sentiment:
-            return {'error': 'Faltan análisis previos (quantitative y sentiment)'}
+        if not quantitative or not qualitative:
+            return {'error': 'Faltan análisis previos (quantitative y qualitative)'}
         
         # Análisis competitivo
         sov = quantitative.get('sov_percent', {})
-        sentimientos = sentiment.get('por_marca', {})
+        sentimientos = qualitative.get('sentimiento_por_marca', {})
         
         # Identificar líder
         lider = max(sov.items(), key=lambda x: x[1])[0] if sov else None

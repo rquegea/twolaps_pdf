@@ -9,8 +9,7 @@ from src.database.connection import get_session
 from src.database.models import Mercado, Categoria
 from src.analytics.agents import (
     QuantitativeAgent,
-    SentimentAgent,
-    AttributesAgent,
+    QualitativeExtractionAgent,
     CompetitiveAgent,
     TrendsAgent,
     StrategicAgent,
@@ -31,8 +30,7 @@ class AnalysisOrchestrator:
     def __init__(self):
         self.agent_order = [
             ('quantitative', QuantitativeAgent),
-            ('sentiment', SentimentAgent),
-            ('attributes', AttributesAgent),
+            ('qualitative', QualitativeExtractionAgent),
             ('competitive', CompetitiveAgent),
             ('trends', TrendsAgent),
             ('strategic', StrategicAgent),
@@ -97,7 +95,7 @@ class AnalysisOrchestrator:
                         results[agent_name] = {'status': 'error', 'error': result['error']}
                         
                         # Algunos agentes son críticos
-                        if agent_name in ['quantitative', 'sentiment']:
+                        if agent_name in ['quantitative', 'qualitative']:
                             raise Exception(f"Agente crítico {agent_name} falló: {result['error']}")
                         
                         continue
@@ -141,7 +139,7 @@ class AnalysisOrchestrator:
                     }
                     
                     # Si un agente crítico falla, abortar
-                    if agent_name in ['quantitative', 'sentiment', 'executive']:
+                    if agent_name in ['quantitative', 'qualitative', 'executive']:
                         raise
             
             # Resumen final
@@ -179,9 +177,10 @@ class AnalysisOrchestrator:
                 'total_menciones': result.get('total_menciones', 0),
                 'marcas_mencionadas': result.get('num_marcas_mencionadas', 0)
             }
-        elif agent_name == 'sentiment':
+        elif agent_name == 'qualitative':
             summary = {
-                'sentimiento_global': result.get('sentimiento_global', 0)
+                'textos_analizados': result.get('metadata', {}).get('textos_analizados', 0),
+                'temas_emergentes': len(result.get('temas_emergentes', []))
             }
         elif agent_name == 'competitive':
             summary = {

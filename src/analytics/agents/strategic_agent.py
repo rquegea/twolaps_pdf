@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult
-from src.query_executor.api_clients import OpenAIClient
+from src.query_executor.api_clients import AnthropicClient
 
 
 class StrategicAgent(BaseAgent):
@@ -20,7 +20,7 @@ class StrategicAgent(BaseAgent):
     
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
-        self.client = OpenAIClient()
+        self.client = AnthropicClient()  # Cambiado a Anthropic
         self.load_prompts()
     
     def load_prompts(self):
@@ -44,20 +44,20 @@ class StrategicAgent(BaseAgent):
         """
         # Leer análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
-        sentiment = self._get_analysis('sentiment', categoria_id, periodo)
+        qualitative = self._get_analysis('qualitative', categoria_id, periodo)
         competitive = self._get_analysis('competitive', categoria_id, periodo)
         trends = self._get_analysis('trends', categoria_id, periodo)
         
-        if not quantitative or not sentiment:
+        if not quantitative or not qualitative:
             return {'error': 'Faltan análisis previos'}
         
-        # NUEVO: Obtener muestra de respuestas textuales originales
-        raw_responses = self._get_raw_responses_sample(categoria_id, periodo, sample_size=10)
+        # NUEVO: Obtener muestra estratificada de respuestas textuales
+        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=2)
         
         # Construir prompt con datos estructurados Y respuestas textuales
         prompt = self.task_prompt.format(
             sov_data=json.dumps(quantitative.get('sov_percent', {}), indent=2),
-            sentiment_data=json.dumps(sentiment.get('por_marca', {}), indent=2),
+            sentiment_data=json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2),
             competitive_data=json.dumps(competitive, indent=2),
             trends_data=json.dumps(trends.get('tendencias', []), indent=2),
             raw_responses_sample=raw_responses
@@ -98,47 +98,4 @@ class StrategicAgent(BaseAgent):
         ).first()
         
         return result.resultado if result else {}
-    
-    def _get_raw_responses_sample(self, categoria_id: int, periodo: str, sample_size: int = 10) -> str:
-        """
-        Obtiene una muestra representativa de respuestas textuales originales
-        
-        Args:
-            categoria_id: ID de categoría
-            periodo: Periodo (YYYY-MM)
-            sample_size: Número de respuestas a incluir
-        
-        Returns:
-            String formateado con las respuestas textuales
-        """
-        from src.database.models import Query, QueryExecution
-        from sqlalchemy import extract
-        
-        year, month = map(int, periodo.split('-'))
-        
-        # Obtener ejecuciones del periodo
-        executions = self.session.query(QueryExecution).join(
-            Query
-        ).filter(
-            Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year,
-            QueryExecution.respuesta_texto.isnot(None)
-        ).limit(sample_size).all()
-        
-        if not executions:
-            return "No hay respuestas textuales disponibles para este periodo."
-        
-        # Formatear respuestas
-        formatted_responses = []
-        for i, execution in enumerate(executions, 1):
-            # Limitar longitud de cada respuesta para no exceder límites de tokens
-            texto_truncado = execution.respuesta_texto[:800] if execution.respuesta_texto else ""
-            formatted_responses.append(
-                f"--- RESPUESTA {i} ---\n"
-                f"Query: {execution.query.pregunta if execution.query else 'N/A'}\n"
-                f"Contenido: {texto_truncado}\n"
-            )
-        
-        return "\n".join(formatted_responses)
 

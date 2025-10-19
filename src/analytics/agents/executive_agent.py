@@ -62,14 +62,13 @@ class ExecutiveAgent(BaseAgent):
         
         # Obtener todos los análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
-        sentiment = self._get_analysis('sentiment', categoria_id, periodo)
-        attributes = self._get_analysis('attributes', categoria_id, periodo)
+        qualitative = self._get_analysis('qualitative', categoria_id, periodo)
         competitive = self._get_analysis('competitive', categoria_id, periodo)
         trends = self._get_analysis('trends', categoria_id, periodo)
         strategic = self._get_analysis('strategic', categoria_id, periodo)
         synthesis = self._get_analysis('synthesis', categoria_id, periodo)
         
-        if not quantitative or not sentiment or not competitive or not strategic or not synthesis:
+        if not quantitative or not qualitative or not competitive or not strategic or not synthesis:
             return {'error': 'Faltan análisis previos necesarios'}
         
         # ACTIVAR RAG - Obtener contexto histórico
@@ -80,16 +79,15 @@ class ExecutiveAgent(BaseAgent):
             top_k=2
         )
         
-        # NUEVO: Obtener muestra de respuestas textuales originales
-        raw_responses = self._get_raw_responses_sample(categoria_id, periodo, sample_size=15)
+        # NUEVO: Obtener muestra estratificada de respuestas textuales
+        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=2)
         
         # Construir prompt completo con todos los KPIs Y respuestas textuales
         prompt = self._build_prompt(
             categoria_nombre,
             periodo,
             quantitative,
-            sentiment,
-            attributes,
+            qualitative,
             competitive,
             trends,
             strategic,
@@ -221,10 +219,9 @@ class ExecutiveAgent(BaseAgent):
         categoria: str,
         periodo: str,
         quantitative: Dict,
-        sentiment: Dict,
-        attributes: Dict,
+        qualitative: Dict,
         competitive: Dict,
-        trends: Dict,
+        trends: Dict,  # pylint: disable=unused-argument
         strategic: Dict,
         synthesis: Dict,
         historical_context: str,
@@ -254,7 +251,8 @@ RESPUESTAS TEXTUALES ORIGINALES (Muestra enriquecida):
 DATOS DE SOPORTE (KPIs Y ESTRATEGIA):
 - Total menciones: {quantitative.get('total_menciones', 0)}
 - SOV: {json.dumps(quantitative.get('sov_percent', {}), indent=2)}
-- Sentimiento: {json.dumps(sentiment.get('por_marca', {}), indent=2)}
+- Sentimiento: {json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2)}
+- Atributos: {json.dumps(qualitative.get('atributos_por_marca', {}), indent=2)}
 - Líder de mercado: {competitive.get('lider_mercado', 'N/A')}
 - Oportunidades: {json.dumps(strategic.get('oportunidades', []), indent=2)}
 - Riesgos: {json.dumps(strategic.get('riesgos', []), indent=2)}
@@ -314,7 +312,7 @@ IMPORTANTE:
         
         return prompt
     
-    def _validate_and_complete_report(self, informe: Dict, quantitative: Dict, strategic: Dict) -> Dict:
+    def _validate_and_complete_report(self, informe: Dict, quantitative: Dict, strategic: Dict) -> Dict:  # pylint: disable=unused-argument
         """Valida y completa el informe si falta algo"""
         
         # Asegurar secciones mínimas
@@ -348,48 +346,4 @@ IMPORTANTE:
         ).first()
         
         return result.resultado if result else {}
-    
-    def _get_raw_responses_sample(self, categoria_id: int, periodo: str, sample_size: int = 15) -> str:
-        """
-        Obtiene una muestra representativa de respuestas textuales originales
-        
-        Args:
-            categoria_id: ID de categoría
-            periodo: Periodo (YYYY-MM)
-            sample_size: Número de respuestas a incluir
-        
-        Returns:
-            String formateado con las respuestas textuales
-        """
-        from src.database.models import Query, QueryExecution
-        from sqlalchemy import extract
-        
-        year, month = map(int, periodo.split('-'))
-        
-        # Obtener ejecuciones del periodo con variedad
-        executions = self.session.query(QueryExecution).join(
-            Query
-        ).filter(
-            Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year,
-            QueryExecution.respuesta_texto.isnot(None)
-        ).limit(sample_size).all()
-        
-        if not executions:
-            return "No hay respuestas textuales disponibles para este periodo."
-        
-        # Formatear respuestas con más contexto para el Executive Agent
-        formatted_responses = []
-        for i, execution in enumerate(executions, 1):
-            # Limitar longitud de cada respuesta para no exceder límites de tokens
-            texto_truncado = execution.respuesta_texto[:1000] if execution.respuesta_texto else ""
-            formatted_responses.append(
-                f"--- RESPUESTA {i} ---\n"
-                f"Query: {execution.query.pregunta if execution.query else 'N/A'}\n"
-                f"Timestamp: {execution.timestamp.strftime('%Y-%m-%d') if execution.timestamp else 'N/A'}\n"
-                f"Contenido: {texto_truncado}\n"
-            )
-        
-        return "\n".join(formatted_responses)
 

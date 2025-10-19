@@ -6,6 +6,8 @@ Clase base abstracta para todos los agentes de análisis
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 from datetime import datetime
+from collections import defaultdict
+import random
 from sqlalchemy.orm import Session
 from src.database.models import AnalysisResult
 from src.utils.logger import setup_logger
@@ -133,4 +135,69 @@ class BaseAgent(ABC):
             return previous.resultado
         
         return None
+    
+    def _get_stratified_sample(self, categoria_id: int, periodo: str, samples_per_group: int = 2) -> str:
+        """
+        Obtiene muestra estratificada de respuestas textuales.
+        Agrupa por (query_id, proveedor_ia) y toma N respuestas de cada grupo
+        para garantizar representatividad y eliminar sesgo.
+        
+        Args:
+            categoria_id: ID de categoría
+            periodo: Periodo (YYYY-MM)
+            samples_per_group: Número de respuestas a tomar de cada grupo (default: 2)
+        
+        Returns:
+            String formateado con las respuestas textuales estratificadas
+        """
+        from src.database.models import Query, QueryExecution
+        from sqlalchemy import extract
+        
+        year, month = map(int, periodo.split('-'))
+        
+        # Obtener TODAS las ejecuciones con respuesta_texto
+        executions = self.session.query(QueryExecution).join(
+            Query
+        ).filter(
+            Query.categoria_id == categoria_id,
+            extract('month', QueryExecution.timestamp) == month,
+            extract('year', QueryExecution.timestamp) == year,
+            QueryExecution.respuesta_texto.isnot(None)
+        ).all()
+        
+        if not executions:
+            return "No hay respuestas textuales disponibles para este periodo."
+        
+        # Agrupar por (query_id, proveedor_ia) para estratificación
+        groups = defaultdict(list)
+        for execution in executions:
+            key = (execution.query_id, execution.proveedor_ia)
+            groups[key].append(execution)
+        
+        # Seleccionar muestra estratificada
+        sampled = []
+        for group_executions in groups.values():
+            # Tomar N aleatorias de cada grupo (o todas si hay menos de N)
+            sample_size = min(samples_per_group, len(group_executions))
+            sampled.extend(random.sample(group_executions, sample_size))
+        
+        # Log información de la estratificación
+        self.logger.info(
+            f"Muestreo estratificado: {len(sampled)} respuestas de {len(groups)} grupos (total: {len(executions)})",
+            categoria_id=categoria_id,
+            periodo=periodo
+        )
+        
+        # Formatear respuestas
+        formatted = []
+        for i, execution in enumerate(sampled, 1):
+            texto_truncado = execution.respuesta_texto[:1000] if execution.respuesta_texto else ""
+            formatted.append(
+                f"--- RESPUESTA {i} ---\n"
+                f"Query: {execution.query.pregunta if execution.query else 'N/A'}\n"
+                f"Proveedor: {execution.proveedor_ia}\n"
+                f"Contenido: {texto_truncado}\n"
+            )
+        
+        return "\n".join(formatted)
 
