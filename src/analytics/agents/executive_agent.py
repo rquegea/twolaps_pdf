@@ -9,6 +9,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
+from src.analytics.rag_manager import RAGManager
 from src.database.models import AnalysisResult, Report, Categoria, Mercado
 from src.query_executor.api_clients import OpenAIClient
 from sqlalchemy.exc import IntegrityError
@@ -66,9 +67,18 @@ class ExecutiveAgent(BaseAgent):
         competitive = self._get_analysis('competitive', categoria_id, periodo)
         trends = self._get_analysis('trends', categoria_id, periodo)
         strategic = self._get_analysis('strategic', categoria_id, periodo)
+        synthesis = self._get_analysis('synthesis', categoria_id, periodo)
         
-        if not quantitative or not sentiment or not competitive or not strategic:
+        if not quantitative or not sentiment or not competitive or not strategic or not synthesis:
             return {'error': 'Faltan análisis previos necesarios'}
+        
+        # ACTIVAR RAG - Obtener contexto histórico
+        rag_manager = RAGManager(self.session)
+        historical_context = rag_manager.get_historical_context(
+            categoria_id,
+            periodo,
+            top_k=2
+        )
         
         # Construir prompt completo con todos los KPIs
         prompt = self._build_prompt(
@@ -79,7 +89,9 @@ class ExecutiveAgent(BaseAgent):
             attributes,
             competitive,
             trends,
-            strategic
+            strategic,
+            synthesis,
+            historical_context
         )
         
         # Generar informe con LLM
@@ -209,56 +221,60 @@ class ExecutiveAgent(BaseAgent):
         attributes: Dict,
         competitive: Dict,
         trends: Dict,
-        strategic: Dict
+        strategic: Dict,
+        synthesis: Dict,
+        historical_context: str
     ) -> str:
         """Construye el prompt completo con todos los datos"""
         
         prompt = f"""
 {self.system_prompt}
 
-GENERA UN INFORME EJECUTIVO COMPLETO DE CONSULTORÍA
+HAS SIDO CONTRATADO PARA GENERAR EL PLAN DE ACCIÓN Y EL RESUMEN EJECUTIVO.
 
 CATEGORÍA: {categoria}
 PERIODO: {periodo}
 
-DATOS CUANTITATIVOS:
+NARRATIVA CENTRAL (SITUACIÓN-COMPLICACIÓN):
+Situación: {synthesis.get('situacion', '')}
+Complicación: {synthesis.get('complicacion', '')}
+Pregunta Clave: {synthesis.get('pregunta_clave', '')}
+
+CONTEXTO HISTÓRICO (PERIODOS ANTERIORES):
+{historical_context}
+
+DATOS DE SOPORTE (KPIs Y ESTRATEGIA):
 - Total menciones: {quantitative.get('total_menciones', 0)}
-- Share of Voice: {json.dumps(quantitative.get('sov_percent', {}), indent=2)}
-- Ranking: {json.dumps(quantitative.get('ranking', [])[:5], indent=2)}
-
-SENTIMIENTO:
-- Sentimiento global: {sentiment.get('sentimiento_global', 0):.2f}
-- Por marca: {json.dumps(sentiment.get('por_marca', {}), indent=2)}
-
-POSICIONAMIENTO COMPETITIVO:
+- SOV: {json.dumps(quantitative.get('sov_percent', {}), indent=2)}
+- Sentimiento: {json.dumps(sentiment.get('por_marca', {}), indent=2)}
 - Líder de mercado: {competitive.get('lider_mercado', 'N/A')}
-- Gaps competitivos: {json.dumps(competitive.get('gaps_competitivos', []), indent=2)}
-
-TENDENCIAS:
-{json.dumps(trends.get('tendencias', []), indent=2)}
-
-ESTRATEGIA:
 - Oportunidades: {json.dumps(strategic.get('oportunidades', []), indent=2)}
 - Riesgos: {json.dumps(strategic.get('riesgos', []), indent=2)}
+
+INSTRUCCIONES:
+Basándote en la NARRATIVA CENTRAL y el CONTEXTO HISTÓRICO, y usando los DATOS DE SOPORTE para justificar cada afirmación:
+
+1. Genera el "resumen_ejecutivo": 3-5 hallazgos clave que respondan a la "pregunta_clave" de la narrativa.
+2. Genera el "plan_90_dias": 3 iniciativas accionables que resuelvan la "complicacion".
 
 GENERA EL INFORME EN FORMATO JSON CON ESTA ESTRUCTURA EXACTA:
 {{
   "resumen_ejecutivo": {{
-    "hallazgos_clave": ["hallazgo 1", "hallazgo 2", "hallazgo 3"],
-    "contexto": "párrafo de contexto"
+    "hallazgos_clave": ["hallazgo 1 (citando KPI)", "hallazgo 2 (comparando con contexto histórico si es relevante)", "hallazgo 3"],
+    "contexto": "{synthesis.get('situacion', '')} {synthesis.get('complicacion', '')}"
   }},
   "mercado": {{
-    "estado_general": "descripción del mercado",
+    "estado_general": "{synthesis.get('situacion', '')}",
     "volumen_conversacion": {quantitative.get('total_menciones', 0)},
     "principales_temas": ["tema 1", "tema 2"]
   }},
   "competencia": {{
     "lider": "{competitive.get('lider_mercado', '')}",
-    "analisis_sov": "análisis del SOV",
+    "analisis_sov": "análisis del SOV con datos específicos",
     "comparativas": ["comparación 1", "comparación 2"]
   }},
   "sentimiento_reputacion": {{
-    "resumen": "resumen de sentimiento",
+    "resumen": "resumen de sentimiento con datos específicos",
     "por_marca_destacado": ["marca 1: análisis", "marca 2: análisis"]
   }},
   "oportunidades_riesgos": {{
@@ -268,10 +284,11 @@ GENERA EL INFORME EN FORMATO JSON CON ESTA ESTRUCTURA EXACTA:
   "plan_90_dias": {{
     "iniciativas": [
       {{
-        "titulo": "iniciativa 1",
-        "descripcion": "qué hacer",
-        "por_que": "razón con datos",
-        "como": "pasos concretos",
+        "titulo": "iniciativa 1 (clara y accionable)",
+        "descripcion": "qué hacer exactamente",
+        "por_que": "razón basada en la NARRATIVA y DATOS (ej: 'Para resolver la complicación de...')",
+        "como": "3-4 pasos concretos o tácticas",
+        "kpi_medicion": "Métrica para medir el éxito (ej: 'Aumentar score de sentimiento a > 0.5')",
         "timeline": "Mes 1-2",
         "prioridad": "alta"
       }}
@@ -281,9 +298,8 @@ GENERA EL INFORME EN FORMATO JSON CON ESTA ESTRUCTURA EXACTA:
 
 IMPORTANTE:
 - Cita SIEMPRE los KPIs y datos específicos
-- Sé específico y accionable
-- Evita vaguedades
-- Todas las afirmaciones deben tener soporte cuantitativo
+- El "plan_90_dias" debe resolver la "complicacion" identificada en la NARRATIVA
+- Usa el contexto histórico cuando sea relevante para comparaciones
 - RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
 - NO uses bloques de código markdown (```), solo el JSON puro
 """

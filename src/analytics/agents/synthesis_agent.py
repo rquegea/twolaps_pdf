@@ -1,21 +1,21 @@
 """
-Strategic Agent
-Generación de oportunidades y riesgos estratégicos
+Synthesis Agent
+Sintetiza todos los análisis en una narrativa central (Situación-Complicación-Pregunta)
 """
 
 import json
 import yaml
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult
 from src.query_executor.api_clients import OpenAIClient
 
 
-class StrategicAgent(BaseAgent):
+class SynthesisAgent(BaseAgent):
     """
-    Agente estratégico
-    Genera oportunidades y riesgos basándose en análisis previos usando LLM
+    Agente de síntesis narrativa
+    Genera el "So What?" del análisis
     """
     
     def __init__(self, session, version: str = "1.0.0"):
@@ -29,61 +29,60 @@ class StrategicAgent(BaseAgent):
         if prompt_path.exists():
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('strategic_agent', {}).get('task', '')
+                self.task_prompt = prompts.get('synthesis_agent', {}).get('task', '')
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
-        Genera oportunidades y riesgos usando LLM
+        Genera narrativa central (Situación-Complicación-Pregunta)
         
         Args:
             categoria_id: ID de categoría
             periodo: Periodo (YYYY-MM)
         
         Returns:
-            Dict con oportunidades y riesgos
+            Dict con narrativa central
         """
         # Leer análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         sentiment = self._get_analysis('sentiment', categoria_id, periodo)
-        competitive = self._get_analysis('competitive', categoria_id, periodo)
-        trends = self._get_analysis('trends', categoria_id, periodo)
+        strategic = self._get_analysis('strategic', categoria_id, periodo)
         
-        if not quantitative or not sentiment:
-            return {'error': 'Faltan análisis previos'}
+        if not quantitative or not sentiment or not strategic:
+            return {'error': 'Faltan análisis previos necesarios'}
         
-        # Construir prompt con datos
+        # Construir prompt
         prompt = self.task_prompt.format(
-            sov_data=json.dumps(quantitative.get('sov_percent', {}), indent=2),
-            sentiment_data=json.dumps(sentiment.get('por_marca', {}), indent=2),
-            competitive_data=json.dumps(competitive, indent=2),
-            trends_data=json.dumps(trends.get('tendencias', []), indent=2)
+            quantitative_results=json.dumps(quantitative, indent=2),
+            sentiment_results=json.dumps(sentiment, indent=2),
+            strategic_results=json.dumps(strategic, indent=2)
         )
         
         # Llamar a LLM
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.4,
-                max_tokens=3000,
+                temperature=0.5,
+                max_tokens=2000,
                 json_mode=True
             )
             
-            # Parsear JSON
-            strategic_insights = json.loads(result['response_text'])
+            # Parsear
+            narrativa = json.loads(result['response_text'])
             
             resultado = {
                 'periodo': periodo,
                 'categoria_id': categoria_id,
-                'oportunidades': strategic_insights.get('oportunidades', []),
-                'riesgos': strategic_insights.get('riesgos', [])
+                'situacion': narrativa.get('situacion', ''),
+                'complicacion': narrativa.get('complicacion', ''),
+                'pregunta_clave': narrativa.get('pregunta_clave', '')
             }
             
             self.save_results(categoria_id, periodo, resultado)
             return resultado
             
         except Exception as e:
-            self.logger.error(f"Error generando análisis estratégico: {e}", exc_info=True)
-            return {'error': f'Error en análisis estratégico: {str(e)}'}
+            self.logger.error(f"Error generando síntesis: {e}", exc_info=True)
+            return {'error': f'Error en síntesis: {str(e)}'}
     
     def _get_analysis(self, agent_name: str, categoria_id: int, periodo: str) -> Dict:
         """Helper para obtener análisis"""
@@ -92,6 +91,5 @@ class StrategicAgent(BaseAgent):
             periodo=periodo,
             agente=agent_name
         ).first()
-        
         return result.resultado if result else {}
 

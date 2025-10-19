@@ -110,7 +110,8 @@ class SentimentAgent(BaseAgent):
                 result = self.client.generate(
                     prompt=prompt,
                     temperature=0.3,
-                    max_tokens=1000
+                    max_tokens=1000,
+                    json_mode=True
                 )
                 
                 # Parsear respuesta JSON
@@ -126,22 +127,30 @@ class SentimentAgent(BaseAgent):
                             atributos_by_marca[marca][attr].append(score)
             
             except Exception as e:
-                # Si falla el parsing, continuar con siguiente
+                # Loguear el error y continuar con siguiente
+                self.logger.error(f"Error parseando sentimiento para ejecución {execution.id}: {e}", exc_info=True)
                 continue
         
         # 4. Agregar sentimientos
         sentimiento_agregado = {}
         for marca in marca_nombres:
-            scores = sentiments_by_marca.get(marca, [0])
-            sentimiento_agregado[marca] = {
-                'score_medio': sum(scores) / len(scores) if scores else 0,
-                'menciones_analizadas': len(scores),
-                'distribucion': {
-                    'positivo': len([s for s in scores if s > 0.3]),
-                    'neutral': len([s for s in scores if -0.3 <= s <= 0.3]),
-                    'negativo': len([s for s in scores if s < -0.3])
+            scores = sentiments_by_marca.get(marca)
+            if not scores:
+                sentimiento_agregado[marca] = {
+                    'score_medio': 0.0,
+                    'menciones_analizadas': 0,
+                    'distribucion': {'positivo': 0, 'neutral': 0, 'negativo': 0}
                 }
-            }
+            else:
+                sentimiento_agregado[marca] = {
+                    'score_medio': sum(scores) / len(scores),
+                    'menciones_analizadas': len(scores),
+                    'distribucion': {
+                        'positivo': len([s for s in scores if s > 0.3]),
+                        'neutral': len([s for s in scores if -0.3 <= s <= 0.3]),
+                        'negativo': len([s for s in scores if s < -0.3])
+                    }
+                }
         
         # 5. Agregar atributos
         atributos_agregados = {}

@@ -14,6 +14,7 @@ from src.analytics.agents import (
     CompetitiveAgent,
     TrendsAgent,
     StrategicAgent,
+    SynthesisAgent,
     ExecutiveAgent
 )
 from src.utils.logger import setup_logger, log_agent_analysis
@@ -35,6 +36,7 @@ class AnalysisOrchestrator:
             ('competitive', CompetitiveAgent),
             ('trends', TrendsAgent),
             ('strategic', StrategicAgent),
+            ('synthesis', SynthesisAgent),
             ('executive', ExecutiveAgent)
         ]
     

@@ -76,32 +76,71 @@ competitive_agent:
 
 strategic_agent:
   task: |
-    Genera oportunidades y riesgos estratégicos basados en el análisis competitivo.
+    Eres un consultor de estrategia senior (McKinsey/BCG).
+    Analiza los siguientes datos de mercado y competencia.
+
+    DATOS CUANTITATIVOS (SOV):
+    {sov_data}
+
+    DATOS DE SENTIMIENTO (Score -1 a 1):
+    {sentiment_data}
+
+    DATOS DE POSICIONAMIENTO COMPETITIVO:
+    {competitive_data}
+
+    DATOS DE TENDENCIAS:
+    {trends_data}
+
+    INSTRUCCIONES:
+    Basándote EXCLUSIVAMENTE en los datos proporcionados:
+    1. Identifica las 3 OPORTUNIDADES estratégicas más importantes.
+    2. Identifica los 3 RIESGOS estratégicos más críticos.
+
+    Para cada OPORTUNIDAD, formato JSON:
+    {{
+      "titulo": "Título accionable de la oportunidad",
+      "descripcion": "Explicación de 2 líneas de la oportunidad",
+      "datos_soporte": "KPI específico que justifica esto (ej: 'Marca X tiene SOV 5% pero Sentimiento 0.9')",
+      "impacto": "alto|medio|bajo",
+      "esfuerzo": "alto|medio|bajo",
+      "prioridad": "alta|media|baja"
+    }}
+
+    Para cada RIESGO, formato JSON:
+    {{
+      "titulo": "Título claro del riesgo",
+      "descripcion": "Explicación de 2 líneas del impacto potencial",
+      "datos_soporte": "KPI específico que justifica esto (ej: 'Líder tiene SOV 54% pero Sentimiento 0.00')",
+      "probabilidad": "alta|media|baja",
+      "severidad": "alta|media|baja",
+      "mitigacion": "Sugerencia de mitigación accionable"
+    }}
+
+    DEVUELVE UN ÚNICO OBJETO JSON con las claves "oportunidades" y "riesgos".
+
+synthesis_agent:
+  task: |
+    Eres el Director de Estrategia. Tu trabajo es sintetizar todos los análisis en una narrativa central (el "So What?").
+    Analiza los siguientes KPIs y hallazgos estratégicos.
+
+    KPIs CUANTITATIVOS (SOV, Menciones):
+    {quantitative_results}
+
+    KPIs DE SENTIMIENTO:
+    {sentiment_results}
+
+    ANÁLISIS ESTRATÉGICO (Oportunidades y Riesgos):
+    {strategic_results}
+
+    INSTRUCCIONES:
+    Usando la metodología de consultoría (Situación, Complicación, Pregunta), genera la narrativa central del informe.
     
-    CONTEXTO:
-    - SOV: {sov}
-    - Sentimiento: {sentiment}
-    - Tendencias: {trends}
-    - Posicionamiento: {competitive}
-    
-    GENERA:
-    
-    1. OPORTUNIDADES (mínimo 3, máximo 5):
-       - Título claro y accionable
-       - Descripción específica (2-3 líneas)
-       - Datos de soporte (KPIs relevantes)
-       - Prioridad: Alta/Media/Baja
-       - Impacto esperado: Alto/Medio/Bajo
-       - Esfuerzo: Alto/Medio/Bajo
-    
-    2. RIESGOS (mínimo 3, máximo 5):
-       - Título del riesgo
-       - Descripción del impacto potencial
-       - Probabilidad: Alta/Media/Baja
-       - Severidad: Alta/Media/Baja
-       - Mitigación sugerida (accionable)
-    
-    DEVUELVE JSON bien estructurado.
+    DEVUELVE UN ÚNICO OBJETO JSON con esta estructura:
+    {{
+      "situacion": "Párrafo de 2-3 líneas describiendo el estado actual del mercado (ej: 'El mercado está dominado por X, con un volumen de Y...')",
+      "complicacion": "Párrafo de 2-3 líneas describiendo la tensión o el problema principal (ej: 'A pesar de su dominio en SOV (54%), el líder sufre un sentimiento nulo (0.00), lo que abre una brecha...')",
+      "pregunta_clave": "La pregunta de negocio fundamental que el cliente debe responder (ej: '¿Cómo puede el líder capitalizar su visibilidad para construir afinidad, o cómo pueden los competidores explotar esta debilidad?')"
+    }}
 
 executive_agent:
   task: |

@@ -7,6 +7,7 @@ from src.analytics.agents.attributes_agent import AttributesAgent
 from src.analytics.agents.competitive_agent import CompetitiveAgent
 from src.analytics.agents.trends_agent import TrendsAgent
 from src.analytics.agents.strategic_agent import StrategicAgent
+from src.analytics.agents.synthesis_agent import SynthesisAgent
 from src.analytics.agents.executive_agent import ExecutiveAgent
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     'CompetitiveAgent',
     'TrendsAgent',
     'StrategicAgent',
+    'SynthesisAgent',
     'ExecutiveAgent'
 ]
 
