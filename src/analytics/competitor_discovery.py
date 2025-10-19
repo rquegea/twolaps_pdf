@@ -40,7 +40,7 @@ class LLMCompetitorDetector:
 
         # Prompt compacto para extracción
         prompt = f"""
-Identifica nombres de marcas/operadores del mercado FMCG en el texto.
+Identifica nombres de marcas, empresas o productos mencionados en el texto (aplica a cualquier mercado).
 Devuelve SOLO JSON con esta estructura estricta:
 {{"candidatos": [{{"nombre": "...", "aliases": ["..."], "confianza": 0.0}}]}}
 

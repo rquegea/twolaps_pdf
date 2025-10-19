@@ -80,7 +80,10 @@ class ExecutiveAgent(BaseAgent):
             top_k=2
         )
         
-        # Construir prompt completo con todos los KPIs
+        # NUEVO: Obtener muestra de respuestas textuales originales
+        raw_responses = self._get_raw_responses_sample(categoria_id, periodo, sample_size=15)
+        
+        # Construir prompt completo con todos los KPIs Y respuestas textuales
         prompt = self._build_prompt(
             categoria_nombre,
             periodo,
@@ -91,7 +94,8 @@ class ExecutiveAgent(BaseAgent):
             trends,
             strategic,
             synthesis,
-            historical_context
+            historical_context,
+            raw_responses
         )
         
         # Generar informe con LLM
@@ -223,7 +227,8 @@ class ExecutiveAgent(BaseAgent):
         trends: Dict,
         strategic: Dict,
         synthesis: Dict,
-        historical_context: str
+        historical_context: str,
+        raw_responses: str
     ) -> str:
         """Construye el prompt completo con todos los datos"""
         
@@ -242,6 +247,9 @@ Pregunta Clave: {synthesis.get('pregunta_clave', '')}
 
 CONTEXTO HISTÓRICO (PERIODOS ANTERIORES):
 {historical_context}
+
+RESPUESTAS TEXTUALES ORIGINALES (Muestra enriquecida):
+{raw_responses}
 
 DATOS DE SOPORTE (KPIs Y ESTRATEGIA):
 - Total menciones: {quantitative.get('total_menciones', 0)}
@@ -340,4 +348,48 @@ IMPORTANTE:
         ).first()
         
         return result.resultado if result else {}
+    
+    def _get_raw_responses_sample(self, categoria_id: int, periodo: str, sample_size: int = 15) -> str:
+        """
+        Obtiene una muestra representativa de respuestas textuales originales
+        
+        Args:
+            categoria_id: ID de categoría
+            periodo: Periodo (YYYY-MM)
+            sample_size: Número de respuestas a incluir
+        
+        Returns:
+            String formateado con las respuestas textuales
+        """
+        from src.database.models import Query, QueryExecution
+        from sqlalchemy import extract
+        
+        year, month = map(int, periodo.split('-'))
+        
+        # Obtener ejecuciones del periodo con variedad
+        executions = self.session.query(QueryExecution).join(
+            Query
+        ).filter(
+            Query.categoria_id == categoria_id,
+            extract('month', QueryExecution.timestamp) == month,
+            extract('year', QueryExecution.timestamp) == year,
+            QueryExecution.respuesta_texto.isnot(None)
+        ).limit(sample_size).all()
+        
+        if not executions:
+            return "No hay respuestas textuales disponibles para este periodo."
+        
+        # Formatear respuestas con más contexto para el Executive Agent
+        formatted_responses = []
+        for i, execution in enumerate(executions, 1):
+            # Limitar longitud de cada respuesta para no exceder límites de tokens
+            texto_truncado = execution.respuesta_texto[:1000] if execution.respuesta_texto else ""
+            formatted_responses.append(
+                f"--- RESPUESTA {i} ---\n"
+                f"Query: {execution.query.pregunta if execution.query else 'N/A'}\n"
+                f"Timestamp: {execution.timestamp.strftime('%Y-%m-%d') if execution.timestamp else 'N/A'}\n"
+                f"Contenido: {texto_truncado}\n"
+            )
+        
+        return "\n".join(formatted_responses)
 

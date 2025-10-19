@@ -49,7 +49,7 @@ class SentimentAgent(BaseAgent):
           "marca": {{
             "score": float (-1 a 1),
             "tono": "positivo|neutral|negativo",
-            "atributos": {{"sabor": score, "precio": score, "calidad": score}},
+            "atributos": {{"precio": score, "calidad": score, "innovacion": score}},
             "quote": "fragmento relevante"
           }}
         }}

@@ -1,6 +1,6 @@
 """
 Attributes Agent
-Extracción de atributos FMCG específicos
+Extracción de atributos genéricos (aplicable a cualquier mercado)
 """
 
 import json
@@ -16,8 +16,8 @@ from src.query_executor.api_clients import AnthropicClient
 
 class AttributesAgent(BaseAgent):
     """
-    Agente de extracción de atributos
-    Identifica atributos asociados a marcas (sabor, precio, calidad, etc.)
+    Agente de extracción de atributos genéricos
+    Identifica atributos asociados a marcas aplicable a cualquier mercado
     """
     
     def __init__(self, session, version: str = "1.0.0"):
@@ -68,13 +68,15 @@ class AttributesAgent(BaseAgent):
             
             Texto: {execution.respuesta_texto[:1200]}
             
-            Atributos FMCG a identificar:
-            - Calidad: premium, estándar, económica
-            - Precio: caro, accesible, económico
-            - Sabor: intenso, suave, equilibrado
-            - Ocasión: celebración, cotidiano, regalo
+            Atributos genéricos a identificar (adapta según el contexto):
+            - Calidad: premium, estándar, económica, alta, baja
+            - Precio: caro, accesible, económico, valor
+            - Innovación: innovador, tradicional, disruptivo
+            - Confiabilidad: confiable, probado, nuevo
+            - Servicio: excelente, bueno, deficiente
+            - Atributos específicos: cualquier otro atributo relevante mencionado
             
-            Devuelve JSON: {{"marca": {{"calidad": [...], "precio": [...], "sabor": [...], "ocasion": [...]}}}}
+            Devuelve JSON: {{"marca": {{"calidad": [...], "precio": [...], "innovacion": [...], "confiabilidad": [...], "servicio": [...], "atributos_especificos": [...]}}}}
             """
             
             try:

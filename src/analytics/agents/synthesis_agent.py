@@ -33,7 +33,7 @@ class SynthesisAgent(BaseAgent):
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
-        Genera narrativa central (Situación-Complicación-Pregunta)
+        Genera narrativa central (Situación-Complicación-Pregunta) con análisis profundo
         
         Args:
             categoria_id: ID de categoría
@@ -50,11 +50,15 @@ class SynthesisAgent(BaseAgent):
         if not quantitative or not sentiment or not strategic:
             return {'error': 'Faltan análisis previos necesarios'}
         
-        # Construir prompt
+        # NUEVO: Obtener muestra de respuestas textuales originales
+        raw_responses = self._get_raw_responses_sample(categoria_id, periodo, sample_size=12)
+        
+        # Construir prompt con datos estructurados Y respuestas textuales
         prompt = self.task_prompt.format(
             quantitative_results=json.dumps(quantitative, indent=2),
             sentiment_results=json.dumps(sentiment, indent=2),
-            strategic_results=json.dumps(strategic, indent=2)
+            strategic_results=json.dumps(strategic, indent=2),
+            raw_responses_sample=raw_responses
         )
         
         # Llamar a LLM
@@ -92,4 +96,47 @@ class SynthesisAgent(BaseAgent):
             agente=agent_name
         ).first()
         return result.resultado if result else {}
+    
+    def _get_raw_responses_sample(self, categoria_id: int, periodo: str, sample_size: int = 12) -> str:
+        """
+        Obtiene una muestra representativa de respuestas textuales originales
+        
+        Args:
+            categoria_id: ID de categoría
+            periodo: Periodo (YYYY-MM)
+            sample_size: Número de respuestas a incluir
+        
+        Returns:
+            String formateado con las respuestas textuales
+        """
+        from src.database.models import Query, QueryExecution
+        from sqlalchemy import extract
+        
+        year, month = map(int, periodo.split('-'))
+        
+        # Obtener ejecuciones del periodo
+        executions = self.session.query(QueryExecution).join(
+            Query
+        ).filter(
+            Query.categoria_id == categoria_id,
+            extract('month', QueryExecution.timestamp) == month,
+            extract('year', QueryExecution.timestamp) == year,
+            QueryExecution.respuesta_texto.isnot(None)
+        ).limit(sample_size).all()
+        
+        if not executions:
+            return "No hay respuestas textuales disponibles para este periodo."
+        
+        # Formatear respuestas
+        formatted_responses = []
+        for i, execution in enumerate(executions, 1):
+            # Limitar longitud de cada respuesta para no exceder límites de tokens
+            texto_truncado = execution.respuesta_texto[:800] if execution.respuesta_texto else ""
+            formatted_responses.append(
+                f"--- RESPUESTA {i} ---\n"
+                f"Query: {execution.query.pregunta if execution.query else 'N/A'}\n"
+                f"Contenido: {texto_truncado}\n"
+            )
+        
+        return "\n".join(formatted_responses)
 

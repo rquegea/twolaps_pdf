@@ -11,8 +11,8 @@ sentiment_agent:
     
     INSTRUCCIONES:
     1. Para cada marca mencionada, determina el sentimiento (-1 negativo, 0 neutral, +1 positivo)
-    2. Identifica atributos mencionados: sabor, precio, calidad, sostenibilidad, packaging
-    3. Detecta ocasiones de consumo: fiesta, comida, regalo, casual, premium
+    2. Identifica atributos mencionados de forma genérica (ej: precio, calidad, innovación, servicio, confiabilidad)
+    3. Detecta el contexto de uso o mención (ej: profesional, personal, comparativo, recomendación)
     4. Evalúa el tono general de la mención
     
     DEVUELVE JSON:
@@ -20,39 +20,41 @@ sentiment_agent:
       "marca": {{
         "score": float,  # -1 a 1
         "tono": "positivo|neutral|negativo",
-        "atributos": {{"sabor": score, "precio": score, ...}},
-        "ocasiones": ["fiesta", "comida", ...],
+        "atributos": {{"precio": score, "calidad": score, ...}},
+        "contextos": ["profesional", "personal", ...],
         "quote": "fragmento relevante del texto"
       }}
     }}
 
 attributes_agent:
   task: |
-    Extrae y clasifica los atributos asociados a cada marca en el contexto FMCG.
+    Extrae y clasifica los atributos asociados a cada marca de forma genérica (aplicable a cualquier mercado).
     
     MARCAS: {marcas}
     TEXTO: {texto}
     
-    ATRIBUTOS A IDENTIFICAR:
+    ATRIBUTOS A IDENTIFICAR (adapta según el contexto del mercado):
     
-    1. CALIDAD: premium, estándar, económica, artesanal, industrial
+    1. CALIDAD: premium, estándar, económica, alta, baja
     2. PRECIO: caro, accesible, económico, valor, lujo
-    3. SABOR: intenso, suave, equilibrado, único, tradicional
-    4. SOSTENIBILIDAD: ecológico, orgánico, local, responsable
-    5. PACKAGING: innovador, clásico, premium, práctico
-    6. OCASIÓN: celebración, cotidiano, regalo, especial
+    3. INNOVACIÓN: innovador, tradicional, disruptivo, conservador
+    4. CONFIABILIDAD: confiable, cuestionable, probado, nuevo
+    5. SERVICIO: excelente, bueno, deficiente, personalizado
+    6. REPUTACIÓN: líder, emergente, establecido, cuestionado
     7. PERFIL: joven, familiar, profesional, premium, masivo
+    8. ATRIBUTOS_ESPECIFICOS: cualquier otro atributo relevante mencionado en el texto
     
     DEVUELVE JSON:
     {{
       "marca": {{
-        "calidad": ["premium", "artesanal"],
+        "calidad": ["premium"],
         "precio": ["accesible"],
-        "sabor": ["equilibrado"],
-        "sostenibilidad": [],
-        "packaging": ["premium"],
-        "ocasion": ["celebración", "regalo"],
-        "perfil": ["premium", "profesional"]
+        "innovacion": ["innovador"],
+        "confiabilidad": ["probado"],
+        "servicio": ["excelente"],
+        "reputacion": ["líder"],
+        "perfil": ["profesional"],
+        "atributos_especificos": ["rápido", "seguro", ...]
       }}
     }}
 
@@ -90,17 +92,28 @@ strategic_agent:
 
     DATOS DE TENDENCIAS:
     {trends_data}
+    
+    RESPUESTAS TEXTUALES ORIGINALES (Muestra representativa de análisis cualitativos de IA):
+    {raw_responses_sample}
 
     INSTRUCCIONES:
-    Basándote EXCLUSIVAMENTE en los datos proporcionados:
+    Basándote en los datos estructurados Y en las respuestas textuales originales:
+    
     1. Identifica las 3 OPORTUNIDADES estratégicas más importantes.
     2. Identifica los 3 RIESGOS estratégicos más críticos.
+    
+    ANÁLISIS REQUERIDO:
+    - Usa los KPIs estructurados para cuantificar la magnitud (ej: "SOV 5% pero Sentimiento 0.9")
+    - Extrae insights cualitativos específicos de las respuestas textuales: ejemplos concretos, menciones específicas de productos/servicios, razonamientos de usuarios, contextos de uso, comparaciones directas, frases reveladoras
+    - Identifica patrones o temas emergentes que aparecen en las respuestas textuales pero que no están capturados en los KPIs
+    - Cita evidencia textual cuando fortalezca el argumento (ej: "usuarios mencionan: '...'")
 
     Para cada OPORTUNIDAD, formato JSON:
     {{
       "titulo": "Título accionable de la oportunidad",
-      "descripcion": "Explicación de 2 líneas de la oportunidad",
-      "datos_soporte": "KPI específico que justifica esto (ej: 'Marca X tiene SOV 5% pero Sentimiento 0.9')",
+      "descripcion": "Explicación de 3-4 líneas que integre KPIs cuantitativos y evidencia cualitativa específica de las respuestas textuales",
+      "datos_soporte": "KPI estructurado + cita o ejemplo específico del texto crudo (ej: 'SOV 5% pero Sentimiento 0.9. Las respuestas mencionan consistentemente: [...ejemplo específico...]')",
+      "evidencia_cualitativa": "Fragmento o patrón específico identificado en las respuestas textuales originales que fundamenta esta oportunidad",
       "impacto": "alto|medio|bajo",
       "esfuerzo": "alto|medio|bajo",
       "prioridad": "alta|media|baja"
@@ -109,19 +122,22 @@ strategic_agent:
     Para cada RIESGO, formato JSON:
     {{
       "titulo": "Título claro del riesgo",
-      "descripcion": "Explicación de 2 líneas del impacto potencial",
-      "datos_soporte": "KPI específico que justifica esto (ej: 'Líder tiene SOV 54% pero Sentimiento 0.00')",
+      "descripcion": "Explicación de 3-4 líneas que integre datos cuantitativos y cualitativos específicos",
+      "datos_soporte": "KPI estructurado + evidencia textual (ej: 'Líder con SOV 54% pero Sentimiento 0.00. Análisis cualitativo revela: [...ejemplo específico...]')",
+      "evidencia_cualitativa": "Patrones, quejas recurrentes o señales de advertencia identificadas en las respuestas textuales",
       "probabilidad": "alta|media|baja",
       "severidad": "alta|media|baja",
-      "mitigacion": "Sugerencia de mitigación accionable"
+      "mitigacion": "Sugerencia accionable basada tanto en datos como en los insights cualitativos"
     }}
 
     DEVUELVE UN ÚNICO OBJETO JSON con las claves "oportunidades" y "riesgos".
+    
+    IMPORTANTE: El análisis debe ser más rico y fundamentado que un simple resumen de KPIs. Busca la historia detrás de los números en las respuestas textuales.
 
 synthesis_agent:
   task: |
-    Eres el Director de Estrategia. Tu trabajo es sintetizar todos los análisis en una narrativa central (el "So What?").
-    Analiza los siguientes KPIs y hallazgos estratégicos.
+    Eres el Director de Estrategia. Tu trabajo es sintetizar todos los análisis en una narrativa central (el "So What?") de nivel McKinsey.
+    Analiza los siguientes KPIs, hallazgos estratégicos Y las respuestas textuales originales.
 
     KPIs CUANTITATIVOS (SOV, Menciones):
     {quantitative_results}
@@ -131,20 +147,31 @@ synthesis_agent:
 
     ANÁLISIS ESTRATÉGICO (Oportunidades y Riesgos):
     {strategic_results}
+    
+    RESPUESTAS TEXTUALES ORIGINALES (Muestra representativa):
+    {raw_responses_sample}
 
     INSTRUCCIONES:
     Usando la metodología de consultoría (Situación, Complicación, Pregunta), genera la narrativa central del informe.
     
+    PROFUNDIZA EL ANÁLISIS:
+    - La "Situación" debe ir más allá de los KPIs resumidos: ¿qué temas, lenguaje o contextos específicos emergen en las respuestas textuales?
+    - La "Complicación" debe fundamentarse con evidencia cualitativa concreta: ¿qué dicen realmente los usuarios/datos? ¿qué contradicciones o tensiones aparecen entre los números y las narrativas textuales?
+    - La "Pregunta Clave" debe reflejar la complejidad real del problema, informada por los matices encontrados en las respuestas originales
+    
     DEVUELVE UN ÚNICO OBJETO JSON con esta estructura:
     {{
-      "situacion": "Párrafo de 2-3 líneas describiendo el estado actual del mercado (ej: 'El mercado está dominado por X, con un volumen de Y...')",
-      "complicacion": "Párrafo de 2-3 líneas describiendo la tensión o el problema principal (ej: 'A pesar de su dominio en SOV (54%), el líder sufre un sentimiento nulo (0.00), lo que abre una brecha...')",
-      "pregunta_clave": "La pregunta de negocio fundamental que el cliente debe responder (ej: '¿Cómo puede el líder capitalizar su visibilidad para construir afinidad, o cómo pueden los competidores explotar esta debilidad?')"
+      "situacion": "Párrafo de 4-5 líneas describiendo el estado actual del mercado. Incluye KPIs clave PERO TAMBIÉN insights cualitativos específicos de las respuestas textuales (ej: 'El mercado está dominado por X con SOV 54%. Sin embargo, el análisis cualitativo revela que las conversaciones se centran en [tema específico], con menciones recurrentes de [ejemplo específico]...')",
+      "complicacion": "Párrafo de 4-5 líneas describiendo la tensión o problema principal. Integra datos duros con evidencia textual (ej: 'A pesar del dominio en SOV (54%), el líder sufre sentimiento nulo (0.00). Las respuestas textuales revelan que [patrón cualitativo específico], con usuarios expresando [ejemplo de cita o patrón], lo que señala una desconexión entre visibilidad y percepción...')",
+      "pregunta_clave": "La pregunta de negocio fundamental que el cliente debe responder, informada por la complejidad de los datos cuantitativos y cualitativos (ej: '¿Cómo puede el líder transformar su alta visibilidad en afinidad genuina, considerando que [insight específico de respuestas textuales]?')",
+      "insights_cualitativos_clave": ["Insight cualitativo 1 extraído de respuestas textuales", "Insight cualitativo 2", "Insight cualitativo 3"]
     }}
+    
+    IMPORTANTE: Esta narrativa debe ser el "puente" entre los datos crudos y las recomendaciones finales. Debe ser rica, matizada y convincente, aprovechando toda la información disponible.
 
 executive_agent:
   task: |
-    Genera un informe ejecutivo completo de consultoría basándote en todos los análisis previos.
+    Genera un informe ejecutivo completo de consultoría de nivel McKinsey basándote en todos los análisis previos Y las respuestas textuales originales.
     
     DATOS DISPONIBLES:
     
@@ -169,50 +196,78 @@ executive_agent:
     Contexto Histórico (periodos similares):
     {historical_context}
     
+    RESPUESTAS TEXTUALES ORIGINALES (Muestra enriquecida):
+    {raw_responses_sample}
+
+    METODOLOGÍA DE ANÁLISIS:
+    Este informe debe reflejar la profundidad de una consultoría estratégica. NO te limites a resumir los KPIs estructurados.
+    
+    DEBES:
+    1. Integrar datos cuantitativos (KPIs) con insights cualitativos (respuestas textuales)
+    2. Citar ejemplos específicos, menciones concretas, o patrones textuales que enriquezcan cada hallazgo
+    3. Identificar "la historia detrás de los números": ¿por qué ese SOV? ¿qué revela el análisis textual sobre las causas?
+    4. Extraer insights accionables que solo son visibles al combinar ambos tipos de datos
+    5. Fundamentar cada recomendación con evidencia mixta (cuantitativa + cualitativa)
+
     GENERA EL INFORME CON ESTAS SECCIONES EXACTAS:
     
     1. resumen_ejecutivo:
        - 3-5 hallazgos clave del periodo (bullets)
-       - Cada hallazgo debe citar KPIs específicos
+       - Cada hallazgo debe citar KPIs específicos Y evidencia cualitativa concreta de las respuestas textuales
+       - Formato: "[KPI cuantitativo]. [Insight cualitativo específico]: [evidencia o ejemplo]"
        - Prioriza por impacto para el negocio
+       - Ejemplo: "El líder tiene 54% SOV pero sentimiento 0.00. Análisis cualitativo revela que las menciones son predominantemente neutrales/transaccionales, sin asociación emocional: 'solo lo compro porque está en todos lados'."
     
     2. mercado:
-       - Estado general del mercado en el periodo
-       - Volumen de conversación (menciones totales)
-       - Principales temas de discusión
+       - Estado general del mercado en el periodo (integra KPIs + temas emergentes de respuestas textuales)
+       - Volumen de conversación (menciones totales) + naturaleza de las conversaciones (¿qué se dice realmente?)
+       - Principales temas de discusión extraídos del análisis textual
        - Comparación con periodo anterior (si hay contexto histórico)
+       - Citas o ejemplos específicos que ilustren el estado del mercado
     
     3. competencia:
        - Tabla de SOV por marca
-       - Análisis de líderes vs. seguidores
-       - Comparativas directas marca vs marca
-       - Gaps y oportunidades competitivas
+       - Análisis de líderes vs. seguidores: más allá de los números, ¿qué dicen las respuestas textuales sobre cada competidor?
+       - Comparativas directas marca vs marca con evidencia cualitativa (ej: "Marca A vs B: SOV 30% vs 15%, pero las respuestas revelan que B es mencionada en contextos de [patrón específico]")
+       - Gaps y oportunidades competitivas fundamentadas en análisis textual
+       - Menciones específicas de productos, servicios o atributos que diferencian a cada competidor
     
     4. sentimiento_reputacion:
-       - Sentimiento por marca (con scores)
-       - Atributos asociados por marca
-       - Ocasiones de consumo mencionadas
+       - Sentimiento por marca (con scores) Y contexto cualitativo de ese sentimiento
+       - Atributos asociados por marca + ejemplos textuales específicos
+       - Contextos de mención identificados con citas representativas
        - Evolución vs. periodo anterior
+       - Fragmentos reveladores que explican el "por qué" detrás de los scores de sentimiento
     
     5. oportunidades_riesgos:
-       - Oportunidades: lista priorizada (Alta/Media/Baja)
-       - Riesgos: lista con severidad y mitigación
-       - Quick wins identificados
+       - Oportunidades: lista priorizada (Alta/Media/Baja) con evidencia cuantitativa Y cualitativa
+       - Riesgos: lista con severidad y mitigación, fundamentados en patrones textuales identificados
+       - Quick wins identificados con ejemplos concretos de cómo se manifiestan en los datos textuales
+       - Para cada ítem: combina el KPI estructurado con la evidencia cualitativa específica
     
     6. plan_90_dias:
        - 3-5 iniciativas priorizadas
-       - Para cada una: QUÉ, POR QUÉ (datos), CÓMO (pasos), CUÁNDO (timeline)
+       - Para cada una: 
+         * QUÉ: acción específica
+         * POR QUÉ: datos cuantitativos + insights cualitativos que justifican esta iniciativa
+         * CÓMO: 3-5 pasos concretos o tácticas, informadas por lo que revelan las respuestas textuales
+         * CUÁNDO: timeline (Mes 1, Mes 2, Mes 3)
+         * KPI de medición: métrica cuantificable
+         * Evidencia de soporte: fragmento o patrón específico de las respuestas textuales que fundamenta esta recomendación
        - Priorización RICE: Reach, Impact, Confidence, Effort
        - Timeline sugerido (Mes 1, Mes 2, Mes 3)
     
     FORMATO DE SALIDA: JSON estructurado
     
     RECUERDA:
-    - Cita SIEMPRE los KPIs y datos específicos
+    - Cita SIEMPRE los KPIs Y la evidencia cualitativa específica
     - Sé accionable y específico
-    - Evita vaguedades
-    - Tono ejecutivo y consultivo
+    - Evita vaguedades y generalidades
+    - Tono ejecutivo y consultivo (McKinsey-level)
+    - Cada afirmación debe estar fundamentada en datos cuantitativos + cualitativos
+    - Las respuestas textuales son tu fuente de insights profundos: úsalas
     - Longitud: completo pero conciso
+    - RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
 
 trends_agent:
   task: |
