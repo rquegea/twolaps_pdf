@@ -117,7 +117,12 @@ class PDFGenerator:
             'fecha_generacion': datetime.now().strftime('%d de %B de %Y'),
             'resumen_ejecutivo': contenido.get('resumen_ejecutivo', {}),
             'mercado_section': contenido.get('mercado', {}),
-            'competencia': contenido.get('competencia', {}),
+            'panorama_mercado': contenido.get('panorama_mercado', {}),  # NUEVO
+            'analisis_competitivo': contenido.get('analisis_competitivo', {}),  # NUEVO (estructura expandida)
+            'competencia': contenido.get('competencia', {}),  # Mantener compatibilidad
+            'actividad_marketing': contenido.get('analisis_competitivo', {}).get('actividad_marketing', {}),  # NUEVO
+            'estrategias_canal': contenido.get('analisis_competitivo', {}).get('estrategias_canal', {}),  # NUEVO
+            'consumidor': contenido.get('consumidor', {}),  # NUEVO
             'sentimiento': contenido.get('sentimiento_reputacion', {}),
             'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),
             'plan_90_dias': contenido.get('plan_90_dias', {}),

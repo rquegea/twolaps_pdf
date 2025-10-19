@@ -45,8 +45,15 @@ class StrategicAgent(BaseAgent):
         # Leer análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
+        if not qualitative:
+            qualitative = self._get_analysis('qualitativeextraction', categoria_id, periodo)
         competitive = self._get_analysis('competitive', categoria_id, periodo)
         trends = self._get_analysis('trends', categoria_id, periodo)
+        # Datos adicionales FMCG usados por el prompt estratégico ampliado
+        campaign = self._get_analysis('campaign_analysis', categoria_id, periodo)
+        channel = self._get_analysis('channel_analysis', categoria_id, periodo)
+        esg = self._get_analysis('esg_analysis', categoria_id, periodo)
+        packaging = self._get_analysis('packaging_analysis', categoria_id, periodo)
         
         if not quantitative or not qualitative:
             return {'error': 'Faltan análisis previos'}
@@ -60,7 +67,12 @@ class StrategicAgent(BaseAgent):
             sentiment_data=json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2),
             competitive_data=json.dumps(competitive, indent=2),
             trends_data=json.dumps(trends.get('tendencias', []), indent=2),
-            raw_responses_sample=raw_responses
+            raw_responses_sample=raw_responses,
+            # Campos FMCG adicionales requeridos por el prompt YAML
+            campaign_analysis_data=json.dumps(campaign, indent=2),
+            channel_analysis_data=json.dumps(channel, indent=2),
+            esg_analysis_data=json.dumps(esg, indent=2),
+            packaging_analysis_data=json.dumps(packaging, indent=2)
         )
         
         # Llamar a LLM

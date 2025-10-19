@@ -1,6 +1,7 @@
 """
 Qualitative Extraction Agent
-Análisis cualitativo unificado (sentimiento + atributos) usando LLM sobre 100% de datos textuales
+Análisis cualitativo unificado usando arquitectura RAG escalable
+Recupera fragmentos relevantes mediante búsqueda vectorial en lugar de procesar todo en batches
 """
 
 import json
@@ -9,70 +10,39 @@ from pathlib import Path
 from typing import Dict, Any, List
 from sqlalchemy import extract
 from src.analytics.agents.base_agent import BaseAgent
+from src.analytics.rag_manager import RAGManager
 from src.database.models import Query, QueryExecution, Marca
 from src.query_executor.api_clients import AnthropicClient
 
 
 class QualitativeExtractionAgent(BaseAgent):
     """
-    Agente de extracción cualitativa unificado
-    Analiza el 100% de respuestas textuales para extraer:
+    Agente de extracción cualitativa unificado con arquitectura RAG
+    Analiza respuestas textuales recuperando fragmentos relevantes mediante búsqueda vectorial
+    Extrae:
     - Sentimiento por marca
     - Atributos por marca
+    - Marketing y campañas
+    - Canales de distribución
+    - Ocasiones de consumo
+    - Drivers y barreras
     - Temas emergentes
     - Insights cualitativos clave
     """
     
-    def __init__(self, session, version: str = "2.0.0"):
+    def __init__(self, session, version: str = "3.0.0-RAG"):
         super().__init__(session, version)
         self.client = AnthropicClient()
-        self.load_prompts()
-        # Límite de caracteres por batch para Claude (200K tokens ≈ 800K chars)
-        self.max_chars_per_batch = 700000
-    
-    def load_prompts(self):
-        """Carga prompts de configuración"""
-        prompt_path = Path("config/prompts/agent_prompts.yaml")
-        if prompt_path.exists():
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('qualitative_extraction_agent', {}).get('task', '')
-        else:
-            self.task_prompt = self._get_default_prompt()
-    
-    def _get_default_prompt(self) -> str:
-        """Prompt por defecto si no hay config"""
-        return """
-        Analiza TODOS los siguientes textos sobre las marcas: {marcas}
-        
-        TEXTOS:
-        {textos}
-        
-        Devuelve JSON con:
-        {{
-          "sentimiento_por_marca": {{
-            "Marca X": {{
-              "score_medio": float (-1 a 1),
-              "tono": "positivo|neutral|negativo",
-              "intensidad": "alta|media|baja",
-              "distribucion": {{"positivo": int, "neutral": int, "negativo": int}}
-            }}
-          }},
-          "atributos_por_marca": {{
-            "Marca X": {{
-              "calidad": ["premium", "consistente"],
-              "precio": ["alto", "justificado"],
-              "innovacion": ["innovador"]
-            }}
-          }},
-          "temas_emergentes": ["tema 1", "tema 2"],
-          "insights_cualitativos": ["insight 1", "insight 2"]
-        }}
-        """
+        self.rag_manager = RAGManager(session)
+        # Normalizamos el nombre del agente para que sea 'qualitative'
+        self.agent_name = 'qualitative'
+        # Número de fragmentos a recuperar por pregunta analítica
+        self.top_k_fragments = 10
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
-        Ejecuta análisis cualitativo completo sobre 100% de datos textuales
+        Ejecuta análisis cualitativo usando arquitectura RAG escalable
+        Recupera fragmentos relevantes mediante búsqueda vectorial para cada pregunta analítica
         
         Args:
             categoria_id: ID de categoría
@@ -81,8 +51,6 @@ class QualitativeExtractionAgent(BaseAgent):
         Returns:
             Dict con análisis cualitativo completo
         """
-        year, month = map(int, periodo.split('-'))
-        
         # 1. Obtener marcas
         marcas = self.session.query(Marca).filter_by(
             categoria_id=categoria_id
@@ -93,196 +61,331 @@ class QualitativeExtractionAgent(BaseAgent):
         
         marca_nombres = [m.nombre for m in marcas]
         
-        # 2. Obtener TODAS las ejecuciones con respuesta_texto
-        executions = self.session.query(QueryExecution).join(
-            Query
-        ).filter(
-            Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year,
-            QueryExecution.respuesta_texto.isnot(None)
-        ).all()
-        
-        if not executions:
-            return {'error': 'No hay datos textuales para analizar'}
-        
         self.logger.info(
-            f"Analizando {len(executions)} respuestas textuales (100% de datos)",
+            f"Iniciando análisis cualitativo RAG para {len(marca_nombres)} marcas",
             categoria_id=categoria_id,
-            periodo=periodo
+            periodo=periodo,
+            metodo='rag'
         )
         
-        # 3. Procesar en batches si es necesario
-        batches = self._create_batches(executions)
+        # 2. Definir preguntas analíticas clave
+        analytical_questions = self._define_analytical_questions(marca_nombres)
         
-        self.logger.info(
-            f"Procesando en {len(batches)} batch(es)",
-            total_textos=len(executions)
-        )
-        
-        # 4. Analizar cada batch con Claude
-        batch_results = []
-        for i, batch_texts in enumerate(batches, 1):
-            self.logger.info(f"Procesando batch {i}/{len(batches)}")
-            
-            # Construir prompt
-            prompt = self.task_prompt.format(
-                marcas=', '.join(marca_nombres),
-                textos='\n\n---\n\n'.join(batch_texts)
-            )
+        # 3. Para cada pregunta, recuperar fragmentos relevantes y analizar
+        all_results = {}
+        for question_key, question_data in analytical_questions.items():
+            self.logger.info(f"Procesando pregunta analítica: {question_key}")
             
             try:
-                # Llamar a Claude (soporta contextos largos)
+                # Recuperar fragmentos relevantes usando RAG
+                fragments = self.rag_manager.search_query_executions_for_question(
+                    categoria_id=categoria_id,
+                    periodo=periodo,
+                    analytical_question=question_data['query'],
+                    top_k=self.top_k_fragments
+                )
+                
+                if not fragments:
+                    self.logger.warning(f"No se encontraron fragmentos para: {question_key}")
+                    all_results[question_key] = None
+                    continue
+                
+                # Construir contexto con fragmentos recuperados
+                context_texts = [f"[Fragmento {i+1}]:\n{frag['texto']}" 
+                                for i, frag in enumerate(fragments)]
+                context = '\n\n---\n\n'.join(context_texts)
+                
+                # Construir prompt específico para esta pregunta
+                prompt = question_data['prompt_template'].format(
+                    marcas=', '.join(marca_nombres),
+                    contexto=context
+                )
+                
+                # Llamar al LLM
                 result = self.client.generate(
                     prompt=prompt,
                     temperature=0.3,
-                    max_tokens=4000,
-                    json_mode=True
+                    max_tokens=3000
                 )
                 
-                # Parsear JSON
-                batch_data = json.loads(result['response_text'])
-                batch_results.append(batch_data)
+                # Parsear respuesta
+                response_text = self._clean_json_response(result.get('response_text', ''))
+                parsed_result = json.loads(response_text)
+                
+                all_results[question_key] = parsed_result
+                
+                self.logger.info(
+                    f"Pregunta {question_key} procesada exitosamente",
+                    fragments_used=len(fragments)
+                )
                 
             except Exception as e:
                 self.logger.error(
-                    f"Error procesando batch {i}: {e}",
+                    f"Error procesando pregunta {question_key}: {e}",
                     exc_info=True
                 )
-                # Continuar con el siguiente batch
-                continue
+                all_results[question_key] = None
         
-        if not batch_results:
-            return {'error': 'No se pudo procesar ningún batch correctamente'}
+        # 4. Agregar todos los resultados en la estructura final
+        resultado_final = self._aggregate_rag_results(all_results)
         
-        # 5. Agregar resultados de todos los batches
-        resultado_final = self._aggregate_batches(batch_results, marca_nombres)
-        
-        # 6. Añadir metadata
+        # 5. Añadir metadata
         resultado_final['periodo'] = periodo
         resultado_final['categoria_id'] = categoria_id
         resultado_final['metadata'] = {
-            'textos_analizados': len(executions),
-            'total_caracteres': sum(len(e.respuesta_texto or '') for e in executions),
-            'batches_procesados': len(batch_results),
-            'metodo': 'llm_full_analysis_claude'
+            'metodo': 'rag_vector_search',
+            'top_k_por_pregunta': self.top_k_fragments,
+            'preguntas_analiticas': len(analytical_questions),
+            'preguntas_exitosas': sum(1 for v in all_results.values() if v is not None)
         }
         
-        # 7. Guardar
+        # 6. Guardar
         self.save_results(categoria_id, periodo, resultado_final)
         
         return resultado_final
     
-    def _create_batches(self, executions: List) -> List[List[str]]:
+    def _define_analytical_questions(self, marca_nombres: List[str]) -> Dict[str, Dict]:
         """
-        Divide las ejecuciones en batches manejables por límite de tokens
+        Define las preguntas analíticas clave y sus prompts
+        Cada pregunta recuperará fragmentos relevantes mediante RAG
         
         Args:
-            executions: Lista de QueryExecution
-        
-        Returns:
-            Lista de batches, cada batch es lista de strings (textos)
-        """
-        batches = []
-        current_batch = []
-        current_chars = 0
-        
-        for execution in executions:
-            texto = execution.respuesta_texto or ''
-            texto_length = len(texto)
-            
-            # Si añadir este texto superaría el límite, crear nuevo batch
-            if current_chars + texto_length > self.max_chars_per_batch and current_batch:
-                batches.append(current_batch)
-                current_batch = []
-                current_chars = 0
-            
-            # Truncar textos individuales muy largos
-            if texto_length > 3000:
-                texto = texto[:3000] + "... [truncado]"
-            
-            current_batch.append(texto)
-            current_chars += len(texto)
-        
-        # Añadir último batch
-        if current_batch:
-            batches.append(current_batch)
-        
-        return batches
-    
-    def _aggregate_batches(self, batch_results: List[Dict], marca_nombres: List[str]) -> Dict[str, Any]:
-        """
-        Agrega resultados de múltiples batches en un resultado unificado
-        
-        Args:
-            batch_results: Lista de resultados de cada batch
             marca_nombres: Lista de nombres de marcas
         
         Returns:
-            Dict con resultados agregados
+            Dict con preguntas analíticas y sus configuraciones
         """
-        # Agregar sentimientos
-        sentimiento_agregado = {}
-        for marca in marca_nombres:
-            scores = []
-            tonos = []
-            intensidades = []
-            distribuciones = {'positivo': 0, 'neutral': 0, 'negativo': 0}
-            
-            for batch in batch_results:
-                marca_data = batch.get('sentimiento_por_marca', {}).get(marca, {})
-                if marca_data:
-                    if 'score_medio' in marca_data:
-                        scores.append(marca_data['score_medio'])
-                    if 'tono' in marca_data:
-                        tonos.append(marca_data['tono'])
-                    if 'intensidad' in marca_data:
-                        intensidades.append(marca_data['intensidad'])
-                    if 'distribucion' in marca_data:
-                        for key in ['positivo', 'neutral', 'negativo']:
-                            distribuciones[key] += marca_data['distribucion'].get(key, 0)
-            
-            sentimiento_agregado[marca] = {
-                'score_medio': sum(scores) / len(scores) if scores else 0.0,
-                'tono': max(set(tonos), key=tonos.count) if tonos else 'neutral',
-                'intensidad': max(set(intensidades), key=intensidades.count) if intensidades else 'baja',
-                'distribucion': distribuciones,
-                'menciones_analizadas': sum(distribuciones.values())
-            }
-        
-        # Agregar atributos (unión de todos los atributos encontrados)
-        atributos_agregados = {}
-        for marca in marca_nombres:
-            atributos_marca = {}
-            
-            for batch in batch_results:
-                marca_attrs = batch.get('atributos_por_marca', {}).get(marca, {})
-                for categoria_attr, valores in marca_attrs.items():
-                    if categoria_attr not in atributos_marca:
-                        atributos_marca[categoria_attr] = []
-                    # Añadir valores únicos
-                    atributos_marca[categoria_attr].extend(
-                        v for v in valores if v not in atributos_marca[categoria_attr]
-                    )
-            
-            atributos_agregados[marca] = atributos_marca
-        
-        # Agregar temas emergentes (unión de todos)
-        temas_emergentes = []
-        for batch in batch_results:
-            temas = batch.get('temas_emergentes', [])
-            temas_emergentes.extend(t for t in temas if t not in temas_emergentes)
-        
-        # Agregar insights cualitativos (unión de todos)
-        insights_cualitativos = []
-        for batch in batch_results:
-            insights = batch.get('insights_cualitativos', [])
-            insights_cualitativos.extend(i for i in insights if i not in insights_cualitativos)
-        
         return {
-            'sentimiento_por_marca': sentimiento_agregado,
-            'atributos_por_marca': atributos_agregados,
-            'temas_emergentes': temas_emergentes[:10],  # Top 10
-            'insights_cualitativos': insights_cualitativos[:10]  # Top 10
+            'sentimiento': {
+                'query': f"Análisis de sentimiento y percepción sobre las marcas: {', '.join(marca_nombres)}",
+                'prompt_template': """Eres un analista experto en sentiment analysis.
+Analiza el sentimiento sobre cada marca en los siguientes fragmentos de texto.
+
+MARCAS: {marcas}
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "sentimiento_por_marca": {{
+    "Marca X": {{
+      "score_medio": 0.5,
+      "tono": "positivo",
+      "intensidad": "alta",
+      "distribucion": {{"positivo": 80, "neutral": 15, "negativo": 5}}
+    }}
+  }}
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            },
+            'atributos': {
+                'query': f"Atributos y características mencionadas sobre las marcas: {', '.join(marca_nombres)}",
+                'prompt_template': """Eres un especialista en posicionamiento de marca.
+Extrae TODOS los atributos asociados a cada marca en los fragmentos de texto.
+
+MARCAS: {marcas}
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Categorías de atributos: calidad, precio, innovacion, confiabilidad, servicio, reputacion, perfil, experiencia, disponibilidad, diseño
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "atributos_por_marca": {{
+    "Marca X": {{
+      "calidad": ["premium", "consistente"],
+      "precio": ["alto", "justificado"],
+      "innovacion": ["innovador"]
+    }}
+  }}
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            },
+            'marketing': {
+                'query': f"Campañas publicitarias, marketing y comunicación de las marcas: {', '.join(marca_nombres)}",
+                'prompt_template': """Eres un especialista en marketing y comunicación.
+Identifica menciones de campañas, publicidad y estrategias de marketing en los fragmentos.
+
+MARCAS: {marcas}
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "marketing_campanas": {{
+    "Marca X": {{
+      "campanas_mencionadas": ["Campaña descripción"],
+      "canales_comunicacion": ["TV", "RRSS"],
+      "percepcion_publicidad": "efectiva",
+      "tono_comunicacion": "emocional"
+    }}
+  }}
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            },
+            'canales': {
+                'query': f"Canales de distribución, puntos de venta y disponibilidad de las marcas: {', '.join(marca_nombres)}",
+                'prompt_template': """Eres un especialista en distribución y retail.
+Identifica menciones sobre dónde se compra, disponibilidad y experiencia de compra.
+
+MARCAS: {marcas}
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "canales_distribucion": {{
+    "Marca X": {{
+      "donde_comprar": ["Supermercados", "Online"],
+      "retailers_mencionados": ["Mercadona"],
+      "facilidad_encontrar": "fácil",
+      "disponibilidad": "amplia"
+    }}
+  }}
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            },
+            'ocasiones_drivers': {
+                'query': f"Ocasiones de consumo, drivers de compra y barreras para las marcas: {', '.join(marca_nombres)}",
+                'prompt_template': """Eres un analista de comportamiento del consumidor.
+Identifica cuándo, cómo y por qué se consumen los productos.
+
+MARCAS: {marcas}
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "ocasiones_consumo": {{
+    "Marca X": {{
+      "momentos": ["desayuno", "snack"],
+      "contexto_social": ["familia"],
+      "motivaciones": ["placer"]
+    }}
+  }},
+  "drivers_barreras": {{
+    "drivers_positivos": ["Sabor superior"],
+    "barreras": ["Precio alto"],
+    "switching_menciones": ["Cambié de Y a X"]
+  }}
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            },
+            'temas_insights': {
+                'query': f"Temas emergentes, tendencias e insights generales del mercado",
+                'prompt_template': """Eres un analista de mercado estratégico.
+Identifica temas recurrentes, tendencias y insights reveladores.
+
+FRAGMENTOS DE TEXTO:
+{contexto}
+
+Devuelve JSON con esta estructura EXACTA:
+{{
+  "temas_emergentes": [
+    "Sostenibilidad como factor clave",
+    "Preferencia por compra online"
+  ],
+  "insights_cualitativos": [
+    "Los usuarios valoran más experiencia que precio",
+    "Hay demanda no cubierta de productos eco-friendly"
+  ]
+}}
+
+IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
+            }
         }
+    
+    def _clean_json_response(self, response_text: str) -> str:
+        """
+        Limpia la respuesta del LLM para extraer JSON válido
+        
+        Args:
+            response_text: Respuesta del LLM
+        
+        Returns:
+            JSON limpio como string
+        """
+        # Si tiene bloques de markdown, extraer el JSON
+        if '```' in response_text:
+            lines = response_text.split('\n')
+            json_lines = []
+            in_json = False
+            
+            for line in lines:
+                if line.strip().startswith('```'):
+                    if not in_json:
+                        in_json = True
+                        continue
+                    else:
+                        break
+                if in_json:
+                    json_lines.append(line)
+            
+            response_text = '\n'.join(json_lines).strip()
+        
+        return response_text.strip()
+    
+    def _aggregate_rag_results(self, all_results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Agrega los resultados de todas las preguntas analíticas RAG en estructura final
+        
+        Args:
+            all_results: Dict con resultados de cada pregunta analítica
+        
+        Returns:
+            Dict con estructura final unificada
+        """
+        resultado_final = {}
+        
+        # Extraer sentimiento
+        if all_results.get('sentimiento'):
+            resultado_final['sentimiento_por_marca'] = all_results['sentimiento'].get('sentimiento_por_marca', {})
+        else:
+            resultado_final['sentimiento_por_marca'] = {}
+        
+        # Extraer atributos
+        if all_results.get('atributos'):
+            resultado_final['atributos_por_marca'] = all_results['atributos'].get('atributos_por_marca', {})
+        else:
+            resultado_final['atributos_por_marca'] = {}
+        
+        # Extraer marketing
+        if all_results.get('marketing'):
+            resultado_final['marketing_campanas'] = all_results['marketing'].get('marketing_campanas', {})
+        else:
+            resultado_final['marketing_campanas'] = {}
+        
+        # Extraer canales
+        if all_results.get('canales'):
+            resultado_final['canales_distribucion'] = all_results['canales'].get('canales_distribucion', {})
+        else:
+            resultado_final['canales_distribucion'] = {}
+        
+        # Extraer ocasiones y drivers
+        if all_results.get('ocasiones_drivers'):
+            resultado_final['ocasiones_consumo'] = all_results['ocasiones_drivers'].get('ocasiones_consumo', {})
+            resultado_final['drivers_barreras'] = all_results['ocasiones_drivers'].get('drivers_barreras', {})
+        else:
+            resultado_final['ocasiones_consumo'] = {}
+            resultado_final['drivers_barreras'] = {}
+        
+        # Extraer temas e insights
+        if all_results.get('temas_insights'):
+            resultado_final['temas_emergentes'] = all_results['temas_insights'].get('temas_emergentes', [])
+            resultado_final['insights_cualitativos'] = all_results['temas_insights'].get('insights_cualitativos', [])
+        else:
+            resultado_final['temas_emergentes'] = []
+            resultado_final['insights_cualitativos'] = []
+        
+        return resultado_final
 

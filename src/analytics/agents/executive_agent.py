@@ -63,13 +63,34 @@ class ExecutiveAgent(BaseAgent):
         # Obtener todos los análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
+        if not qualitative:
+            qualitative = self._get_analysis('qualitativeextraction', categoria_id, periodo)
         competitive = self._get_analysis('competitive', categoria_id, periodo)
         trends = self._get_analysis('trends', categoria_id, periodo)
         strategic = self._get_analysis('strategic', categoria_id, periodo)
         synthesis = self._get_analysis('synthesis', categoria_id, periodo)
         
-        if not quantitative or not qualitative or not competitive or not strategic or not synthesis:
-            return {'error': 'Faltan análisis previos necesarios'}
+        # NUEVO: Obtener análisis FMCG especializados
+        campaign = self._get_analysis('campaign_analysis', categoria_id, periodo)
+        channel = self._get_analysis('channel_analysis', categoria_id, periodo)
+        esg = self._get_analysis('esg_analysis', categoria_id, periodo)
+        packaging = self._get_analysis('packaging_analysis', categoria_id, periodo)
+        
+        # Degradación para primer ciclo: si faltan algunos análisis, generamos un informe mínimo
+        missing = []
+        if not quantitative:
+            missing.append('quantitative')
+        if not qualitative:
+            missing.append('qualitative')
+        if not competitive:
+            missing.append('competitive')
+        if not strategic:
+            missing.append('strategic')
+        if not synthesis:
+            missing.append('synthesis')
+        
+        if missing:
+            self.logger.warning(f"Faltan análisis previos: {', '.join(missing)}. Generando informe mínimo.")
         
         # ACTIVAR RAG - Obtener contexto histórico
         rag_manager = RAGManager(self.session)
@@ -93,15 +114,19 @@ class ExecutiveAgent(BaseAgent):
             strategic,
             synthesis,
             historical_context,
-            raw_responses
+            raw_responses,
+            campaign,
+            channel,
+            esg,
+            packaging
         )
         
-        # Generar informe con LLM
+        # Generar informe con LLM (aumentar tokens para contenido expandido)
         try:
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.5,
-                max_tokens=4000,
+                max_tokens=6000,
                 json_mode=True
             )
             
@@ -225,76 +250,162 @@ class ExecutiveAgent(BaseAgent):
         strategic: Dict,
         synthesis: Dict,
         historical_context: str,
-        raw_responses: str
+        raw_responses: str,
+        campaign: Dict,
+        channel: Dict,
+        esg: Dict,
+        packaging: Dict
     ) -> str:
-        """Construye el prompt completo con todos los datos"""
+        """Construye el prompt completo con todos los datos (EXPANDIDO para FMCG Premium)"""
         
         prompt = f"""
 {self.system_prompt}
 
-HAS SIDO CONTRATADO PARA GENERAR EL PLAN DE ACCIÓN Y EL RESUMEN EJECUTIVO.
+HAS SIDO CONTRATADO PARA GENERAR EL INFORME ESTRATÉGICO COMPLETO ESTILO NIELSEN/KANTAR.
 
 CATEGORÍA: {categoria}
 PERIODO: {periodo}
 
-NARRATIVA CENTRAL (SITUACIÓN-COMPLICACIÓN):
+========================================
+NARRATIVA CENTRAL (SITUACIÓN-COMPLICACIÓN-PREGUNTA):
+========================================
 Situación: {synthesis.get('situacion', '')}
 Complicación: {synthesis.get('complicacion', '')}
 Pregunta Clave: {synthesis.get('pregunta_clave', '')}
 
-CONTEXTO HISTÓRICO (PERIODOS ANTERIORES):
+========================================
+CONTEXTO HISTÓRICO:
+========================================
 {historical_context}
 
-RESPUESTAS TEXTUALES ORIGINALES (Muestra enriquecida):
-{raw_responses}
-
-DATOS DE SOPORTE (KPIs Y ESTRATEGIA):
+========================================
+DATOS CUANTITATIVOS (KPIs):
+========================================
 - Total menciones: {quantitative.get('total_menciones', 0)}
 - SOV: {json.dumps(quantitative.get('sov_percent', {}), indent=2)}
 - Sentimiento: {json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2)}
-- Atributos: {json.dumps(qualitative.get('atributos_por_marca', {}), indent=2)}
-- Líder de mercado: {competitive.get('lider_mercado', 'N/A')}
-- Oportunidades: {json.dumps(strategic.get('oportunidades', []), indent=2)}
-- Riesgos: {json.dumps(strategic.get('riesgos', []), indent=2)}
+- Líder mercado: {competitive.get('lider_mercado', 'N/A')}
 
-INSTRUCCIONES:
-Basándote en la NARRATIVA CENTRAL y el CONTEXTO HISTÓRICO, y usando los DATOS DE SOPORTE para justificar cada afirmación:
+========================================
+ANÁLISIS FMCG DETALLADO:
+========================================
 
-1. Genera el "resumen_ejecutivo": 3-5 hallazgos clave que respondan a la "pregunta_clave" de la narrativa.
-2. Genera el "plan_90_dias": 3 iniciativas accionables que resuelvan la "complicacion".
+ANÁLISIS DE CAMPAÑAS Y MARKETING:
+{json.dumps(campaign, indent=2) if campaign else 'No disponible'}
 
-GENERA EL INFORME EN FORMATO JSON CON ESTA ESTRUCTURA EXACTA:
+ANÁLISIS DE CANALES Y DISTRIBUCIÓN:
+{json.dumps(channel, indent=2) if channel else 'No disponible'}
+
+ANÁLISIS ESG Y SOSTENIBILIDAD:
+{json.dumps(esg, indent=2) if esg else 'No disponible'}
+
+ANÁLISIS DE PACKAGING Y DISEÑO:
+{json.dumps(packaging, indent=2) if packaging else 'No disponible'}
+
+========================================
+ANÁLISIS ESTRATÉGICO (DAFO, OPORTUNIDADES, RIESGOS):
+========================================
+- DAFO: {json.dumps(strategic.get('dafo', {}), indent=2)}
+- Oportunidades: {json.dumps(strategic.get('oportunidades', [])[:3], indent=2)}
+- Riesgos: {json.dumps(strategic.get('riesgos', [])[:3], indent=2)}
+
+========================================
+MUESTRA DE RESPUESTAS TEXTUALES:
+========================================
+{raw_responses[:2000]}
+
+========================================
+INSTRUCCIONES DE GENERACIÓN:
+========================================
+
+Genera un informe ejecutivo completo integrando TODAS las dimensiones: KPIs, Contexto de Mercado, Competencia, Marketing, Canales y Estrategia.
+
+ESTRUCTURA JSON EXPANDIDA REQUERIDA:
+
 {{
   "resumen_ejecutivo": {{
-    "hallazgos_clave": ["hallazgo 1 (citando KPI)", "hallazgo 2 (comparando con contexto histórico si es relevante)", "hallazgo 3"],
-    "contexto": "{synthesis.get('situacion', '')} {synthesis.get('complicacion', '')}"
+    "hallazgos_clave": [
+      "Hallazgo 1 integrado con datos específicos",
+      "Hallazgo 2 que responde a la pregunta clave",
+      "Hallazgo 3 accionable"
+    ],
+    "contexto": "Resumen de situación y complicación (2-3 líneas)"
   }},
-  "mercado": {{
-    "estado_general": "{synthesis.get('situacion', '')}",
-    "volumen_conversacion": {quantitative.get('total_menciones', 0)},
-    "principales_temas": ["tema 1", "tema 2"]
+  
+  "panorama_mercado": {{
+    "contexto_fmcg": "Descripción del mercado/categoría (2-3 líneas)",
+    "tamano_crecimiento": "Tamaño y crecimiento estimado si disponible",
+    "drivers_principales": ["Driver 1", "Driver 2", "Driver 3"],
+    "factores_pestel_clave": [
+      "Factor PESTEL más relevante 1",
+      "Factor PESTEL más relevante 2"
+    ],
+    "fuerzas_competitivas": "Resumen de intensidad competitiva y principales fuerzas de Porter"
   }},
-  "competencia": {{
+  
+  "analisis_competitivo": {{
     "lider": "{competitive.get('lider_mercado', '')}",
-    "analisis_sov": "análisis del SOV con datos específicos",
-    "comparativas": ["comparación 1", "comparación 2"]
+    "sov_tendencias": "Análisis de cuota de voz y tendencias con datos",
+    "benchmarking_resumen": "Resumen de cómo se comparan las marcas en atributos clave",
+    "perfiles_top3": [
+      {{
+        "marca": "Marca 1",
+        "posicionamiento": "Breve descripción",
+        "fortalezas": ["F1", "F2"],
+        "debilidades": ["D1", "D2"]
+      }}
+    ]
   }},
+  
+  "analisis_campanas": {{
+    "resumen_actividad": "Síntesis de las principales campañas, canales y mensajes clave (usando datos de Campañas)",
+    "marca_mas_activa": "Marca X",
+    "insights_recepcion": ["Recepción cualitativa de campañas..."]
+  }},
+  
+  "analisis_canales": {{
+    "estrategia_canal_inferida": "Resumen de cómo se distribuyen las marcas (usando datos de Canales)",
+    "gaps_e_commerce": ["Principales fallos o aciertos en la experiencia online..."],
+    "marca_mejor_distribuida": "Marca Y"
+  }},
+  
+  "analisis_sostenibilidad_packaging": {{
+    "resumen_esg": "Análisis de la percepción de sostenibilidad del mercado (usando datos ESG)",
+    "quejas_packaging": "Análisis de problemas funcionales o de diseño (usando datos Packaging)",
+    "benchmarking_atributos": ["Marca X lidera en packaging funcional, Marca Y en percepción ESG."]
+  }},
+  
+  "consumidor": {{
+    "voz_cliente_resumen": "Principales temas y preocupaciones de consumidores",
+    "drivers_eleccion": ["Driver 1", "Driver 2"],
+    "barreras_compra": ["Barrera 1", "Barrera 2"],
+    "ocasiones_principales": ["Ocasión 1", "Ocasión 2"]
+  }},
+  
   "sentimiento_reputacion": {{
-    "resumen": "resumen de sentimiento con datos específicos",
-    "por_marca_destacado": ["marca 1: análisis", "marca 2: análisis"]
+    "resumen": "Análisis de sentimiento con datos específicos por marca",
+    "correlaciones": "Correlaciones entre sentimiento, SOV y actividad de marketing"
   }},
+  
   "oportunidades_riesgos": {{
     "oportunidades": {json.dumps(strategic.get('oportunidades', [])[:3])},
-    "riesgos": {json.dumps(strategic.get('riesgos', [])[:3])}
+    "riesgos": {json.dumps(strategic.get('riesgos', [])[:3])},
+    "dafo_sintesis": {{
+      "fortalezas_clave": ["F1", "F2"],
+      "debilidades_clave": ["D1", "D2"],
+      "oportunidades_clave": ["O1", "O2"],
+      "amenazas_clave": ["A1", "A2"]
+    }}
   }},
+  
   "plan_90_dias": {{
     "iniciativas": [
       {{
-        "titulo": "iniciativa 1 (clara y accionable)",
-        "descripcion": "qué hacer exactamente",
-        "por_que": "razón basada en la NARRATIVA y DATOS (ej: 'Para resolver la complicación de...')",
-        "como": "3-4 pasos concretos o tácticas",
-        "kpi_medicion": "Métrica para medir el éxito (ej: 'Aumentar score de sentimiento a > 0.5')",
+        "titulo": "Iniciativa 1 accionable",
+        "descripcion": "Qué hacer exactamente",
+        "por_que": "Razón estratégica basada en la complicación y datos",
+        "como": "Pasos concretos o tácticas",
+        "kpi_medicion": "Métrica para medir éxito",
         "timeline": "Mes 1-2",
         "prioridad": "alta"
       }}
@@ -302,12 +413,15 @@ GENERA EL INFORME EN FORMATO JSON CON ESTA ESTRUCTURA EXACTA:
   }}
 }}
 
-IMPORTANTE:
-- Cita SIEMPRE los KPIs y datos específicos
-- El "plan_90_dias" debe resolver la "complicacion" identificada en la NARRATIVA
-- Usa el contexto histórico cuando sea relevante para comparaciones
-- RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
-- NO uses bloques de código markdown (```), solo el JSON puro
+REGLAS CRÍTICAS:
+1. INTEGRA todas las dimensiones: KPIs + ANÁLISIS FMCG (Campañas, Canales, ESG, Packaging) + Estrategia
+2. El Resumen Ejecutivo (punto 1) y el Plan de 90 Días deben ser la culminación de TODOS los datos disponibles, especialmente el ANÁLISIS FMCG DETALLADO
+3. CITA los datos de Campañas, Canales, ESG y Packaging en las secciones correspondientes (analisis_campanas, analisis_canales, analisis_sostenibilidad_packaging)
+4. Cada afirmación debe estar FUNDAMENTADA con datos específicos
+5. El plan de 90 días debe RESOLVER la complicación identificada
+6. Prioriza INSIGHTS ACCIONABLES sobre descripciones genéricas
+7. RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
+8. NO uses bloques de código markdown (```), solo el JSON puro
 """
         
         return prompt

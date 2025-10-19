@@ -79,6 +79,47 @@
         {% endif %}
     </div>
 
+    <!-- PANORAMA DEL MERCADO (NUEVO: PESTEL/PORTER/DRIVERS) -->
+    {% if panorama_mercado %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">Panorama del Mercado</h1>
+        
+        {% if panorama_mercado.contexto_fmcg %}
+        <p class="contexto">{{ panorama_mercado.contexto_fmcg }}</p>
+        {% endif %}
+        
+        {% if panorama_mercado.tamano_crecimiento %}
+        <div class="kpi-box">
+            <div class="kpi-label">Tamaño y Crecimiento</div>
+            <div class="kpi-value">{{ panorama_mercado.tamano_crecimiento }}</div>
+        </div>
+        {% endif %}
+        
+        {% if panorama_mercado.drivers_principales %}
+        <h2>Drivers de Categoría</h2>
+        <ul class="drivers-list">
+            {% for driver in panorama_mercado.drivers_principales %}
+            <li>{{ driver }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        
+        {% if panorama_mercado.factores_pestel_clave %}
+        <h2>Factores PESTEL Clave</h2>
+        <ul>
+            {% for factor in panorama_mercado.factores_pestel_clave %}
+            <li>{{ factor }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        
+        {% if panorama_mercado.fuerzas_competitivas %}
+        <h2>Fuerzas Competitivas (Porter)</h2>
+        <p>{{ panorama_mercado.fuerzas_competitivas }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- ESTADO DEL MERCADO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Estado del Mercado</h1>
@@ -134,7 +175,216 @@
             {% endfor %}
         </ul>
         {% endif %}
+        
+        <!-- NUEVO: Actividad de Marketing y Campañas -->
+        {% if actividad_marketing %}
+        <h2>📢 Actividad de Marketing y Campañas</h2>
+        
+        {% if actividad_marketing.resumen %}
+        <p>{{ actividad_marketing.resumen }}</p>
+        {% endif %}
+        
+        <div class="marketing-grid">
+            {% if actividad_marketing.marca_mas_activa %}
+            <div class="marketing-card">
+                <strong>Marca Más Activa:</strong> {{ actividad_marketing.marca_mas_activa }}
+            </div>
+            {% endif %}
+            
+            {% if actividad_marketing.efectividad_percibida %}
+            <div class="marketing-card">
+                <strong>Efectividad:</strong> {{ actividad_marketing.efectividad_percibida }}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if actividad_marketing.insights %}
+        <h3>Insights de Marketing</h3>
+        <ul>
+            {% for insight in actividad_marketing.insights %}
+            <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endif %}
+        
+        <!-- NUEVO: Estrategias de Canal -->
+        {% if estrategias_canal %}
+        <h2>🛒 Estrategias de Canal y Distribución</h2>
+        
+        {% if estrategias_canal.resumen %}
+        <p>{{ estrategias_canal.resumen }}</p>
+        {% endif %}
+        
+        <div class="canal-grid">
+            {% if estrategias_canal.marca_mejor_distribuida %}
+            <div class="canal-card">
+                <strong>Mejor Presencia:</strong> {{ estrategias_canal.marca_mejor_distribuida }}
+            </div>
+            {% endif %}
+            
+            {% if estrategias_canal.tendencias %}
+            <div class="canal-card">
+                <strong>Tendencias:</strong> {{ estrategias_canal.tendencias }}
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if estrategias_canal.insights %}
+        <h3>Insights de Canal</h3>
+        <ul>
+            {% for insight in estrategias_canal.insights %}
+            <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endif %}
     </div>
+
+    <!-- ANÁLISIS DE CAMPAÑAS Y MARKETING (FMCG) -->
+    {% if analisis_campanas %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">📢 Análisis de Campañas y Marketing</h1>
+        
+        {% if analisis_campanas.resumen_actividad %}
+        <p class="contexto">{{ analisis_campanas.resumen_actividad }}</p>
+        {% endif %}
+        
+        <div class="kpi-grid">
+            {% if analisis_campanas.marca_mas_activa %}
+            <div class="kpi-card success">
+                <div class="kpi-icon">🏆</div>
+                <div class="kpi-titulo">Marca Más Activa</div>
+                <div class="kpi-valor">{{ analisis_campanas.marca_mas_activa }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if analisis_campanas.insights_recepcion %}
+        <h2>Insights de Recepción</h2>
+        <ul class="insights-list">
+            {% for insight in analisis_campanas.insights_recepcion %}
+            <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ANÁLISIS DE CANALES Y DISTRIBUCIÓN (FMCG) -->
+    {% if analisis_canales %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">🛒 Análisis de Canales y Distribución</h1>
+        
+        {% if analisis_canales.estrategia_canal_inferida %}
+        <p class="contexto">{{ analisis_canales.estrategia_canal_inferida }}</p>
+        {% endif %}
+        
+        <div class="kpi-grid">
+            {% if analisis_canales.marca_mejor_distribuida %}
+            <div class="kpi-card info">
+                <div class="kpi-icon">📦</div>
+                <div class="kpi-titulo">Mejor Presencia Omnicanal</div>
+                <div class="kpi-valor">{{ analisis_canales.marca_mejor_distribuida }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if analisis_canales.gaps_e_commerce %}
+        <h2>Gaps de E-commerce</h2>
+        <ul class="gaps-list">
+            {% for gap in analisis_canales.gaps_e_commerce %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ANÁLISIS DE SOSTENIBILIDAD Y PACKAGING (FMCG) -->
+    {% if analisis_sostenibilidad_packaging %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">🌱 Análisis de Sostenibilidad y Packaging</h1>
+        
+        <!-- Subsección ESG -->
+        {% if analisis_sostenibilidad_packaging.resumen_esg %}
+        <h2>Sostenibilidad (ESG)</h2>
+        <p class="contexto">{{ analisis_sostenibilidad_packaging.resumen_esg }}</p>
+        
+        {% if analisis_sostenibilidad_packaging.controversias_clave %}
+        <h3>Controversias Clave</h3>
+        <ul class="controversias-list">
+            {% for controversia in analisis_sostenibilidad_packaging.controversias_clave %}
+            <li class="warning">{{ controversia }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endif %}
+        
+        <!-- Subsección Packaging -->
+        {% if analisis_sostenibilidad_packaging.quejas_packaging %}
+        <h2>Packaging y Diseño</h2>
+        <p>{{ analisis_sostenibilidad_packaging.quejas_packaging }}</p>
+        {% endif %}
+        
+        {% if analisis_sostenibilidad_packaging.atributos_valorados %}
+        <h3>Atributos Valorados</h3>
+        <ul class="atributos-list">
+            {% for atributo in analisis_sostenibilidad_packaging.atributos_valorados %}
+            <li class="success">{{ atributo }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        
+        {% if analisis_sostenibilidad_packaging.benchmarking_atributos %}
+        <h3>Benchmarking</h3>
+        <ul>
+            {% for benchmark in analisis_sostenibilidad_packaging.benchmarking_atributos %}
+            <li>{{ benchmark }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- NUEVO: Análisis del Consumidor (Shopper Insights) -->
+    {% if consumidor %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">Análisis del Consumidor</h1>
+        
+        {% if consumidor.voz_cliente_resumen %}
+        <h2>Voz del Cliente</h2>
+        <p>{{ consumidor.voz_cliente_resumen }}</p>
+        {% endif %}
+        
+        {% if consumidor.drivers_eleccion %}
+        <h2>Drivers de Elección</h2>
+        <ul class="drivers-list">
+            {% for driver in consumidor.drivers_eleccion %}
+            <li>{{ driver }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        
+        {% if consumidor.barreras_compra %}
+        <h2>Barreras de Compra</h2>
+        <ul>
+            {% for barrera in consumidor.barreras_compra %}
+            <li>{{ barrera }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        
+        {% if consumidor.ocasiones_principales %}
+        <h2>Ocasiones de Consumo</h2>
+        <ul>
+            {% for ocasion in consumidor.ocasiones_principales %}
+            <li>{{ ocasion }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- SENTIMIENTO Y REPUTACIÓN -->
     <div class="seccion">

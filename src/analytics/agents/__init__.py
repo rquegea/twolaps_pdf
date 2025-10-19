@@ -8,6 +8,11 @@ from src.analytics.agents.trends_agent import TrendsAgent
 from src.analytics.agents.strategic_agent import StrategicAgent
 from src.analytics.agents.synthesis_agent import SynthesisAgent
 from src.analytics.agents.executive_agent import ExecutiveAgent
+# NUEVOS AGENTES FMCG ESPECIALIZADOS
+from src.analytics.agents.campaign_analysis_agent import CampaignAnalysisAgent
+from src.analytics.agents.channel_analysis_agent import ChannelAnalysisAgent
+from src.analytics.agents.esg_analysis_agent import ESGAnalysisAgent
+from src.analytics.agents.packaging_analysis_agent import PackagingAnalysisAgent
 
 __all__ = [
     'BaseAgent',
@@ -17,6 +22,10 @@ __all__ = [
     'TrendsAgent',
     'StrategicAgent',
     'SynthesisAgent',
-    'ExecutiveAgent'
+    'ExecutiveAgent',
+    'CampaignAnalysisAgent',
+    'ChannelAnalysisAgent',
+    'ESGAnalysisAgent',
+    'PackagingAnalysisAgent'
 ]
 

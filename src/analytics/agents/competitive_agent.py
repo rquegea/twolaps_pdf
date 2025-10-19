@@ -28,6 +28,9 @@ class CompetitiveAgent(BaseAgent):
         # Obtener análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
+        # Fallback por compatibilidad con versiones previas
+        if not qualitative:
+            qualitative = self._get_analysis('qualitativeextraction', categoria_id, periodo)
         
         if not quantitative or not qualitative:
             return {'error': 'Faltan análisis previos (quantitative y qualitative)'}

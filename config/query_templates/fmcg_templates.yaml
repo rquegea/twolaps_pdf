@@ -60,6 +60,30 @@ premium:
     - "¿Cuál es el {producto} preferido por expertos?"
     - "¿Qué {producto} de lujo recomendarías?"
 
+# Queries de Marketing y Campañas
+marketing_campaigns:
+  especificas:
+    - "¿Qué campañas publicitarias recientes de {marca}?"
+    - "¿Qué dice la gente sobre la campaña de {marca}?"
+    - "¿Qué canales de marketing usa {marca}?"
+    - "¿Cuál es el mensaje principal de {marca} en publicidad?"
+    - "¿Cómo es la publicidad de {marca} comparada con {marca_competidor}?"
+    - "¿Qué influencers o celebridades promocionan {marca}?"
+    - "¿Cuál ha sido la campaña más memorable de {categoria} recientemente?"
+    - "¿Qué piensas de los anuncios de {marca}?"
+
+# Queries de Canales de Distribución
+distribution_channels:
+  especificas:
+    - "¿Dónde se puede comprar {producto}?"
+    - "¿Dónde compras {producto} habitualmente?"
+    - "¿Opiniones sobre comprar {producto} online vs tienda física?"
+    - "¿En qué supermercados se encuentra {marca}?"
+    - "¿Experiencia de compra de {producto} en e-commerce?"
+    - "¿Es fácil encontrar {marca} en las tiendas?"
+    - "¿Mejor sitio para comprar {producto}?"
+    - "¿{marca} tiene tienda online propia?"
+
 # Ejemplos pre-configurados por categoría
 
 ejemplos:

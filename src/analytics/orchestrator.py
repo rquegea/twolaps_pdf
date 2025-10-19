@@ -14,7 +14,11 @@ from src.analytics.agents import (
     TrendsAgent,
     StrategicAgent,
     SynthesisAgent,
-    ExecutiveAgent
+    ExecutiveAgent,
+    CampaignAnalysisAgent,
+    ChannelAnalysisAgent,
+    ESGAnalysisAgent,
+    PackagingAnalysisAgent
 )
 from src.utils.logger import setup_logger, log_agent_analysis
 
@@ -33,6 +37,10 @@ class AnalysisOrchestrator:
             ('qualitative', QualitativeExtractionAgent),
             ('competitive', CompetitiveAgent),
             ('trends', TrendsAgent),
+            ('campaign_analysis', CampaignAnalysisAgent),      # NUEVO: Análisis de campañas
+            ('channel_analysis', ChannelAnalysisAgent),        # NUEVO: Análisis de canales
+            ('esg_analysis', ESGAnalysisAgent),                # NUEVO: Análisis ESG
+            ('packaging_analysis', PackagingAnalysisAgent),    # NUEVO: Análisis packaging
             ('strategic', StrategicAgent),
             ('synthesis', SynthesisAgent),
             ('executive', ExecutiveAgent)
@@ -186,6 +194,26 @@ class AnalysisOrchestrator:
             summary = {
                 'lider': result.get('lider_mercado', 'N/A'),
                 'gaps_encontrados': len(result.get('gaps_competitivos', []))
+            }
+        elif agent_name == 'campaign_analysis':
+            summary = {
+                'fragments_analyzed': result.get('metadata', {}).get('fragments_analyzed', 0),
+                'marca_mas_activa': result.get('marca_mas_activa', 'N/A')
+            }
+        elif agent_name == 'channel_analysis':
+            summary = {
+                'fragments_analyzed': result.get('metadata', {}).get('fragments_analyzed', 0),
+                'retailers_clave': len(result.get('retailers_clave', []))
+            }
+        elif agent_name == 'esg_analysis':
+            summary = {
+                'fragments_analyzed': result.get('metadata', {}).get('fragments_analyzed', 0),
+                'controversias': len(result.get('controversias_clave', []))
+            }
+        elif agent_name == 'packaging_analysis':
+            summary = {
+                'fragments_analyzed': result.get('metadata', {}).get('fragments_analyzed', 0),
+                'innovaciones': len(result.get('innovaciones_detectadas', []))
             }
         elif agent_name == 'strategic':
             summary = {

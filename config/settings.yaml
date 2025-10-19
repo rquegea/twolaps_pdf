@@ -33,7 +33,10 @@ llm_providers:
   max_tokens:
     analysis: 2000
     synthesis: 4000
-    executive_summary: 3000
+    executive_summary: 6000  # Aumentado para informe expandido
+    campaign_analysis: 3000  # NUEVO
+    channel_analysis: 3000  # NUEVO
+    market_context: 3500  # NUEVO
   
   # Cost tracking
   cost_per_1k_tokens:
@@ -79,6 +82,29 @@ analytics:
     top_k_similar: 3  # Number of historical periods to retrieve
     similarity_threshold: 0.75
     embedding_model: text-embedding-3-small
+  
+  # Campaign Analysis settings (NUEVO)
+  campaign_analysis:
+    min_mentions_for_campaign: 3
+    detect_channels: true
+    analyze_influencers: true
+  
+  # Channel Analysis settings (NUEVO)
+  channel_analysis:
+    channels_to_track:
+      - supermercados
+      - online
+      - conveniencia
+      - d2c
+      - especializados
+    analyze_experience: true
+  
+  # Market Context settings (NUEVO)
+  market_context:
+    use_perplexity: true  # Priorizar Perplexity para info actualizada
+    include_pestel: true
+    include_porter: true
+    include_drivers: true
 
 reporting:
   # PDF generation settings

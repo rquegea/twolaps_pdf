@@ -5,7 +5,7 @@ Sistema de Retrieval-Augmented Generation para contexto histórico
 
 from typing import List, Dict, Any
 from sqlalchemy import text
-from src.database.models import Embedding, Report, AnalysisResult
+from src.database.models import Embedding, Report, AnalysisResult, QueryExecution
 from src.query_executor.api_clients import OpenAIClient
 from src.utils.logger import setup_logger
 
@@ -87,19 +87,23 @@ class RAGManager:
         categoria_id: int,
         query_text: str,
         top_k: int = 3,
-        periodo_actual: str = None
+        periodo_actual: str = None,
+        tipo_filtro: str = None,
+        incluir_periodo_actual: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Busca periodos similares usando búsqueda vectorial
+        Busca embeddings similares usando búsqueda vectorial
         
         Args:
             categoria_id: ID de categoría
             query_text: Texto de búsqueda
             top_k: Número de resultados a retornar
-            periodo_actual: Periodo actual (para excluirlo)
+            periodo_actual: Periodo para filtrar
+            tipo_filtro: Tipo de embedding a filtrar (query_execution, analysis_result, report)
+            incluir_periodo_actual: Si True, incluye periodo_actual; si False, lo excluye
         
         Returns:
-            Lista de periodos similares con metadata
+            Lista de embeddings similares con metadata
         """
         try:
             # Generar embedding de la query
@@ -107,7 +111,19 @@ class RAGManager:
             
             # Construir query SQL con pgvector
             # Usamos operador <=> para distancia coseno
-            sql = text("""
+            # Condicional para periodo según incluir_periodo_actual
+            periodo_condition = ""
+            if periodo_actual:
+                if incluir_periodo_actual:
+                    periodo_condition = "AND e.periodo = :periodo_actual"
+                else:
+                    periodo_condition = "AND e.periodo != :periodo_actual"
+            
+            tipo_condition = ""
+            if tipo_filtro:
+                tipo_condition = "AND e.tipo = :tipo_filtro"
+            
+            sql = text(f"""
                 SELECT 
                     e.id,
                     e.categoria_id,
@@ -118,26 +134,33 @@ class RAGManager:
                     (e.vector <=> :query_vector) as distance
                 FROM embeddings e
                 WHERE e.categoria_id = :categoria_id
-                    AND (:periodo_actual IS NULL OR e.periodo != :periodo_actual)
+                    {periodo_condition}
+                    {tipo_condition}
                 ORDER BY e.vector <=> :query_vector
                 LIMIT :top_k
             """)
             
+            # Parámetros
+            params = {
+                'query_vector': str(query_vector),
+                'categoria_id': categoria_id,
+                'top_k': top_k
+            }
+            
+            if periodo_actual:
+                params['periodo_actual'] = periodo_actual
+            
+            if tipo_filtro:
+                params['tipo_filtro'] = tipo_filtro
+            
             # Ejecutar query
-            result = self.session.execute(
-                sql,
-                {
-                    'query_vector': str(query_vector),
-                    'categoria_id': categoria_id,
-                    'periodo_actual': periodo_actual,
-                    'top_k': top_k
-                }
-            )
+            result = self.session.execute(sql, params)
             
             # Procesar resultados
-            similar_periods = []
+            similar_items = []
             for row in result:
-                similar_periods.append({
+                similar_items.append({
+                    'embedding_id': row.id,
                     'periodo': row.periodo,
                     'tipo': row.tipo,
                     'referencia_id': row.referencia_id,
@@ -149,13 +172,91 @@ class RAGManager:
             logger.info(
                 "similarity_search_completed",
                 categoria_id=categoria_id,
-                results_found=len(similar_periods)
+                tipo_filtro=tipo_filtro,
+                periodo_actual=periodo_actual,
+                incluir_periodo_actual=incluir_periodo_actual,
+                results_found=len(similar_items)
             )
             
-            return similar_periods
+            return similar_items
         
         except Exception as e:
             logger.error(f"Error en búsqueda de similaridad: {e}", exc_info=True)
+            return []
+    
+    def search_query_executions_for_question(
+        self,
+        categoria_id: int,
+        periodo: str,
+        analytical_question: str,
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Busca los fragmentos de QueryExecution más relevantes para una pregunta analítica
+        Específicamente diseñado para QualitativeExtractionAgent con RAG
+        
+        Args:
+            categoria_id: ID de categoría
+            periodo: Periodo actual (YYYY-MM) a analizar
+            analytical_question: Pregunta analítica (ej: "¿Sentimiento sobre Marca X?")
+            top_k: Número de fragmentos a recuperar
+        
+        Returns:
+            Lista de dicts con {texto, execution_id, metadata, similarity}
+        """
+        try:
+            # Buscar embeddings similares dentro del periodo actual
+            similar_embeddings = self.search_similar(
+                categoria_id=categoria_id,
+                query_text=analytical_question,
+                top_k=top_k,
+                periodo_actual=periodo,
+                tipo_filtro='query_execution',
+                incluir_periodo_actual=True  # IMPORTANTE: incluir periodo actual
+            )
+            
+            if not similar_embeddings:
+                logger.warning(
+                    "no_embeddings_found_for_question",
+                    categoria_id=categoria_id,
+                    periodo=periodo,
+                    question=analytical_question[:50]
+                )
+                return []
+            
+            # Recuperar los textos completos de las QueryExecution
+            results = []
+            for emb in similar_embeddings:
+                execution = self.session.query(QueryExecution).get(emb['referencia_id'])
+                
+                if execution and execution.respuesta_texto:
+                    results.append({
+                        'texto': execution.respuesta_texto,
+                        'execution_id': execution.id,
+                        'similarity': emb['similarity'],
+                        'metadata': {
+                            'proveedor_ia': execution.proveedor_ia,
+                            'modelo': execution.modelo,
+                            'timestamp': execution.timestamp.isoformat(),
+                            'embedding_metadata': emb['metadata']
+                        }
+                    })
+            
+            logger.info(
+                "query_executions_retrieved_for_question",
+                categoria_id=categoria_id,
+                periodo=periodo,
+                question=analytical_question[:50],
+                retrieved_count=len(results)
+            )
+            
+            return results
+        
+        except Exception as e:
+            logger.error(
+                f"Error recuperando QueryExecution para pregunta: {e}",
+                exc_info=True
+            )
             return []
     
     def get_historical_context(

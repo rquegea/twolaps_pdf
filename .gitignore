@@ -32,8 +32,11 @@ MANIFEST
 venv/
 ENV/
 env/
+.env.bak
+.env.bak2
+.env.bak.*
 
-# PyInstaller
+ PyInstaller
 *.manifest
 *.spec
 

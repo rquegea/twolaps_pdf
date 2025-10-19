@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 from src.database.connection import get_session
-from src.database.models import Query, QueryExecution, Mercado, Categoria
+from src.database.models import Query, QueryExecution, Mercado, Categoria, Embedding
 from src.query_executor.scheduler import QueryScheduler
 from src.query_executor.api_clients import OpenAIClient, AnthropicClient, GoogleClient, PerplexityClient
 from src.utils.cost_tracker import cost_tracker
@@ -16,6 +16,61 @@ from src.utils.logger import setup_logger, log_query_execution
 from src.analytics.competitor_discovery import discover_competitors_from_execution
 
 logger = setup_logger(__name__)
+
+
+def _generate_embedding_for_execution(execution: QueryExecution, query: Query, session: Session):
+    """
+    Genera embedding vectorial para una QueryExecution y lo guarda en la BD
+    
+    Args:
+        execution: QueryExecution recién creada
+        query: Query asociada
+        session: Sesión de BD
+    """
+    # Solo generar embedding si hay texto de respuesta
+    if not execution.respuesta_texto or len(execution.respuesta_texto.strip()) < 10:
+        logger.debug(f"Skipping embedding for execution {execution.id}: texto insuficiente")
+        return
+    
+    # Usar OpenAI para generar embedding
+    openai_client = OpenAIClient()
+    
+    # Truncar texto si es muy largo (max 8000 chars para el embedding)
+    texto_para_embedding = execution.respuesta_texto
+    if len(texto_para_embedding) > 8000:
+        texto_para_embedding = texto_para_embedding[:8000]
+    
+    # Generar embedding
+    vector = openai_client.generate_embedding(texto_para_embedding)
+    
+    # Extraer periodo de la ejecución (YYYY-MM)
+    periodo = execution.timestamp.strftime('%Y-%m')
+    
+    # Crear registro de embedding
+    embedding = Embedding(
+        categoria_id=query.categoria_id,
+        periodo=periodo,
+        tipo='query_execution',
+        referencia_id=execution.id,
+        vector=vector,
+        metadata={
+            'query_id': query.id,
+            'proveedor_ia': execution.proveedor_ia,
+            'modelo': execution.modelo,
+            'tokens_output': execution.tokens_output,
+            'texto_length': len(execution.respuesta_texto)
+        }
+    )
+    
+    session.add(embedding)
+    
+    logger.info(
+        "embedding_created_for_execution",
+        execution_id=execution.id,
+        categoria_id=query.categoria_id,
+        periodo=periodo,
+        texto_length=len(execution.respuesta_texto)
+    )
 
 
 # Factory para clientes
@@ -98,6 +153,12 @@ def execute_query(query: Query, provider: str, session: Session) -> Dict:
         
         session.add(execution)
         session.flush()  # Necesario para obtener execution.id
+
+        # Generar embedding automáticamente para RAG (best-effort, no bloqueante)
+        try:
+            _generate_embedding_for_execution(execution, query, session)
+        except Exception as e:
+            logger.warning("embedding_generation_failed", error=str(e))
 
         # Descubrimiento de competidores (best-effort, no bloqueante)
         try:

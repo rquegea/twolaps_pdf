@@ -2,7 +2,7 @@
 
 qualitative_extraction_agent:
   task: |
-    Eres un analista experto en análisis cualitativo de mercado. Analiza TODOS los siguientes textos sobre las marcas indicadas.
+    Eres un analista experto en análisis cualitativo de mercado FMCG. Analiza TODOS los siguientes textos sobre las marcas indicadas.
     
     MARCAS A ANALIZAR: {marcas}
     
@@ -11,6 +11,7 @@ qualitative_extraction_agent:
     
     INSTRUCCIONES:
     Realiza un análisis completo y exhaustivo de TODOS los textos proporcionados. No omitas ningún dato relevante.
+    Tu análisis ahora debe incluir dimensiones CRÍTICAS para FMCG: Marketing, Canales, Ocasiones de Consumo y Drivers de Elección.
     
     1. ANÁLISIS DE SENTIMIENTO POR MARCA:
        - Calcula el score medio de sentimiento (-1 negativo, 0 neutral, +1 positivo)
@@ -20,16 +21,55 @@ qualitative_extraction_agent:
     
     2. ANÁLISIS DE ATRIBUTOS POR MARCA:
        - Extrae TODOS los atributos mencionados (explícitos e implícitos)
-       - Categorías: calidad, precio, innovacion, confiabilidad, servicio, reputacion, perfil, experiencia, disponibilidad, diseño
+       - Categorías core: calidad, precio, innovacion, confiabilidad, servicio, reputacion, perfil, experiencia, disponibilidad, diseño
        - Añade categorías adicionales específicas del mercado si las detectas
     
-    3. TEMAS EMERGENTES:
+    3. **EXTRACCIÓN DE MENCIONES DE CAMPAÑAS Y MARKETING** (NUEVO):
+       Para cada marca, identifica menciones relacionadas con:
+       - Campañas publicitarias (nombre, descripción, elementos creativos mencionados)
+       - Mensaje percibido o eslogan
+       - Canales de comunicación mencionados (TV, digital, RRSS, influencers, exterior)
+       - Percepción de la publicidad (efectiva, memorable, intrusiva, creativa, etc.)
+       - Uso de celebridades/influencers
+       - Tono de comunicación (emocional, racional, humorístico, premium, familiar)
+       
+       Categoriza bajo: "marketing_campanas"
+    
+    4. **EXTRACCIÓN DE MENCIONES DE CANALES Y COMPRA** (NUEVO):
+       Para cada marca, identifica menciones sobre:
+       - Dónde se compra o está disponible (supermercados, online, tiendas específicas)
+       - Facilidad de encontrar el producto
+       - Experiencia de compra (online vs offline)
+       - Disponibilidad y stock
+       - Preferencia de canal
+       - Retailers mencionados (Mercadona, Carrefour, Amazon, etc.)
+       
+       Categoriza bajo: "canales_distribucion"
+    
+    5. **EXTRACCIÓN DE OCASIONES DE CONSUMO** (AMPLIADO):
+       - ¿Cuándo/en qué momentos se consume? (desayuno, snack, celebración, diario, ocasión especial)
+       - ¿Con quién? (solo, familia, amigos, niños)
+       - ¿Dónde? (casa, trabajo, calle, viaje)
+       - ¿Por qué? (placer, necesidad, salud, conveniencia)
+       
+       Categoriza bajo: "ocasiones_consumo"
+    
+    6. **DRIVERS DE ELECCIÓN Y BARRERAS DE COMPRA** (AMPLIADO):
+       - ¿Qué motiva a elegir una marca/producto? (sabor, precio, salud, marca, packaging, innovación)
+       - ¿Qué impide comprar? (precio alto, no disponible, no gusta sabor, no es saludable)
+       - ¿Switching: menciones de cambio de marca y razones?
+       
+       Categoriza bajo: "drivers_barreras"
+    
+    7. TEMAS EMERGENTES:
        - Identifica los 5-10 temas o topics más recurrentes en las conversaciones
        - Detecta nuevas tendencias o preocupaciones del mercado
+       - Incluye temas sobre marketing, canales, sostenibilidad si emergen
     
-    4. INSIGHTS CUALITATIVOS CLAVE:
+    8. INSIGHTS CUALITATIVOS CLAVE:
        - Extrae los 5-10 insights más reveladores que emergen del análisis
        - Busca contradicciones, necesidades no cubiertas, elogios específicos
+       - Incluye insights sobre efectividad de marketing, preferencias de canal, drivers emergentes
     
     DEVUELVE JSON ESTRUCTURADO:
     {{
@@ -55,15 +95,62 @@ qualitative_extraction_agent:
           "diseño": ["elegante", "moderno"]
         }}
       }},
-      "temas_emergentes": ["Sostenibilidad como factor clave", "Precio vs valor percibido", "Experiencia de usuario"],
+      "marketing_campanas": {{
+        "Marca X": {{
+          "campanas_mencionadas": ["Campaña nombre/descripción"],
+          "mensaje_percibido": "Mensaje o eslogan percibido",
+          "canales_comunicacion": ["TV", "RRSS"],
+          "percepcion_publicidad": "efectiva|memorable|intrusiva|creativa",
+          "influencers_celebridades": ["Nombre si se menciona"],
+          "tono_comunicacion": "emocional|racional|humorístico|premium",
+          "citas": ["cita relevante sobre campaña"]
+        }}
+      }},
+      "canales_distribucion": {{
+        "Marca X": {{
+          "donde_comprar": ["Supermercados", "Amazon", "Tienda online propia"],
+          "retailers_mencionados": ["Mercadona", "Carrefour"],
+          "facilidad_encontrar": "fácil|difícil|variable",
+          "experiencia_compra": "positiva|neutral|negativa",
+          "preferencia_canal": "online|offline|indiferente",
+          "disponibilidad": "amplia|limitada|exclusiva",
+          "citas": ["cita relevante sobre compra/distribución"]
+        }}
+      }},
+      "ocasiones_consumo": {{
+        "Marca X": {{
+          "momentos": ["desayuno", "snack tarde", "celebración"],
+          "contexto_social": ["familia", "solo"],
+          "lugares": ["casa", "trabajo"],
+          "motivaciones": ["placer", "nutrición"]
+        }}
+      }},
+      "drivers_barreras": {{
+        "drivers_positivos": ["Sabor superior", "Marca confiable", "Buen precio"],
+        "barreras": ["Precio alto de marca premium", "Difícil de encontrar marca X"],
+        "switching_menciones": ["Cambié de marca Y a X por mejor calidad"]
+      }},
+      "temas_emergentes": [
+        "Sostenibilidad como factor clave",
+        "Precio vs valor percibido",
+        "Preferencia por compra online",
+        "Importancia de ingredientes naturales"
+      ],
       "insights_cualitativos": [
         "Los usuarios valoran más la experiencia que el precio en este mercado",
         "El líder es percibido como caro pero justificado por calidad",
-        "Hay demanda no cubierta de productos eco-friendly premium"
+        "Hay demanda no cubierta de productos eco-friendly premium",
+        "Las campañas emocionales resuenan mejor que las racionales",
+        "Disponibilidad en e-commerce es crítica para marcas premium"
       ]
     }}
     
-    IMPORTANTE: Analiza el 100% de los textos proporcionados. Este es el análisis definitivo y completo.
+    IMPORTANTE: 
+    - Analiza el 100% de los textos proporcionados. Este es el análisis definitivo y completo.
+    - Las nuevas categorías (marketing_campanas, canales_distribucion, ocasiones_consumo, drivers_barreras) son CRÍTICAS
+    - Si no hay menciones suficientes en alguna categoría nueva, indica arrays/objetos vacíos pero mantén la estructura
+    - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN TEXTO ADICIONAL
+    - NO uses bloques de código markdown (```), solo el JSON puro
 
 sentiment_agent:
   task: |
@@ -184,26 +271,127 @@ attributes_agent:
 
 competitive_agent:
   task: |
-    Analiza el posicionamiento competitivo relativo entre marcas.
+    Analiza el posicionamiento competitivo relativo entre marcas integrando KPIs, atributos, estrategias de marketing y canales.
     
     DATOS DE SOV: {sov_data}
     DATOS DE SENTIMIENTO: {sentiment_data}
     MENCIONES POR MARCA: {menciones}
+    DATOS CUALITATIVOS: {qualitative_data}
     
-    ANÁLISIS REQUERIDO:
+    ANÁLISIS REQUERIDO (EXPANDIDO):
     
-    1. POSICIONAMIENTO: ¿Qué marca domina? ¿Cuál es el orden de preferencia?
-    2. GAPS COMPETITIVOS: ¿Qué NO se menciona sobre cada marca?
-    3. FORTALEZAS: ¿Qué atributos positivos destaca cada marca?
-    4. DEBILIDADES: ¿Qué criticidades o ausencias se notan?
-    5. COMPARACIONES DIRECTAS: ¿Cómo se comparan marca A vs marca B?
+    1. POSICIONAMIENTO GENERAL:
+       - ¿Qué marca domina el mercado? (SOV + sentimiento combinados)
+       - Orden de preferencia y cuota de conversación
+       - Correlación entre visibilidad (SOV) y percepción (sentimiento)
     
-    DEVUELVE JSON estructurado con hallazgos específicos y cuantificados.
+    2. BENCHMARKING DE ATRIBUTOS:
+       - Comparativa por atributo clave: calidad, precio, innovación, confiabilidad, experiencia
+       - ¿Qué marca lidera en qué atributo?
+       - Tabla comparativa de fortalezas por marca
+    
+    3. **ANÁLISIS DE ESTRATEGIAS DE MARKETING** (NUEVO):
+       Basado en los datos cualitativos de campañas:
+       - ¿Qué marca tiene mayor actividad de marketing aparente?
+       - ¿Qué marca comunica mejor su propuesta de valor?
+       - ¿Estrategia de comunicación: agresiva, conservadora, innovadora?
+       - ¿Uso de influencers/celebridades por marca?
+       - ¿Correlación entre actividad de marketing y SOV?
+    
+    4. **ANÁLISIS DE ESTRATEGIAS DE CANAL** (NUEVO):
+       Basado en los datos cualitativos de distribución:
+       - ¿Qué marca tiene mejor presencia omnicanal?
+       - ¿Estrategia de distribución: intensiva, selectiva, exclusiva?
+       - ¿Ventajas competitivas en accesibilidad/disponibilidad?
+       - ¿Experiencia de compra diferenciada por canal?
+    
+    5. FORTALEZAS POR MARCA:
+       - Atributos positivos destacados
+       - Ventajas competitivas claras
+       - Fortalezas en marketing y canal (nuevo)
+    
+    6. DEBILIDADES Y GAPS:
+       - Criticidades o ausencias en percepción
+       - Atributos débiles vs competencia
+       - Gaps en comunicación (no comunica atributos que debería)
+       - Gaps en distribución (canales desatendidos)
+    
+    7. PERFILES COMPETITIVOS DETALLADOS:
+       Para cada marca principal, genera perfil con:
+       - Posicionamiento percibido
+       - Fortalezas clave
+       - Debilidades clave
+       - Estrategia de marketing inferida
+       - Estrategia de canal inferida
+       - Oportunidades de ataque
+       - Vulnerabilidades
+    
+    8. COMPARACIONES DIRECTAS:
+       - Lider vs Retador: ventajas/desventajas
+       - Marcas premium vs Marcas valor
+       - Tradicionales vs Emergentes
+    
+    DEVUELVE JSON ESTRUCTURADO:
+    {{
+      "lider_mercado": "Marca X",
+      "ranking_sov": ["Marca X", "Marca Y", "Marca Z"],
+      "benchmarking_atributos": {{
+        "calidad": {{"lider": "Marca X", "comentario": "Percibida como premium"}},
+        "precio": {{"lider": "Marca Y", "comentario": "Mejor relación calidad-precio"}},
+        "innovacion": {{"lider": "Marca Z", "comentario": "Más innovadora en formatos"}}
+      }},
+      "estrategias_marketing": {{
+        "Marca X": {{
+          "actividad_aparente": "alta|media|baja",
+          "calidad_comunicacion": "excelente|buena|regular|deficiente",
+          "canales_principales": ["TV", "Digital"],
+          "uso_influencers": true/false,
+          "mensaje_clave": "Liderazgo en calidad",
+          "efectividad_percibida": "alta|media|baja"
+        }}
+      }},
+      "estrategias_canal": {{
+        "Marca X": {{
+          "tipo_distribucion": "intensiva|selectiva|exclusiva",
+          "presencia_omnicanal": "fuerte|moderada|débil",
+          "ventaja_accesibilidad": "Disponible en todos los canales",
+          "experiencia_diferenciada": "E-commerce propio con experiencia premium"
+        }}
+      }},
+      "perfiles_competidores": [
+        {{
+          "marca": "Marca X",
+          "posicionamiento": "Líder premium",
+          "fortalezas": ["Calidad percibida", "Reconocimiento de marca", "Presencia omnicanal"],
+          "debilidades": ["Precio alto", "Poca innovación percibida"],
+          "estrategia_marketing": "Comunicación emocional centrada en herencia y calidad",
+          "estrategia_canal": "Distribución intensiva con foco en retail tradicional",
+          "oportunidades_ataque": ["Innovar en formatos", "Mejorar comunicación digital"],
+          "vulnerabilidades": ["Sensibilidad al precio en crisis", "Competencia de marcas blancas"]
+        }}
+      ],
+      "gaps_competitivos": [
+        "Marca X no comunica sostenibilidad a pesar de ser líder",
+        "Marca Y tiene presencia débil en e-commerce",
+        "Ninguna marca capitaliza tendencia de personalización"
+      ],
+      "insights_clave": [
+        "El líder domina en SOV pero no en sentimiento, oportunidad para retadores",
+        "Estrategias de canal diferenciadas son fuente de ventaja competitiva",
+        "Marketing efectivo correlaciona con mayor SOV pero no siempre con mejor sentimiento"
+      ]
+    }}
+    
+    IMPORTANTE:
+    - Integra TODAS las dimensiones: KPIs, atributos, marketing y canales
+    - Los perfiles competitivos deben ser holísticos y accionables
+    - Identifica correlaciones entre variables (ej: actividad marketing vs SOV)
+    - Prioriza insights que revelen ventajas competitivas o vulnerabilidades
 
 strategic_agent:
   task: |
-    Eres un consultor de estrategia senior (McKinsey/BCG). Tu tarea es diagnosticar el mercado, no solo resumirlo.
-    Analiza los siguientes datos cuantitativos (KPIs) Y cualitativos (texto crudo).
+    Eres un consultor de estrategia senior (McKinsey/BCG). Tu tarea es diagnosticar el mercado de forma holística.
+    Analiza KPIs, tendencias, competencia, Y las nuevas dimensiones de marketing y canales.
 
     DATOS CUANTITATIVOS (SOV):
     {sov_data}
@@ -217,25 +405,70 @@ strategic_agent:
     DATOS DE TENDENCIAS:
     {trends_data}
     
-    RESPUESTAS TEXTUALES ORIGINALES (Muestra representativa de análisis cualitativos de IA):
+    --- ANÁLISIS FMCG ESPECIALIZADO ---
+    ANÁLISIS DE CAMPAÑAS Y MARKETING:
+    {campaign_analysis_data}
+    
+    ANÁLISIS DE CANALES Y RETAIL:
+    {channel_analysis_data}
+    
+    ANÁLISIS ESG Y SOSTENIBILIDAD:
+    {esg_analysis_data}
+    
+    ANÁLISIS DE PACKAGING Y DISEÑO:
+    {packaging_analysis_data}
+    ---
+    
+    RESPUESTAS TEXTUALES ORIGINALES (Muestra representativa):
     {raw_responses_sample}
 
-    INSTRUCCIONES DE DIAGNÓSTICO:
-    Busca la "historia detrás de los números". Identifica las 3 OPORTUNIDADES y los 3 RIESGOS más críticos.
+    INSTRUCCIONES DE DIAGNÓSTICO HOLÍSTICO:
+    Busca la "historia detrás de los números" cruzando los KPIs con los ANÁLISIS FMCG ESPECIALIZADOS y el texto crudo.
+    Identifica las 3 OPORTUNIDADES y los 3 RIESGOS más críticos.
     
     Busca explícitamente:
-    1.  **CONTRADICCIONES**: ¿Dónde contradicen los textos crudos a los KPIs?
-        (Ej: SOV alto pero sentimiento bajo; KPIs buenos pero las respuestas textuales revelan quejas sobre un atributo clave como "precio" o "soporte").
-    2.  **NECESIDADES NO CUBIERTAS**: ¿Qué frases como "Ojalá hubiera...", "No encuentro un...", "Por qué nadie hace..." aparecen en los textos?
-    3.  **ELOGIOS ESPECÍFICOS (Gemas Ocultas)**: ¿Qué atributos específicos de marcas con *bajo* SOV son elogiados desproporcionadamente?
-        (Ej: "Marca X es poco conocida, pero su [función específica] es la mejor").
-    4.  **AMENAZAS EMERGENTES**: ¿Qué competidores o temas nuevos, aunque con poco volumen, reciben menciones muy positivas o crecen rápido?
+    
+    1.  **CONTRADICCIONES HOLÍSTICAS**:
+        - ¿El sentimiento de marca es positivo, pero el análisis de PACKAGING revela quejas de fugas?
+        - ¿La marca tiene alto SOV, pero el análisis de CAMPAÑAS revela que están comunicando sobre un atributo que el consumidor ya no valora (según ESG/Packaging)?
+        - Ejemplo: Alto SOV + Buen Packaging, pero Campaña débil en ESG, que es un riesgo de competidor
+        - ¿Alta actividad de marketing pero bajo reconocimiento de marca?
+        - ¿Buena distribución pero baja disponibilidad percibida?
+    
+    2.  **PUNTOS CIEGOS**:
+        - ¿El análisis de CANALES revela que el e-commerce tiene una penetración baja, lo cual es una **Oportunidad** de crecimiento si se lanza una Campaña digital dirigida?
+        - Gaps en atributos (ninguna marca ofrece X)
+        - Gaps en comunicación (nadie habla de Z pero es importante según ESG)
+    
+    3.  **AMENAZAS EMERGENTES**:
+        - ¿El análisis ESG revela una controversia importante que las Marcas con alto SOV (KPIs) están ignorando? (Riesgo Crítico)
+        - Competidores nuevos con menciones muy positivas
+        - Cambios en preferencias de canal (ej: shift a online)
+        - Vulnerabilidades en packaging/diseño no atendidas
+    
+    4.  **OPORTUNIDADES EN MARKETING Y CAMPAÑAS**:
+        - Marcas con bajo SOV pero campañas altamente efectivas (según recepción)
+        - Mensajes que resuenan pero no son explotados
+        - Canales de comunicación efectivos desaprovechados por competencia
+        - Gaps: Marca con alto SOV pero sin menciones de campañas activas
+    
+    5.  **OPORTUNIDADES EN CANALES Y DISTRIBUCIÓN**:
+        - Análisis de Canales muestra gaps de e-commerce explotables
+        - Experiencias de compra mejorables detectadas
+        - Retailers clave que favorecen a cierta marca
+        - Tendencias de canal no capitalizadas (ej: D2C, suscripciones)
+    
+    6.  **OPORTUNIDADES EN ESG Y PACKAGING**:
+        - Gaps de sostenibilidad: ninguna marca comunica bien ESG
+        - Problemas funcionales de packaging de competidores (fugas, difícil apertura)
+        - Innovaciones en packaging valoradas pero no adoptadas por líder
+        - Certificaciones ESG ausentes que serían diferenciadoras
 
     Para cada OPORTUNIDAD, formato JSON:
     {{
       "titulo": "Título accionable de la oportunidad (Ej: 'Capitalizar la debilidad de precio del líder')",
-      "descripcion": "Explicación de 3-4 líneas que integre KPIs y la evidencia cualitativa (el 'por qué')",
-      "datos_soporte": "KPI estructurado + cita o patrón específico del texto crudo (ej: 'Líder con SOV 54% pero sentimiento 0.1. Las respuestas mencionan 12 veces: [queja de precio]')",
+      "descripcion": "Explicación de 3-4 líneas que integre KPIs y la evidencia cualitativa (el 'por qué'). DEBE CITAR AL MENOS UN DATO DE LOS ANÁLISIS FMCG.",
+      "datos_soporte": "KPI estructurado + cita o patrón específico del texto crudo (ej: 'Líder con SOV 54% pero análisis de Canales muestra 40% de quejas en e-commerce.')",
       "evidencia_cualitativa": "Patrón específico o cita directa identificada en las respuestas textuales que fundamenta esta oportunidad.",
       "impacto": "alto|medio|bajo",
       "esfuerzo": "alto|medio|bajo",
@@ -246,14 +479,21 @@ strategic_agent:
     {{
       "titulo": "Título claro del riesgo (Ej: 'Riesgo de percepción de 'marca cara' para el Líder')",
       "descripcion": "Explicación de 3-4 líneas que integre KPIs y la evidencia cualitativa.",
-      "datos_soporte": "KPI estructurado + evidencia textual (ej: 'SOV 54% pero Sentimiento 0.00. Análisis cualitativo revela menciones de 'precio excesivo'...')",
+      "datos_soporte": "KPI estructurado + evidencia textual (ej: 'SOV 54% pero Análisis ESG muestra que 80% de los usuarios critican el uso de plástico.')",
       "evidencia_cualitativa": "Patrones, quejas recurrentes o señales de advertencia identificadas en las respuestas textuales.",
       "probabilidad": "alta|media|baja",
       "severidad": "alta|media|baja",
-      "mitigacion": "Sugerencia accionable basada en los insights (ej: 'Lanzar campaña de 'valor percibido' o 'revisar estructura de precios del Nivel 1')."
+      "mitigacion": "Sugerencia accionable basada en los insights y los ANÁLISIS FMCG (ej: 'Lanzar un packaging 100% reciclable para mitigar riesgo de crítica ESG.')."
     }}
-
+    
     DEVUELVE UN ÚNICO OBJETO JSON con las claves "oportunidades" y "riesgos".
+    
+    IMPORTANTE:
+    - Cita EXPLÍCITAMENTE los análisis FMCG (Campañas, Canales, ESG, Packaging) en tus insights
+    - Busca CONTRADICCIONES entre dimensiones (ej: Alto SOV pero gaps en Canales)
+    - Las oportunidades/riesgos deben ser ACCIONABLES y basados en evidencia FMCG
+    - Prioriza por impacto potencial en negocio
+    - Fundamenta cada punto con evidencia multi-fuente integrando KPIs + FMCG
 
 synthesis_agent:
   task: |
@@ -355,6 +595,268 @@ executive_agent:
     
     DEVUELVE ÚNICAMENTE EL JSON VÁLIDO
 
+campaign_agent:
+  task: |
+    Eres un especialista en análisis de estrategias de marketing y comunicación en FMCG.
+    Tu misión es detectar y analizar TODAS las campañas, actividades de marketing y estrategias de comunicación.
+    
+    CAPACIDADES CLAVE:
+    1. Detectar campañas publicitarias mencionadas (explícitas e implícitas)
+    2. Identificar mensajes clave, tono, creatividad y posicionamiento
+    3. Analizar canales de comunicación utilizados
+    4. Evaluar percepción y efectividad de campañas
+    5. Inferir estrategias de comunicación por marca
+    6. Identificar correlaciones entre actividad de marketing y KPIs (SOV, sentimiento)
+    
+    ANÁLISIS REQUERIDO:
+    
+    A) DETECCIÓN DE CAMPAÑAS:
+       - Nombre o descripción de campañas mencionadas
+       - Marca asociada
+       - Canales: TV, digital, RRSS, influencers, exterior, prensa, punto de venta
+       - Timeframe (si se menciona)
+       - Elementos creativos mencionados (eslogan, personajes, música, etc.)
+    
+    B) MENSAJES Y POSICIONAMIENTO:
+       - Mensaje clave comunicado por cada marca
+       - Valores y atributos que proyecta
+       - Tono: emocional, racional, humorístico, aspiracional, premium, familiar, etc.
+       - Diferenciación en messaging vs competencia
+       - Coherencia entre mensaje y percepción real
+    
+    C) PERCEPCIÓN DE CAMPAÑAS:
+       - ¿Cómo son percibidas? (efectivas, memorables, creativas, intrusivas, aburridas)
+       - Sentimiento asociado a campañas específicas
+       - Recall y reconocimiento
+       - Impacto en consideración de compra
+    
+    D) ESTRATEGIA DE COMUNICACIÓN POR MARCA:
+       - Actividad de marketing aparente: alta, media, baja
+       - Canales prioritarios
+       - Uso de influencers/celebridades/embajadores
+       - Estrategia de contenidos (educativo, entretenimiento, promocional)
+       - Consistencia y frecuencia de comunicación
+    
+    E) ANÁLISIS COMPETITIVO DE MARKETING:
+       - ¿Qué marca tiene mayor SOV en comunicación?
+       - ¿Correlación entre actividad de marketing y SOV de conversación?
+       - ¿Qué marca comunica mejor/peor?
+       - ¿Gaps en comunicación de alguna marca?
+       - ¿Oportunidades de diferenciación en messaging?
+    
+    F) INSIGHTS ACCIONABLES:
+       - Campañas más efectivas y por qué
+       - Mensajes que resuenan mejor con audiencia
+       - Canales más efectivos para la categoría
+       - Oportunidades de mejora en comunicación
+       - Amenazas de campañas competitivas
+    
+    FORMATO DE SALIDA: JSON estructurado con:
+    - campañas_detectadas (array)
+    - estrategias_comunicacion (por marca)
+    - analisis_comparativo
+    - insights_clave
+    - metadata
+    
+    IMPORTANTE:
+    - Distingue entre evidencia directa (campañas mencionadas) e inferencias (estrategia general)
+    - Si no hay menciones explícitas de campañas, analiza comunicación general percibida
+    - Correlaciona actividad de marketing con cambios en SOV y sentimiento
+    - Prioriza insights accionables sobre descripciones genéricas
+
+channel_agent:
+  task: |
+    Eres un especialista en estrategias de distribución y retail para FMCG.
+    Tu misión es analizar la presencia por canal, estrategias de distribución y experiencia de compra.
+    
+    CAPACIDADES CLAVE:
+    1. Mapear presencia de marcas por canal de distribución
+    2. Analizar experiencia de compra online vs offline
+    3. Inferir estrategias de canal por marca
+    4. Identificar ventajas competitivas en distribución
+    5. Detectar gaps y oportunidades de canal
+    6. Evaluar tendencias en preferencia de canales
+    
+    CANALES A ANALIZAR:
+    - Supermercados/Hipermercados (retail tradicional)
+    - Tiendas de conveniencia
+    - E-commerce generalista (Amazon, marketplaces, webs de retailers)
+    - E-commerce propio (D2C - Direct to Consumer)
+    - Canales especializados (gourmet, dietéticas, farmacias según categoría)
+    - Canales emergentes (delivery apps, suscripciones, social commerce)
+    - Canales alternativos (gasolineras, kioscos, hoteles, etc.)
+    
+    ANÁLISIS REQUERIDO:
+    
+    A) PRESENCIA POR MARCA Y CANAL:
+       Para cada marca principal:
+       - ¿En qué canales está presente?
+       - ¿Facilidad para encontrar el producto?
+       - ¿Disponibilidad y stock?
+       - ¿Retailers específicos mencionados?
+       - ¿Presencia exclusiva o masiva?
+    
+    B) EXPERIENCIA DE COMPRA:
+       - Online vs Offline: ventajas, desventajas, preferencias
+       - Calidad de experiencia e-commerce (UX web/app, proceso compra)
+       - Experiencia en tienda física (ubicación, visibilidad, promociones)
+       - Precio y promociones por canal
+       - Velocidad de entrega (online)
+       - Packaging y presentación (offline)
+    
+    C) ESTRATEGIAS DE CANAL INFERIDAS:
+       - Omnicanal: integración entre canales
+       - Distribución selectiva vs intensiva vs exclusiva
+       - Penetración masiva vs premium/nicho
+       - Estrategia de precios por canal
+       - Innovación en canales (nuevos formatos, tecnología)
+    
+    D) VENTAJAS COMPETITIVAS:
+       - ¿Qué marca domina qué canal?
+       - ¿Accesibilidad como ventaja competitiva?
+       - ¿Experiencia superior en algún canal?
+       - ¿Exclusividades en distribución?
+    
+    E) GAPS Y OPORTUNIDADES:
+       - Marcas con presencia débil en canales clave
+       - Canales desatendidos por la competencia
+       - Oportunidades en canales emergentes
+       - Necesidades no cubiertas en experiencia de compra
+    
+    F) TENDENCIAS DE CANAL:
+       - Shift online vs offline
+       - Importancia de disponibilidad en decisión de compra
+       - Preferencias emergentes (suscripciones, social commerce)
+       - Impacto de delivery apps y quick commerce
+    
+    FORMATO DE SALIDA: JSON estructurado con:
+    - presencia_por_marca (nested por canal)
+    - comparativa_experiencia
+    - estrategias_inferidas (por marca)
+    - ventajas_competitivas
+    - insights_clave
+    - tendencias_canal
+    - metadata
+    
+    IMPORTANTE:
+    - Distingue entre datos empíricos y estrategias inferidas
+    - Si hay poca información sobre canales, indícalo en metadata
+    - Prioriza insights sobre distribución que impactan competitividad
+    - Conecta presencia en canal con accesibilidad y cuota de mercado
+
+market_context_agent:
+  task: |
+    Eres un consultor estratégico senior especializado en análisis de mercados FMCG.
+    Tu misión es generar un análisis de contexto de mercado usando frameworks estratégicos de consultoría.
+    
+    FRAMEWORKS A APLICAR:
+    1. PESTEL - Análisis del entorno macro
+    2. Fuerzas de Porter - Análisis de industria
+    3. Drivers de Categoría - Factores clave de éxito
+    4. Panorama General - Tamaño, crecimiento, madurez
+    
+    CAPACIDADES CLAVE:
+    - Integrar información externa actualizada (vía Perplexity)
+    - Aplicar frameworks estratégicos de forma específica (no genérica)
+    - Identificar factores críticos de éxito en la categoría
+    - Detectar oportunidades y amenazas del contexto
+    - Priorizar factores por relevancia e impacto
+    
+    ANÁLISIS REQUERIDO:
+    
+    A) PANORAMA GENERAL DEL MERCADO:
+       - Descripción de la categoría y su naturaleza
+       - Tamaño estimado (si hay datos)
+       - Tasa de crecimiento estimada
+       - Nivel de madurez: emergente, crecimiento, maduro, declive
+       - Características estructurales clave
+       - Principales players y concentración
+    
+    B) ANÁLISIS PESTEL ADAPTADO A FMCG:
+       Identifica solo factores RELEVANTES y ESPECÍFICOS para esta categoría:
+       
+       - POLÍTICO-LEGAL: Regulaciones, normativas de etiquetado, impuestos especiales, políticas alimentarias, claims permitidos
+       - ECONÓMICO: Inflación, elasticidad precio, premiumización vs downtrading, poder adquisitivo del target
+       - SOCIAL: Cambios en hábitos (salud, conveniencia), valores (sostenibilidad, ética), demografía (envejecimiento, urbanización)
+       - TECNOLÓGICO: E-commerce, innovación en producto/proceso, packaging inteligente, personalización
+       - ECOLÓGICO: Presión por sostenibilidad, packaging eco-friendly, huella de carbono, economía circular
+       - LEGAL ESPECÍFICO: Normativas sanitarias, denominaciones de origen, certificaciones requeridas
+       
+       Para cada factor:
+       - Descripción específica (no genérica)
+       - Impacto: Alto / Medio / Bajo
+       - Tipo: Oportunidad / Amenaza / Mixto
+       - Implicaciones para marcas de la categoría
+    
+    C) FUERZAS DE PORTER:
+       Evalúa la estructura competitiva:
+       
+       - RIVALIDAD COMPETITIVA: 
+         * Nivel: Alto/Medio/Bajo
+         * Factores: concentración, diferenciación, barreras de salida
+         * Implicaciones: presión sobre márgenes, guerra de precios, innovación
+       
+       - PODER DE NEGOCIACIÓN DE COMPRADORES:
+         * Retail concentrado vs Consumidor final fragmentado
+         * Nivel de poder de cada uno
+         * Implicaciones: presión sobre términos comerciales, marcas blancas
+       
+       - PODER DE NEGOCIACIÓN DE PROVEEDORES:
+         * Dependencia de materias primas específicas
+         * Concentración de proveedores
+         * Implicaciones: volatilidad de costes, integración vertical
+       
+       - AMENAZA DE NUEVOS ENTRANTES:
+         * Barreras: capital, distribución, reconocimiento de marca, economías de escala
+         * Nivel de amenaza
+         * Implicaciones: entrada de startups, marcas blancas, players globales
+       
+       - AMENAZA DE SUSTITUTOS:
+         * Productos alternativos que satisfacen misma necesidad
+         * Nivel de amenaza
+         * Implicaciones: elasticidad cruzada, innovación requerida
+    
+    D) DRIVERS DE CATEGORÍA:
+       Identifica los 5-7 factores que impulsan crecimiento y elección:
+       
+       Ejemplos contextuales:
+       - Innovación (nuevos sabores, formatos, ingredientes funcionales)
+       - Precio/Valor (sensibilidad, promociones, ofertas)
+       - Salud y Nutrición (claims, ingredientes naturales, reducción azúcar/sal)
+       - Conveniencia (facilidad uso, portabilidad, tiempo de preparación)
+       - Sostenibilidad/Ética (packaging, sourcing, impacto social)
+       - Experiencia/Indulgencia (placer, momentos especiales)
+       - Marca/Reputación (confianza, herencia, prestigio)
+       - Disponibilidad/Distribución (omnipresencia, accesibilidad)
+       - Personalización (opciones, customización)
+       
+       Para cada driver:
+       - Importancia: Crítico / Alto / Moderado
+       - Tendencia: Creciente / Estable / Decreciente
+       - Descripción de cómo impacta elección
+       - Qué marcas lo capitalizan mejor
+    
+    E) SÍNTESIS ESTRATÉGICA:
+       - Top 3 factores críticos de éxito en este mercado
+       - Oportunidades del contexto externo no capitalizadas
+       - Amenazas del entorno que requieren atención prioritaria
+       - Insight clave del análisis de contexto (2-3 líneas)
+    
+    FORMATO DE SALIDA: JSON estructurado con:
+    - panorama_general
+    - analisis_pestel (nested por dimensión)
+    - fuerzas_porter (nested por fuerza)
+    - drivers_categoria (array)
+    - sintesis_estrategica
+    - metadata (fuentes, certidumbre, actualización)
+    
+    IMPORTANTE:
+    - USA información externa (Perplexity) para enriquecer análisis
+    - Sé ESPECÍFICO, no genérico (ej: no "regulaciones existen", sino "nueva norma UE sobre claims nutricionales 2024")
+    - PRIORIZA factores por relevancia (no llenes todos si no aplican)
+    - Conecta contexto con implicaciones competitivas
+    - Indica nivel de certidumbre de las estimaciones
+
 trends_agent:
   task: |
     Eres un analista de tendencias de mercado especializado en detectar cambios, patrones emergentes y señales débiles.
@@ -451,3 +953,328 @@ trends_agent:
     - Distingue entre ruido estadístico y cambios significativos
     - Las proyecciones deben ser conservadoras y fundamentadas
 
+# ====================================================================================================
+# AGENTES ESPECIALIZADOS FMCG - Análisis de dimensiones específicas del mercado FMCG
+# ====================================================================================================
+
+campaign_analysis_agent:
+  task: |
+    Eres un especialista en marketing y comunicación FMCG con experiencia en Nielsen/Kantar.
+    Tu objetivo es analizar la actividad publicitaria y de marketing en el mercado.
+    
+    FRAGMENTOS DE TEXTO RELEVANTES:
+    {contexto}
+    
+    INSTRUCCIONES DE ANÁLISIS:
+    
+    Analiza TODAS las menciones relacionadas con:
+    1. CAMPAÑAS PUBLICITARIAS:
+       - Identifica campañas específicas mencionadas (nombre, descripción, elementos creativos)
+       - ¿Qué marcas tienen actividad publicitaria visible?
+       - ¿Qué mensajes/eslóganes se mencionan?
+       - ¿Hay lanzamientos de nuevos productos o reformulaciones?
+    
+    2. CANALES DE COMUNICACIÓN:
+       - ¿Dónde se comunican las marcas? (TV, digital, RRSS, influencers, exterior, prensa)
+       - ¿Qué canales son más mencionados o visibles?
+       - ¿Hay uso de celebrities/influencers? ¿Quiénes?
+    
+    3. EFECTIVIDAD Y RECEPCIÓN:
+       - ¿Cómo se percibe la publicidad? (efectiva, memorable, intrusiva, creativa, aburrida)
+       - ¿Qué campañas generan conversación positiva/negativa?
+       - ¿Hay quejas sobre saturación publicitaria?
+    
+    4. TONO Y ESTRATEGIA CREATIVA:
+       - ¿Qué tono usan las marcas? (emocional, racional, humorístico, premium, familiar, provocador)
+       - ¿Hay estrategias creativas destacables? (storytelling, UGC, experiencial)
+    
+    5. ACTIVIDAD COMPARATIVA:
+       - ¿Qué marca es la más activa en marketing?
+       - ¿Qué marca tiene mejor ejecución/recepción?
+       - ¿Hay marcas "silenciosas" o con baja presencia?
+    
+    METODOLOGÍA:
+    - Si NO hay menciones claras de campañas, di "No se detectó actividad de marketing significativa"
+    - Si hay menciones, sé específico: cita nombres de campañas, mensajes exactos, canales
+    - Diferencia entre "campaña activa mencionada" vs "publicidad genérica"
+    - Identifica gaps: marcas con alto SOV pero sin menciones de marketing
+    
+    DEVUELVE JSON ESTRUCTURADO:
+    {{
+      "resumen_actividad": "Resumen ejecutivo de 3-4 líneas sobre la actividad de marketing en el mercado",
+      "marca_mas_activa": "Nombre de la marca con mayor actividad publicitaria visible",
+      "mensajes_clave": [
+        "Mensaje/eslogan 1 de Marca X",
+        "Mensaje/eslogan 2 de Marca Y"
+      ],
+      "canales_destacados": [
+        "Canal 1 (ej: TV - Marca X con campaña Y)",
+        "Canal 2 (ej: Instagram - Marca Z con influencer A)"
+      ],
+      "insights_recepcion": [
+        "Insight 1 sobre cómo se reciben las campañas (ej: 'La campaña X de Marca Y es percibida como auténtica y genera conversación positiva')",
+        "Insight 2 (ej: 'Las campañas de Marca Z se critican por ser genéricas y poco memorables')"
+      ],
+      "campanas_especificas": [
+        {{
+          "marca": "Marca X",
+          "nombre_campana": "Nombre de campaña o descripción",
+          "canales": ["TV", "Digital"],
+          "mensaje_central": "Mensaje percibido",
+          "recepcion": "positiva|neutral|negativa",
+          "insights": "Insight cualitativo sobre la campaña"
+        }}
+      ],
+      "gaps_marketing": [
+        "Gap 1 (ej: 'Marca X tiene alto SOV pero no se mencionan campañas activas - posible oportunidad perdida')",
+        "Gap 2"
+      ]
+    }}
+    
+    IMPORTANTE: 
+    - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
+    - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
+
+channel_analysis_agent:
+  task: |
+    Eres un especialista en distribución y retail FMCG con experiencia en estrategias omnicanal.
+    Tu objetivo es analizar cómo se distribuyen y venden los productos en el mercado.
+    
+    FRAGMENTOS DE TEXTO RELEVANTES:
+    {contexto}
+    
+    INSTRUCCIONES DE ANÁLISIS:
+    
+    Analiza TODAS las menciones relacionadas con:
+    1. CANALES DE DISTRIBUCIÓN:
+       - ¿Dónde se compran los productos? (supermercados, hipermercados, conveniencia, online, farmacias, especializado)
+       - ¿Qué retailers se mencionan? (Mercadona, Carrefour, Lidl, Amazon, Dia, Alcampo, etc.)
+       - ¿Hay preferencias de canal por marca?
+    
+    2. E-COMMERCE Y DIGITAL:
+       - ¿Qué marcas están disponibles online?
+       - ¿Hay menciones de compra en plataformas (Amazon, Glovo, web propia, marketplace)?
+       - ¿Qué problemas se mencionan? (stock, entrega, precio online vs offline)
+    
+    3. DISPONIBILIDAD Y EXPERIENCIA:
+       - ¿Es fácil encontrar los productos?
+       - ¿Hay quejas de falta de stock o roturas?
+       - ¿Cómo es la experiencia de compra? (ubicación en tienda, visibilidad, promociones en PDV)
+    
+    4. ESTRATEGIAS OMNICANAL:
+       - ¿Qué marcas tienen presencia omnicanal efectiva?
+       - ¿Hay marcas exclusivas de ciertos canales?
+       - ¿Se mencionan estrategias de canal (ej: premium en tiendas especializadas, mass en super)?
+    
+    5. GAPS Y OPORTUNIDADES:
+       - ¿Dónde NO están disponibles productos que los consumidores buscan?
+       - ¿Hay quejas sobre experiencia de compra en canal específico?
+       - ¿Qué canales están creciendo/decreciendo en importancia?
+    
+    METODOLOGÍA:
+    - Si NO hay menciones claras de canales, di "No se detectaron menciones significativas sobre distribución"
+    - Si hay menciones, sé específico: cita retailers exactos, problemas específicos
+    - Diferencia entre "amplia distribución" vs "exclusividad de canal"
+    - Identifica brechas: consumidores que buscan online pero no encuentran
+    
+    DEVUELVE JSON ESTRUCTURADO:
+    {{
+      "estrategia_canal_inferida": "Resumen ejecutivo de 3-4 líneas sobre cómo se distribuyen las marcas en el mercado",
+      "gaps_e_commerce": [
+        "Gap 1 (ej: '40% de las menciones reportan problemas de stock de Marca X en plataformas de entrega online')",
+        "Gap 2 (ej: 'Marca Y no está disponible en Amazon, a pesar de alta demanda')"
+      ],
+      "retailers_clave": [
+        "Retailer 1 (ej: Mercadona - mencionado como principal canal para Marca X)",
+        "Retailer 2"
+      ],
+      "marca_mejor_distribuida": "Marca con mejor presencia omnicanal y disponibilidad",
+      "insights_canal": [
+        "Insight 1 (ej: 'Hay una clara preferencia por compra online en categoría premium, pero stock limitado')",
+        "Insight 2 (ej: 'Marca Z domina canal moderno pero está ausente en conveniencia')"
+      ],
+      "disponibilidad_por_marca": [
+        {{
+          "marca": "Marca X",
+          "canales_presencia": ["Supermercados", "Online", "Conveniencia"],
+          "retailers_mencionados": ["Mercadona", "Amazon"],
+          "facilidad_encontrar": "fácil|media|difícil",
+          "problemas_reportados": ["Problema 1", "Problema 2"]
+        }}
+      ],
+      "tendencias_canal": [
+        "Tendencia 1 (ej: 'Creciente demanda de compra online con entrega inmediata')",
+        "Tendencia 2"
+      ]
+    }}
+    
+    IMPORTANTE: 
+    - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
+    - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
+
+esg_analysis_agent:
+  task: |
+    Eres un especialista en sostenibilidad y ESG (Environmental, Social, Governance) en FMCG.
+    Tu objetivo es analizar la percepción de sostenibilidad, controversias y drivers ESG en el mercado.
+    
+    FRAGMENTOS DE TEXTO RELEVANTES:
+    {contexto}
+    
+    INSTRUCCIONES DE ANÁLISIS:
+    
+    Analiza TODAS las menciones relacionadas con:
+    1. SOSTENIBILIDAD AMBIENTAL (E):
+       - ¿Qué se dice sobre impacto ambiental de las marcas/productos?
+       - ¿Hay menciones de: reciclaje, huella de carbono, plástico, packaging sostenible, origen de materias primas?
+       - ¿Qué marcas son elogiadas/criticadas por su impacto ambiental?
+    
+    2. RESPONSABILIDAD SOCIAL (S):
+       - ¿Hay menciones de: prácticas laborales, diversidad, inclusión, impacto en comunidades?
+       - ¿Qué marcas son percibidas como socialmente responsables?
+       - ¿Hay controversias relacionadas con ética social?
+    
+    3. GOVERNANCE Y TRANSPARENCIA (G):
+       - ¿Se menciona transparencia de ingredientes, trazabilidad, certificaciones?
+       - ¿Hay críticas sobre falta de información o greenwashing?
+    
+    4. CONTROVERSIAS ESG:
+       - ¿Qué controversias específicas se mencionan? (escándalo ambiental, acusación de greenwashing, etc.)
+       - ¿Qué marcas están bajo escrutinio por temas ESG?
+       - ¿Hay polarización: marcas "eco-friendly" vs "irresponsables"?
+    
+    5. ESG COMO DRIVER DE COMPRA:
+       - ¿Cuánta importancia tiene la sostenibilidad en la decisión de compra?
+       - ¿Hay consumidores que eligen/rechazan marcas por razones ESG?
+       - ¿La sostenibilidad es un "nice-to-have" o un "deal-breaker"?
+    
+    6. BENCHMARKING ESG:
+       - ¿Qué marcas lideran en percepción ESG?
+       - ¿Qué marcas están rezagadas?
+       - ¿Hay nuevas marcas "nativas sostenibles" emergiendo?
+    
+    METODOLOGÍA:
+    - Si NO hay menciones claras de ESG, di "No se detectaron menciones significativas sobre sostenibilidad"
+    - Si hay menciones, sé específico: cita controversias exactas, certificaciones mencionadas
+    - Diferencia entre "comunicación ESG" vs "acción ESG percibida"
+    - Identifica greenwashing: marcas que comunican sostenibilidad pero son criticadas
+    
+    DEVUELVE JSON ESTRUCTURADO:
+    {{
+      "resumen_esg": "Resumen ejecutivo de 3-4 líneas sobre la percepción ESG en el mercado",
+      "controversias_clave": [
+        "Controversia 1 (ej: 'Marca X criticada por alto consumo de agua en producción según estudio citado en redes')",
+        "Controversia 2 (ej: 'Marca Y acusada de greenwashing - packaging verde pero contenido 70% plástico')"
+      ],
+      "driver_compra_sostenibilidad": "Estimación cualitativa de importancia (ej: '35% de menciones citan sostenibilidad como factor decisivo')",
+      "benchmarking_marcas": [
+        {{
+          "marca": "Marca X",
+          "percepcion_esg": "positiva|neutral|negativa",
+          "fortalezas_esg": ["Fortaleza 1", "Fortaleza 2"],
+          "debilidades_esg": ["Debilidad 1"],
+          "certificaciones_mencionadas": ["Certificación 1"]
+        }}
+      ],
+      "insights_esg": [
+        "Insight 1 (ej: 'Existe polarización: marcas líderes criticadas por plástico vs. emergentes elogiadas por origen sostenible')",
+        "Insight 2 (ej: 'La sostenibilidad es más discurso que práctica - consumidores escépticos ante claims ESG')"
+      ],
+      "tendencias_esg": [
+        "Tendencia 1 (ej: 'Creciente demanda de packaging 100% reciclable o compostable')",
+        "Tendencia 2 (ej: 'Transparencia de origen se valora más que claims genéricos de sostenibilidad')"
+      ],
+      "gaps_oportunidades": [
+        "Gap 1 (ej: 'Ninguna marca líder tiene certificación B-Corp - oportunidad para diferenciación')",
+        "Gap 2"
+      ]
+    }}
+    
+    IMPORTANTE: 
+    - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
+    - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
+
+packaging_analysis_agent:
+  task: |
+    Eres un especialista en packaging, diseño de producto y experiencia de usuario FMCG.
+    Tu objetivo es analizar la percepción de packaging, funcionalidad y diseño en el mercado.
+    
+    FRAGMENTOS DE TEXTO RELEVANTES:
+    {contexto}
+    
+    INSTRUCCIONES DE ANÁLISIS:
+    
+    Analiza TODAS las menciones relacionadas con:
+    1. FUNCIONALIDAD DEL PACKAGING:
+       - ¿Hay menciones de: facilidad de apertura, cierre, dispensado, conservación?
+       - ¿Qué quejas específicas se reportan? (difícil de abrir, fugas, deterioro, no reutilizable)
+       - ¿Qué soluciones funcionales se elogian? (apertura fácil, cierre hermético, dosificador)
+    
+    2. DISEÑO Y ESTÉTICA:
+       - ¿Qué se dice sobre el diseño visual del packaging?
+       - ¿Hay menciones de: atractivo, moderno, premium, minimalista, llamativo, aburrido?
+       - ¿El packaging ayuda a diferenciar la marca?
+    
+    3. TAMAÑO Y FORMATO:
+       - ¿Hay menciones sobre tamaños disponibles? (individual, familiar, formato ahorro)
+       - ¿Hay demanda de formatos específicos no cubiertos?
+       - ¿El tamaño es adecuado para el uso/ocasión de consumo?
+    
+    4. MATERIAL Y SOSTENIBILIDAD:
+       - ¿Qué materiales se mencionan? (plástico, vidrio, cartón, aluminio, biodegradable)
+       - ¿Hay quejas/elogios sobre el tipo de material?
+       - ¿El packaging se percibe como sostenible?
+    
+    5. INNOVACIONES DETECTADAS:
+       - ¿Qué innovaciones en packaging se mencionan? (nuevo formato, tecnología, material innovador)
+       - ¿Qué marcas están innovando en packaging?
+       - ¿Las innovaciones son valoradas o criticadas?
+    
+    6. BENCHMARKING FUNCIONAL:
+       - ¿Qué marcas tienen el mejor packaging en términos funcionales?
+       - ¿Qué marcas tienen el mejor diseño visual?
+       - ¿Qué marcas están rezagadas en packaging?
+    
+    METODOLOGÍA:
+    - Si NO hay menciones claras de packaging, di "No se detectaron menciones significativas sobre packaging"
+    - Si hay menciones, sé específico: cita quejas exactas, atributos valorados
+    - Diferencia entre "queja funcional" (fuga, difícil apertura) vs "preferencia estética"
+    - Identifica gaps: problemas recurrentes no resueltos por ninguna marca
+    
+    DEVUELVE JSON ESTRUCTURADO:
+    {{
+      "quejas_packaging": "Resumen ejecutivo de quejas más frecuentes (ej: '20% de quejas sobre Marca X refieren dificultad de apertura')",
+      "atributos_valorados": [
+        "Atributo 1 (ej: 'Reutilizable - Marca Y elogiada por envase que se puede rellenar')",
+        "Atributo 2 (ej: 'Funcionalidad - Marca Z con dosificador preciso muy valorado')"
+      ],
+      "innovaciones_detectadas": [
+        "Innovación 1 (ej: 'Marca X lanza packaging 100% compostable con diseño premiado')",
+        "Innovación 2"
+      ],
+      "benchmarking_funcional": [
+        {{
+          "marca": "Marca X",
+          "score_funcionalidad": "alto|medio|bajo",
+          "score_diseño": "alto|medio|bajo",
+          "fortalezas_packaging": ["Fortaleza 1", "Fortaleza 2"],
+          "debilidades_packaging": ["Debilidad 1"],
+          "material_principal": "Material mencionado"
+        }}
+      ],
+      "insights_packaging": [
+        "Insight 1 (ej: 'El packaging funcional importa más que la estética - consumidores priorizan facilidad de uso')",
+        "Insight 2 (ej: 'Hay frustración generalizada con envases difíciles de abrir - oportunidad de diferenciación')"
+      ],
+      "gaps_oportunidades": [
+        "Gap 1 (ej: 'No hay formatos individuales en categoría premium - demanda no cubierta')",
+        "Gap 2 (ej: 'Marca líder criticada por packaging antiguo - oportunidad para rediseño')"
+      ],
+      "tendencias_packaging": [
+        "Tendencia 1 (ej: 'Creciente preferencia por packaging minimalista y transparente')",
+        "Tendencia 2"
+      ]
+    }}
+    
+    IMPORTANTE: 
+    - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
+    - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON

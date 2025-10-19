@@ -45,6 +45,8 @@ class SynthesisAgent(BaseAgent):
         # Leer análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
+        if not qualitative:
+            qualitative = self._get_analysis('qualitativeextraction', categoria_id, periodo)
         strategic = self._get_analysis('strategic', categoria_id, periodo)
         
         if not quantitative or not qualitative or not strategic:
