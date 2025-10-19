@@ -68,12 +68,19 @@ class SynthesisAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.5,
-                max_tokens=2000,
-                json_mode=True
+                max_tokens=2000
             )
             
-            # Parsear
-            narrativa = json.loads(result['response_text'])
+            # Parsear con limpieza robusta y fallback
+            response_text = self._clean_json_response(result.get('response_text', ''))
+            try:
+                narrativa = json.loads(response_text)
+            except Exception:
+                narrativa = {
+                    'situacion': '',
+                    'complicacion': '',
+                    'pregunta_clave': ''
+                }
             
             resultado = {
                 'periodo': periodo,
@@ -89,6 +96,34 @@ class SynthesisAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"Error generando síntesis: {e}", exc_info=True)
             return {'error': f'Error en síntesis: {str(e)}'}
+    
+    def _clean_json_response(self, response_text: str) -> str:
+        """
+        Limpia la respuesta del LLM para extraer JSON válido, incluso si viene con markdown o texto libre.
+        """
+        if not isinstance(response_text, str):
+            return '{}'
+        txt = response_text.strip()
+        if '```' in txt:
+            lines = txt.split('\n')
+            json_lines = []
+            in_block = False
+            for line in lines:
+                striped = line.strip()
+                if striped.startswith('```'):
+                    if not in_block:
+                        in_block = True
+                        continue
+                    else:
+                        break
+                if in_block:
+                    json_lines.append(line)
+            txt = '\n'.join(json_lines).strip()
+        start = txt.find('{')
+        end = txt.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            return txt[start:end+1]
+        return '{}'
     
     def _get_analysis(self, agent_name: str, categoria_id: int, periodo: str) -> Dict:
         """Helper para obtener análisis"""

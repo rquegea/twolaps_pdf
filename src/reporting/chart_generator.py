@@ -546,17 +546,97 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     
     # Opportunity Matrix
     opp_riesgos = report_data.get('oportunidades_riesgos', {})
-    if opp_riesgos.get('oportunidades'):
-        charts['opportunity_matrix'] = generator.generate_opportunity_matrix(opp_riesgos['oportunidades'])
+    
+    # Lógica defensiva para oportunidades: debe ser una lista de dicts
+    opportunities = opp_riesgos.get('oportunidades', [])
+    if isinstance(opportunities, str) or not isinstance(opportunities, list):
+        opportunities = []
+    # Normalizar si es lista de strings → lista de dicts con defaults
+    if isinstance(opportunities, list) and opportunities:
+        if all(isinstance(o, str) for o in opportunities):
+            opportunities = [
+                {
+                    'titulo': o,
+                    'impacto': 'medio',
+                    'esfuerzo': 'medio'
+                }
+                for o in opportunities
+            ]
+        else:
+            # Asegurar claves requeridas con defaults si faltan
+            normalized_ops = []
+            for i, o in enumerate(opportunities):
+                if isinstance(o, dict):
+                    normalized_ops.append({
+                        'titulo': str(o.get('titulo', f'Oportunidad {i+1}')),
+                        'impacto': str(o.get('impacto', 'medio')),
+                        'esfuerzo': str(o.get('esfuerzo', 'medio'))
+                    })
+            opportunities = normalized_ops
+    
+    if opportunities:
+        charts['opportunity_matrix'] = generator.generate_opportunity_matrix(opportunities)
     
     # Risk Matrix
-    if opp_riesgos.get('riesgos'):
-        charts['risk_matrix'] = generator.generate_risk_matrix(opp_riesgos['riesgos'])
+    # Lógica defensiva para riesgos: debe ser una lista de dicts
+    risks = opp_riesgos.get('riesgos', [])
+    if isinstance(risks, str) or not isinstance(risks, list):
+        risks = []
+    # Normalizar si es lista de strings → lista de dicts con defaults
+    if isinstance(risks, list) and risks:
+        if all(isinstance(r, str) for r in risks):
+            risks = [
+                {
+                    'titulo': r,
+                    'probabilidad': 'media',
+                    'severidad': 'media'
+                }
+                for r in risks
+            ]
+        else:
+            normalized_risks = []
+            for i, r in enumerate(risks):
+                if isinstance(r, dict):
+                    normalized_risks.append({
+                        'titulo': str(r.get('titulo', f'Riesgo {i+1}')),
+                        'probabilidad': str(r.get('probabilidad', 'media')),
+                        'severidad': str(r.get('severidad', 'media'))
+                    })
+            risks = normalized_risks
+    
+    if risks:
+        charts['risk_matrix'] = generator.generate_risk_matrix(risks)
     
     # Timeline
     plan = report_data.get('plan_90_dias', {})
-    if plan.get('iniciativas'):
-        charts['timeline_chart'] = generator.generate_timeline_chart(plan['iniciativas'])
+    
+    # Lógica defensiva para iniciativas: debe ser una lista de dicts
+    iniciativas = plan.get('iniciativas', [])
+    if isinstance(iniciativas, str) or not isinstance(iniciativas, list):
+        iniciativas = []
+    if isinstance(iniciativas, list) and iniciativas:
+        if all(isinstance(i, str) for i in iniciativas):
+            iniciativas = [
+                {
+                    'titulo': i,
+                    'timeline': '0-30 días',
+                    'prioridad': 'media'
+                }
+                for i in iniciativas
+            ]
+        else:
+            normalized_inits = []
+            for i, it in enumerate(iniciativas):
+                if isinstance(it, dict):
+                    normalized_inits.append({
+                        'titulo': str(it.get('titulo', f'Iniciativa {i+1}')),
+                        'timeline': str(it.get('timeline', '0-30 días')),
+                        'prioridad': str(it.get('prioridad', 'media'))
+                    })
+            iniciativas = normalized_inits
+    
+    if iniciativas:
+        charts['timeline_chart'] = generator.generate_timeline_chart(iniciativas)
     
     return charts
 

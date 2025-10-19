@@ -307,7 +307,7 @@ IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
     
     def _clean_json_response(self, response_text: str) -> str:
         """
-        Limpia la respuesta del LLM para extraer JSON válido
+        Limpia la respuesta del LLM para extraer JSON válido, incluso si hay preámbulo o markdown.
         
         Args:
             response_text: Respuesta del LLM
@@ -315,7 +315,9 @@ IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
         Returns:
             JSON limpio como string
         """
-        # Si tiene bloques de markdown, extraer el JSON
+        response_text = response_text.strip()
+        
+        # 1. Quitar bloques de código markdown (```json ... ```)
         if '```' in response_text:
             lines = response_text.split('\n')
             json_lines = []
@@ -332,6 +334,13 @@ IMPORTANTE: Devuelve SOLO el JSON válido, sin markdown ni texto adicional."""
                     json_lines.append(line)
             
             response_text = '\n'.join(json_lines).strip()
+        
+        # 2. Si todavía hay ruido (ej. texto libre), buscar el primer '{' y el último '}'
+        start = response_text.find('{')
+        end = response_text.rfind('}')
+        
+        if start != -1 and end != -1 and end > start:
+            return response_text[start:end+1]
         
         return response_text.strip()
     

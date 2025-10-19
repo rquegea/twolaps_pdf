@@ -80,12 +80,19 @@ class StrategicAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.4,
-                max_tokens=3000,
-                json_mode=True
+                max_tokens=3000
             )
             
-            # Parsear JSON
-            strategic_insights = json.loads(result['response_text'])
+            # Parsear JSON con limpieza robusta
+            response_text = self._clean_json_response(result.get('response_text', ''))
+            try:
+                strategic_insights = json.loads(response_text)
+            except Exception:
+                # Fallback: estructura vacía pero válida
+                strategic_insights = {
+                    'oportunidades': [],
+                    'riesgos': []
+                }
             
             resultado = {
                 'periodo': periodo,
@@ -100,6 +107,37 @@ class StrategicAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"Error generando análisis estratégico: {e}", exc_info=True)
             return {'error': f'Error en análisis estratégico: {str(e)}'}
+
+    def _clean_json_response(self, response_text: str) -> str:
+        """
+        Limpia la respuesta del LLM para extraer JSON válido, incluso si viene con markdown o texto.
+        """
+        if not isinstance(response_text, str):
+            return '{}'
+        txt = response_text.strip()
+        # Extraer bloque entre ``` si existe
+        if '```' in txt:
+            lines = txt.split('\n')
+            json_lines = []
+            in_block = False
+            for line in lines:
+                striped = line.strip()
+                if striped.startswith('```'):
+                    if not in_block:
+                        in_block = True
+                        continue
+                    else:
+                        break
+                if in_block:
+                    json_lines.append(line)
+            txt = '\n'.join(json_lines).strip()
+        # Buscar primer '{' y último '}'
+        start = txt.find('{')
+        end = txt.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            return txt[start:end+1]
+        # No hay JSON detectable
+        return '{}'
     
     def _get_analysis(self, agent_name: str, categoria_id: int, periodo: str) -> Dict:
         """Helper para obtener análisis"""
