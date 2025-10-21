@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult
-from src.query_executor.api_clients import AnthropicClient
+from src.query_executor.api_clients import OpenAIClient
 
 
 class StrategicAgent(BaseAgent):
@@ -20,7 +20,7 @@ class StrategicAgent(BaseAgent):
     
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
-        self.client = AnthropicClient()  # Cambiado a Anthropic
+        self.client = OpenAIClient()
         # Prompt se cargará dinámicamente
     
     def load_prompts(self):

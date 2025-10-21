@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
-from src.query_executor.api_clients import AnthropicClient
+from src.query_executor.api_clients import OpenAIClient
 
 
 class CampaignAnalysisAgent(BaseAgent):
@@ -20,7 +20,7 @@ class CampaignAnalysisAgent(BaseAgent):
     
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
-        self.client = AnthropicClient()
+        self.client = OpenAIClient()
         self.rag_manager = RAGManager(session)
         # Normalizamos el nombre del agente
         self.agent_name = 'campaign_analysis'
@@ -85,7 +85,8 @@ class CampaignAnalysisAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.3,
-                max_tokens=3000
+                max_tokens=3000,
+                json_mode=True
             )
             
             # Parsear respuesta
@@ -121,6 +122,7 @@ class CampaignAnalysisAgent(BaseAgent):
     def _clean_json_response(self, response_text: str) -> str:
         """
         Limpia la respuesta del LLM para extraer JSON válido
+        Usa lógica robusta similar a executive_agent
         
         Args:
             response_text: Respuesta del LLM
@@ -128,8 +130,10 @@ class CampaignAnalysisAgent(BaseAgent):
         Returns:
             JSON limpio como string
         """
-        # Si tiene bloques de markdown, extraer el JSON
-        if '```' in response_text:
+        response_text = response_text.strip()
+        
+        # Si tiene bloques de markdown con ```, extraer el contenido
+        if response_text.startswith('```'):
             lines = response_text.split('\n')
             json_lines = []
             in_json = False
@@ -145,6 +149,14 @@ class CampaignAnalysisAgent(BaseAgent):
                     json_lines.append(line)
             
             response_text = '\n'.join(json_lines).strip()
+        
+        # Si aún no es JSON válido, intentar extraer el primer bloque JSON
+        # (esto maneja casos donde hay texto/markdown antes o después del JSON)
+        if response_text and not response_text.startswith('{'):
+            start = response_text.find('{')
+            end = response_text.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                response_text = response_text[start:end+1]
         
         return response_text.strip()
     

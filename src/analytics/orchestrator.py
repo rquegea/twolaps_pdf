@@ -236,6 +236,12 @@ class AnalysisOrchestrator:
                 'oportunidades': len(result.get('oportunidades', [])),
                 'riesgos': len(result.get('riesgos', []))
             }
+        elif agent_name == 'transversal':
+            summary = {
+                'temas_comunes': len(result.get('temas_comunes', [])),
+                'contradicciones': len(result.get('contradicciones', [])),
+                'insights_nuevos': len(result.get('insights_nuevos', []))
+            }
         elif agent_name == 'executive':
             summary = {
                 'report_id': result.get('report_id', 0)

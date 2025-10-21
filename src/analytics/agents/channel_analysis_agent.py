@@ -7,7 +7,7 @@ import json
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
-from src.query_executor.api_clients import AnthropicClient
+from src.query_executor.api_clients import OpenAIClient
 
 
 class ChannelAnalysisAgent(BaseAgent):
@@ -18,7 +18,7 @@ class ChannelAnalysisAgent(BaseAgent):
     
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
-        self.client = AnthropicClient()
+        self.client = OpenAIClient()
         self.rag_manager = RAGManager(session)
         # Normalizamos el nombre del agente
         self.agent_name = 'channel_analysis'
@@ -79,11 +79,12 @@ class ChannelAnalysisAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.3,
-                max_tokens=3000
+                max_tokens=3000,
+                json_mode=True
             )
             
             # Parsear respuesta
-            response_text = result.get('response_text', '').strip()
+            response_text = self._clean_json_response(result.get('response_text', ''))
             parsed_result = json.loads(response_text)
             
             # Añadir metadata
@@ -111,6 +112,45 @@ class ChannelAnalysisAgent(BaseAgent):
             )
             resultado = {'error': f'Error en análisis de canales: {str(e)}'}
             return resultado
+    
+    def _clean_json_response(self, response_text: str) -> str:
+        """
+        Limpia la respuesta del LLM para extraer JSON válido
+        
+        Args:
+            response_text: Respuesta del LLM
+        
+        Returns:
+            JSON limpio como string
+        """
+        response_text = response_text.strip()
+        
+        # Si tiene bloques de markdown con ```, extraer el contenido
+        if response_text.startswith('```'):
+            lines = response_text.split('\n')
+            json_lines = []
+            in_json = False
+            
+            for line in lines:
+                if line.strip().startswith('```'):
+                    if not in_json:
+                        in_json = True
+                        continue
+                    else:
+                        break
+                if in_json:
+                    json_lines.append(line)
+            
+            response_text = '\n'.join(json_lines).strip()
+        
+        # Si aún no es JSON válido, intentar extraer el primer bloque JSON
+        if response_text and not response_text.startswith('{'):
+            start = response_text.find('{')
+            end = response_text.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                response_text = response_text[start:end+1]
+        
+        return response_text.strip()
     
     def _get_empty_result(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """Retorna resultado vacío si no hay datos"""

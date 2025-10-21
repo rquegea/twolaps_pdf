@@ -44,7 +44,8 @@ class TransversalAgent(BaseAgent):
                 "Eres un agente de síntesis transversal. Con los datos de múltiples agentes, "
                 "identifica: (1) temas comunes consistentes entre Sentimiento, Competencia y Tendencias; "
                 "(2) contradicciones entre Cuantitativo y Cualitativo; (3) insights no capturados por otros agentes.\n\n"
-                "Devuelve JSON con: {\"temas_comunes\":[], \"contradicciones\":[], \"insights_nuevos\":[]}"
+                "Devuelve únicamente un JSON válido con esta estructura:\n"
+                '{"temas_comunes": [], "contradicciones": [], "insights_nuevos": []}'
             )
 
         prompt = self.task_prompt.format(
@@ -67,8 +68,23 @@ class TransversalAgent(BaseAgent):
                 json_mode=True
             )
             response_text = (result.get('response_text') or '').strip()
+            
+            # Limpiar respuesta por si tiene markdown o texto extra
+            response_text = self._clean_json_response(response_text)
+            
             data = json.loads(response_text)
-        except Exception:
+            
+            # Validar estructura mínima
+            if not isinstance(data, dict):
+                raise ValueError("Respuesta no es un diccionario")
+            
+            # Asegurar que existen las claves esperadas
+            data.setdefault('temas_comunes', [])
+            data.setdefault('contradicciones', [])
+            data.setdefault('insights_nuevos', [])
+            
+        except Exception as e:
+            self.logger.warning(f"Error parseando respuesta transversal: {e}")
             data = {
                 'temas_comunes': [],
                 'contradicciones': [],
@@ -77,5 +93,44 @@ class TransversalAgent(BaseAgent):
 
         self.save_results(categoria_id, periodo, data)
         return data
+    
+    def _clean_json_response(self, response_text: str) -> str:
+        """
+        Limpia la respuesta del LLM para extraer JSON válido
+        
+        Args:
+            response_text: Respuesta del LLM
+        
+        Returns:
+            JSON limpio como string
+        """
+        response_text = response_text.strip()
+        
+        # Si tiene bloques de markdown con ```, extraer el contenido
+        if response_text.startswith('```'):
+            lines = response_text.split('\n')
+            json_lines = []
+            in_json = False
+            
+            for line in lines:
+                if line.strip().startswith('```'):
+                    if not in_json:
+                        in_json = True
+                        continue
+                    else:
+                        break
+                if in_json:
+                    json_lines.append(line)
+            
+            response_text = '\n'.join(json_lines).strip()
+        
+        # Si aún no es JSON válido, intentar extraer el primer bloque JSON
+        if response_text and not response_text.startswith('{'):
+            start = response_text.find('{')
+            end = response_text.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                response_text = response_text[start:end+1]
+        
+        return response_text.strip()
 
 
