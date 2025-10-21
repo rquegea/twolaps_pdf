@@ -3,20 +3,33 @@
 /* CONFIGURACIÓN DE PÁGINA */
 @page {
     size: A4;
-    margin: 2cm;
+    margin: 2cm 2.5cm;
     
-    @bottom-center {
-        content: "TwoLaps Intelligence Platform | Confidencial";
+    @top-right {
+        content: string(report-title);
         font-size: 9pt;
-        color: #666;
+        color: #999;
+        font-style: italic;
+    }
+    
+    @bottom-left {
+        content: "TwoLaps Intelligence Platform | Confidencial";
+        font-size: 8pt;
+        color: #999;
+    }
+    
+    @bottom-right {
+        content: "Página " counter(page) " de " counter(pages);
+        font-size: 8pt;
+        color: #999;
     }
 }
 
-/* FUENTES Y GENERALES */
+/* FUENTES Y GENERALES - MEJORADA PARA LEGIBILIDAD PROFESIONAL */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 11pt;
-    line-height: 1.6;
+    font-size: 11.5pt;  /* Aumentado de 11pt a 11.5pt */
+    line-height: 1.7;  /* Aumentado de 1.6 a 1.7 para mejor legibilidad */
     color: #333;
 }
 
@@ -45,17 +58,19 @@ h3 {
 }
 
 p {
-    margin-bottom: 10pt;
+    margin-bottom: 12pt;  /* Aumentado de 10pt a 12pt para mejor espaciado */
     text-align: justify;
+    line-height: 1.7;
 }
 
 ul, ol {
-    margin-bottom: 12pt;
-    padding-left: 20pt;
+    margin-bottom: 14pt;  /* Aumentado para mejor espaciado */
+    padding-left: 22pt;
 }
 
 li {
-    margin-bottom: 6pt;
+    margin-bottom: 8pt;  /* Aumentado de 6pt a 8pt */
+    line-height: 1.6;
 }
 
 /* PORTADA */
@@ -136,6 +151,20 @@ li {
     padding-bottom: 8pt;
     margin-bottom: 16pt;
     color: #0066cc;
+}
+
+/* Subsecciones dentro de Panorama del Mercado */
+.subseccion-mercado {
+    margin: 20pt 0;
+    padding: 12pt;
+    background-color: #fafafa;
+    border-left: 3pt solid #0066cc;
+    border-radius: 4pt;
+}
+
+.subseccion-mercado h2 {
+    color: #0066cc;
+    margin-top: 0;
 }
 
 /* CONTEXTO Y HALLAZGOS */
@@ -445,20 +474,33 @@ li {
     color: #0066cc;
 }
 
-/* GRÁFICOS */
+/* GRÁFICOS - MEJORADO */
 .chart-container {
-    margin: 20pt 0;
+    margin: 24pt 0;  /* Aumentado de 20pt a 24pt */
     text-align: center;
     page-break-inside: avoid;
+    padding: 12pt;
+    background-color: #fafafa;
+    border-radius: 6pt;
 }
 
 .chart-img {
     max-width: 100%;
     height: auto;
-    border: 1pt solid #dee2e6;
+    border: 1.5pt solid #dee2e6;
     border-radius: 4pt;
-    padding: 8pt;
+    padding: 10pt;  /* Aumentado de 8pt a 10pt */
     background-color: white;
+    box-shadow: 0 2pt 4pt rgba(0, 0, 0, 0.05);
+}
+
+.chart-caption {
+    margin-top: 10pt;
+    font-size: 10pt;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.4;
 }
 
 /* TABLAS */
@@ -579,5 +621,90 @@ li {
     border-left: 4pt solid #666;
     font-style: italic;
     margin: 12pt 0;
+}
+
+/* ========================================
+   CALL-OUT BOXES PARA INSIGHTS Y RECOMENDACIONES
+   ======================================== */
+
+/* Key Insight Box - Destacar insights clave */
+.key-insight-box {
+    padding: 16pt;
+    margin: 16pt 0;
+    background: linear-gradient(135deg, #e8f4f8 0%, #f0f7fa 100%);
+    border-left: 5pt solid #0066cc;
+    border-radius: 6pt;
+    page-break-inside: avoid;
+    box-shadow: 0 2pt 6pt rgba(0, 102, 204, 0.1);
+}
+
+.key-insight-box .insight-title {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #0066cc;
+    margin-bottom: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+}
+
+.key-insight-box .insight-content {
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #2d2d2d;
+}
+
+/* Recommendation Box - Recomendaciones principales */
+.recommendation-box {
+    padding: 16pt;
+    margin: 16pt 0;
+    background: linear-gradient(135deg, #fff8e1 0%, #fffaed 100%);
+    border-left: 5pt solid #ff9800;
+    border-radius: 6pt;
+    page-break-inside: avoid;
+    box-shadow: 0 2pt 6pt rgba(255, 152, 0, 0.1);
+}
+
+.recommendation-box .rec-title {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #e65100;
+    margin-bottom: 8pt;
+    display: flex;
+    align-items: center;
+}
+
+.recommendation-box .rec-title::before {
+    content: "💡";
+    margin-right: 8pt;
+    font-size: 16pt;
+}
+
+.recommendation-box .rec-content {
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #2d2d2d;
+}
+
+/* Executive Summary Highlight - Resumen ejecutivo destacado */
+.executive-summary-highlight {
+    background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+    padding: 20pt;
+    margin: 20pt 0;
+    border: 2pt solid #0066cc;
+    border-radius: 8pt;
+    page-break-inside: avoid;
+}
+
+.executive-summary-highlight h1 {
+    color: #0066cc;
+    border-bottom: 2pt solid #0066cc;
+    padding-bottom: 10pt;
+    margin-bottom: 16pt;
+}
+
+.executive-summary-highlight .hallazgos li {
+    font-size: 11.5pt;
+    line-height: 1.8;
+    margin-bottom: 14pt;
 }
 

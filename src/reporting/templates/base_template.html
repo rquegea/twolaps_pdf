@@ -61,9 +61,16 @@
         </div>
     </div>
 
-    <!-- RESUMEN EJECUTIVO -->
-    <div class="seccion">
+    <!-- RESUMEN EJECUTIVO - DESTACADO -->
+    <div class="seccion executive-summary-highlight">
         <h1 class="seccion-titulo">Resumen Ejecutivo</h1>
+        
+        {% if resumen_ejecutivo.recomendacion_principal %}
+        <div class="recommendation-box">
+            <div class="rec-title">Recomendación Principal</div>
+            <div class="rec-content">{{ resumen_ejecutivo.recomendacion_principal }}</div>
+        </div>
+        {% endif %}
         
         {% if resumen_ejecutivo.contexto %}
         <p class="contexto">{{ resumen_ejecutivo.contexto }}</p>
@@ -79,7 +86,7 @@
         {% endif %}
     </div>
 
-    <!-- PANORAMA DEL MERCADO (NUEVO: PESTEL/PORTER/DRIVERS) -->
+    <!-- PANORAMA DEL MERCADO - ESTRUCTURADO POR SUBSECCIONES -->
     {% if panorama_mercado %}
     <div class="seccion">
         <h1 class="seccion-titulo">Panorama del Mercado</h1>
@@ -90,32 +97,47 @@
         
         {% if panorama_mercado.tamano_crecimiento %}
         <div class="kpi-box">
-            <div class="kpi-label">Tamaño y Crecimiento</div>
+            <div class="kpi-label">Tamaño y Crecimiento del Mercado</div>
             <div class="kpi-value">{{ panorama_mercado.tamano_crecimiento }}</div>
         </div>
         {% endif %}
         
+        <!-- Subsección: Drivers de Categoría -->
         {% if panorama_mercado.drivers_principales %}
-        <h2>Drivers de Categoría</h2>
-        <ul class="drivers-list">
-            {% for driver in panorama_mercado.drivers_principales %}
-            <li>{{ driver }}</li>
-            {% endfor %}
-        </ul>
+        <div class="subseccion-mercado">
+            <h2>Drivers de Categoría</h2>
+            <ul class="drivers-list">
+                {% for driver in panorama_mercado.drivers_principales %}
+                <li>{{ driver }}</li>
+                {% endfor %}
+            </ul>
+        </div>
         {% endif %}
         
+        <!-- Subsección: Análisis PESTEL -->
         {% if panorama_mercado.factores_pestel_clave %}
-        <h2>Factores PESTEL Clave</h2>
-        <ul>
-            {% for factor in panorama_mercado.factores_pestel_clave %}
-            <li>{{ factor }}</li>
-            {% endfor %}
-        </ul>
+        <div class="subseccion-mercado">
+            <h2>Factores PESTEL Clave</h2>
+            <p style="font-style: italic; color: #666; font-size: 10pt;">
+                Análisis del entorno macro que impacta la categoría
+            </p>
+            <ul>
+                {% for factor in panorama_mercado.factores_pestel_clave %}
+                <li>{{ factor }}</li>
+                {% endfor %}
+            </ul>
+        </div>
         {% endif %}
         
+        <!-- Subsección: Fuerzas de Porter -->
         {% if panorama_mercado.fuerzas_competitivas %}
-        <h2>Fuerzas Competitivas (Porter)</h2>
-        <p>{{ panorama_mercado.fuerzas_competitivas }}</p>
+        <div class="subseccion-mercado">
+            <h2>Fuerzas Competitivas (Porter)</h2>
+            <p style="font-style: italic; color: #666; font-size: 10pt;">
+                Análisis de la estructura competitiva de la industria
+            </p>
+            <p>{{ panorama_mercado.fuerzas_competitivas }}</p>
+        </div>
         {% endif %}
     </div>
     {% endif %}
@@ -160,11 +182,19 @@
         <h2>Share of Voice (SOV)</h2>
         <div class="chart-container">
             <img src="{{ charts.sov_chart }}" alt="Share of Voice" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 1: Distribución de Share of Voice por marca en el periodo analizado
+            </div>
         </div>
         {% endif %}
         
         {% if competencia.analisis_sov %}
         <p>{{ competencia.analisis_sov }}</p>
+        {% if charts.sov_chart %}
+        <p style="font-style: italic; color: #666;">
+            (Ver Gráfico 1: Share of Voice para visualización detallada de la distribución)
+        </p>
+        {% endif %}
         {% endif %}
         
         {% if competencia.comparativas %}
@@ -242,7 +272,7 @@
     </div>
 
     <!-- ANÁLISIS DE CAMPAÑAS Y MARKETING (FMCG) -->
-    {% if analisis_campanas %}
+    {% if tipo_mercado == 'FMCG' and analisis_campanas %}
     <div class="seccion">
         <h1 class="seccion-titulo">📢 Análisis de Campañas y Marketing</h1>
         
@@ -272,7 +302,7 @@
     {% endif %}
 
     <!-- ANÁLISIS DE CANALES Y DISTRIBUCIÓN (FMCG) -->
-    {% if analisis_canales %}
+    {% if tipo_mercado == 'FMCG' and analisis_canales %}
     <div class="seccion">
         <h1 class="seccion-titulo">🛒 Análisis de Canales y Distribución</h1>
         
@@ -302,7 +332,7 @@
     {% endif %}
 
     <!-- ANÁLISIS DE SOSTENIBILIDAD Y PACKAGING (FMCG) -->
-    {% if analisis_sostenibilidad_packaging %}
+    {% if tipo_mercado == 'FMCG' and analisis_sostenibilidad_packaging %}
     <div class="seccion">
         <h1 class="seccion-titulo">🌱 Análisis de Sostenibilidad y Packaging</h1>
         
@@ -397,11 +427,19 @@
         {% if charts.sentiment_chart %}
         <div class="chart-container">
             <img src="{{ charts.sentiment_chart }}" alt="Análisis de Sentimiento" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 2: Análisis de Sentimiento por marca (escala -1 a +1)
+            </div>
         </div>
         {% endif %}
         
         {% if sentimiento.por_marca_destacado %}
         <h2>Análisis por Marca</h2>
+        {% if charts.sentiment_chart %}
+        <p style="font-style: italic; color: #666;">
+            Como muestra el Gráfico 2, el análisis de sentimiento revela los siguientes patrones por marca:
+        </p>
+        {% endif %}
         <ul>
             {% for analisis in sentimiento.por_marca_destacado %}
             <li>{{ analisis }}</li>
@@ -418,6 +456,9 @@
         <h2 class="oportunidades-titulo">🎯 Matriz de Oportunidades</h2>
         <div class="chart-container">
             <img src="{{ charts.opportunity_matrix }}" alt="Matriz de Oportunidades" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 3: Matriz de priorización de oportunidades (Impacto vs Esfuerzo)
+            </div>
         </div>
         {% endif %}
         
@@ -439,6 +480,9 @@
         <h2 class="riesgos-titulo">⚠️ Matriz de Riesgos</h2>
         <div class="chart-container">
             <img src="{{ charts.risk_matrix }}" alt="Matriz de Riesgos" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 4: Matriz de evaluación de riesgos (Probabilidad vs Severidad)
+            </div>
         </div>
         {% endif %}
         
@@ -469,6 +513,9 @@
         {% if charts.timeline_chart %}
         <div class="chart-container">
             <img src="{{ charts.timeline_chart }}" alt="Timeline 90 Días" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 5: Timeline de implementación del Plan de Acción a 90 días
+            </div>
         </div>
         {% endif %}
         

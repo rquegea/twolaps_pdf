@@ -33,7 +33,7 @@ llm_providers:
   max_tokens:
     analysis: 2000
     synthesis: 4000
-    executive_summary: 6000  # Aumentado para informe expandido
+    executive_summary: 10000  # Aumentado de 6000 a 10000 para informes de nivel consultora
     campaign_analysis: 3000  # NUEVO
     channel_analysis: 3000  # NUEVO
     market_context: 3500  # NUEVO
@@ -67,7 +67,7 @@ llm_providers:
 
 analytics:
   # Analysis parameters
-  top_keywords: 20
+  top_keywords: 30  # Aumentado de 20 a 30 para análisis más rico
   min_keyword_frequency: 2
   sentiment_scale: [-1, 1]  # -1 (negative) to 1 (positive)
   
@@ -79,8 +79,8 @@ analytics:
   # RAG settings
   rag:
     enabled: true
-    top_k_similar: 3  # Number of historical periods to retrieve
-    similarity_threshold: 0.75
+    top_k_similar: 5  # Aumentado de 3 a 5 periodos históricos para más contexto
+    similarity_threshold: 0.70  # Bajado de 0.75 a 0.70 para capturar más contexto relevante
     embedding_model: text-embedding-3-small
   
   # Campaign Analysis settings (NUEVO)

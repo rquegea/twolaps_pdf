@@ -24,7 +24,10 @@ def admin():
 @admin.command()
 @click.option('--name', '-n', required=True, help='Nombre del mercado (ej: FMCG)')
 @click.option('--description', '-d', help='Descripción del mercado')
-def add_market(name, description):
+@click.option('--type', '-t', 'market_type', 
+              type=click.Choice(['FMCG', 'Health_Digital', 'Digital_SaaS', 'Services']),
+              default='FMCG', help='Tipo de mercado')
+def add_market(name, description, market_type):
     """Añadir un nuevo mercado"""
     with get_session() as session:
         # Verificar si ya existe
@@ -36,13 +39,14 @@ def add_market(name, description):
         mercado = Mercado(
             nombre=name,
             descripcion=description,
+            tipo_mercado=market_type,
             activo=True
         )
         session.add(mercado)
         session.commit()
         
-        click.echo(f"✓ Mercado creado: {name} (ID: {mercado.id})")
-        logger.info("mercado_creado", mercado_id=mercado.id, nombre=name)
+        click.echo(f"✓ Mercado creado: {name} (ID: {mercado.id}) - tipo: {market_type}")
+        logger.info("mercado_creado", mercado_id=mercado.id, nombre=name, tipo=market_type)
 
 
 @admin.command()

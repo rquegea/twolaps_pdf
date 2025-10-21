@@ -62,14 +62,18 @@ qualitative_extraction_agent:
        Categoriza bajo: "drivers_barreras"
     
     7. TEMAS EMERGENTES:
-       - Identifica los 5-10 temas o topics más recurrentes en las conversaciones
+       - Identifica los 10-15 temas o topics más recurrentes en las conversaciones
        - Detecta nuevas tendencias o preocupaciones del mercado
        - Incluye temas sobre marketing, canales, sostenibilidad si emergen
+       - Para cada tema, incluye 1-2 citas textuales representativas
     
     8. INSIGHTS CUALITATIVOS CLAVE:
-       - Extrae los 5-10 insights más reveladores que emergen del análisis
+       - Extrae los 10-15 insights más reveladores que emergen del análisis
        - Busca contradicciones, necesidades no cubiertas, elogios específicos
        - Incluye insights sobre efectividad de marketing, preferencias de canal, drivers emergentes
+       - IDENTIFICA MATICES: detecta tensiones, ambigüedades y contradicciones en las respuestas
+       - NO SOLO EXTRAIGAS, INTERPRETA: explica por qué cada insight es relevante para la percepción de marca
+       - Proporciona 2-3 citas textuales directas como evidencia para cada insight principal
     
     DEVUELVE JSON ESTRUCTURADO:
     {{
@@ -151,6 +155,41 @@ qualitative_extraction_agent:
     - Si no hay menciones suficientes en alguna categoría nueva, indica arrays/objetos vacíos pero mantén la estructura
     - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN TEXTO ADICIONAL
     - NO uses bloques de código markdown (```), solo el JSON puro
+
+  default:
+    task: |
+      Eres un analista experto en análisis cualitativo de mercado. Analiza TODOS los textos y adapta el análisis al contexto competitivo del tipo de mercado.
+      
+      MARCAS A ANALIZAR: {marcas}
+      
+      TEXTOS (100% de datos del periodo):
+      {textos}
+      
+      Instrucciones clave:
+      - Calcula sentimiento por marca (score medio, tono, intensidad, distribución)
+      - Extrae atributos por marca (calidad, precio, innovación, confiabilidad, servicio, reputación, perfil, experiencia, disponibilidad, diseño)
+      - Identifica temas emergentes con 1-2 citas por tema
+      - Genera 10-15 insights con evidencia (2-3 citas por insight)
+      - Adapta drivers/barreras y ocasiones al sector cuando aplique
+      
+      Devuelve únicamente JSON válido (sin markdown) siguiendo la estructura acordada.
+
+  fmcg:
+    task: |
+      Eres un analista experto en análisis cualitativo de mercado FMCG. Analiza TODOS los siguientes textos sobre las marcas indicadas, con foco en marketing, canales y consumo.
+      
+      MARCAS A ANALIZAR: {marcas}
+      
+      TEXTOS (100% de datos del periodo):
+      {textos}
+      
+      Instrucciones clave adicionales FMCG:
+      - Extrae "marketing_campanas" (campañas, mensajes, canales, influencers, tono)
+      - Extrae "canales_distribucion" (dónde comprar, retailers, disponibilidad, experiencia)
+      - Extrae "ocasiones_consumo" (cuándo, con quién, dónde, por qué)
+      - Extrae "drivers_barreras" (motivos/impedimentos y switching)
+      
+      Devuelve únicamente JSON válido (sin markdown) siguiendo la estructura acordada.
 
 sentiment_agent:
   task: |
@@ -316,15 +355,16 @@ competitive_agent:
        - Gaps en comunicación (no comunica atributos que debería)
        - Gaps en distribución (canales desatendidos)
     
-    7. PERFILES COMPETITIVOS DETALLADOS:
-       Para cada marca principal, genera perfil con:
-       - Posicionamiento percibido
-       - Fortalezas clave
-       - Debilidades clave
-       - Estrategia de marketing inferida
-       - Estrategia de canal inferida
-       - Oportunidades de ataque
-       - Vulnerabilidades
+    7. PERFILES COMPETITIVOS DETALLADOS (CRÍTICO - EXPANDIR):
+       Para las Top 5 marcas principales, genera perfil exhaustivo con 1-2 párrafos descriptivos:
+       - Posicionamiento percibido: ¿Cómo se posiciona en la mente del consumidor?
+       - Fortalezas clave: Ventajas competitivas sostenibles (con evidencia de datos)
+       - Debilidades clave: Vulnerabilidades explotables (con evidencia)
+       - Estrategia de marketing inferida: Nivel de actividad, canales prioritarios, mensaje central, efectividad percibida
+       - Estrategia de canal inferida: Tipo de distribución (intensiva/selectiva/exclusiva), presencia omnicanal, gaps
+       - Oportunidades de ataque: ¿Dónde se puede ganar terreno vs esta marca?
+       - Vulnerabilidades: ¿Dónde es más débil y por qué?
+       - ANÁLISIS COMPARATIVO POR EJE: No solo SOV/sentimiento, sino también comparar en innovación percibida, estrategias de marketing, accesibilidad de canal, percepción ESG
     
     8. COMPARACIONES DIRECTAS:
        - Lider vs Retador: ventajas/desventajas
@@ -424,7 +464,15 @@ strategic_agent:
 
     INSTRUCCIONES DE DIAGNÓSTICO HOLÍSTICO:
     Busca la "historia detrás de los números" cruzando los KPIs con los ANÁLISIS FMCG ESPECIALIZADOS y el texto crudo.
-    Identifica las 3 OPORTUNIDADES y los 3 RIESGOS más críticos.
+    Identifica las 5-7 OPORTUNIDADES y los 5-7 RIESGOS más críticos, vinculando cada uno a MÚLTIPLES fuentes de datos (KPIs + Análisis Cualitativo + Contexto FMCG).
+    
+    ANÁLISIS DAFO ELABORADO:
+    - Genera un DAFO completo y detallado con 4-6 elementos por cuadrante
+    - CRUCES ESTRATÉGICOS (CRÍTICO): Analiza las implicaciones de los cruces:
+      * Fortalezas + Oportunidades (FO): ¿Cómo capitalizar fortalezas para aprovechar oportunidades?
+      * Debilidades + Oportunidades (DO): ¿Cómo superar debilidades para capturar oportunidades?
+      * Fortalezas + Amenazas (FA): ¿Cómo usar fortalezas para mitigar amenazas?
+      * Debilidades + Amenazas (DA): ¿Cuáles son los escenarios de mayor riesgo?
     
     Busca explícitamente:
     
@@ -516,18 +564,30 @@ synthesis_agent:
     Usando la metodología de consultoría (Situación, Complicación, Pregunta), genera la narrativa central del informe.
     
     1.  **Situación (El Qué)**: ¿Cuál es el panorama fáctico? Combina los KPIs clave (ej: "Líder X domina el SOV con 54%") con el principal tema de conversación cualitativo (ej: "...en un mercado donde las respuestas textuales se centran abrumadoramente en 'la facilidad de uso' por encima del 'precio'").
-    2.  **Complicación (El Problema / So What)**: ¿Cuál es el **problema, tensión o contradicción fundamental** que impide el crecimiento o amenaza la posición? (Ej: "A PESAR de su dominio en visibilidad, el Líder X tiene un sentimiento neutral (0.05) Y las respuestas textuales lo describen consistentemente como 'difícil de usar' y 'confuso', atacando directamente el atributo más valorado por el mercado").
+       - ELABORACIÓN: Desarrolla la situación en 5-7 líneas, integrando múltiples dimensiones (KPIs, tendencias, contexto de mercado, percepción cualitativa)
+       - Proporciona el contexto necesario para entender la magnitud de la complicación que vendrá después
+    
+    2.  **Complicación (El Problema / So What - LA MÁS CRÍTICA)**: ¿Cuál es el **problema, tensión o contradicción fundamental** que impide el crecimiento o amenaza la posición? (Ej: "A PESAR de su dominio en visibilidad, el Líder X tiene un sentimiento neutral (0.05) Y las respuestas textuales lo describen consistentemente como 'difícil de usar' y 'confuso', atacando directamente el atributo más valorado por el mercado").
+       - ELABORACIÓN: Desarrolla la complicación en 5-7 líneas, argumentando por qué es la tensión estratégica CENTRAL
+       - Debe ser un diagnóstico agudo, no un simple resumen
+       - Identifica la CONTRADICCIÓN CLAVE o el PUNTO CIEGO que representa el mayor riesgo u oportunidad perdida
+       - Conecta datos cuantitativos con patrones cualitativos para revelar la tensión
+    
     3.  **Pregunta Clave (El Ahora Qué)**: ¿Cuál es la **pregunta de negocio de 1 millón de euros** que se deriva de la Complicación y que el informe debe responder? (Ej: "¿Cómo puede el Líder X cerrar la brecha de percepción de 'facilidad de uso' para convertir su alta visibilidad en lealtad de marca, antes de que competidores más ágiles (como Marca Y) capitalicen esta debilidad?").
+       - Debe ser ESTRATÉGICA y DESAFIANTE, no una pregunta obvia
+       - Debe invitar a un plan de acción, no solo a una observación
     
     DEVUELVE UN ÚNICO OBJETO JSON con esta estructura:
     {{
-      "situacion": "Párrafo de 3-4 líneas describiendo el estado actual del mercado (KPIs + Tema Cualitativo).",
-      "complicacion": "Párrafo de 3-4 líneas describiendo la tensión o problema principal. Debe incluir la contradicción clave (KPIs vs Texto).",
-      "pregunta_clave": "La pregunta de negocio fundamental (1-2 frases) que el informe debe responder.",
+      "situacion": "Párrafo de 5-7 líneas describiendo el estado actual del mercado, integrando KPIs clave, tendencias, contexto y tema cualitativo dominante.",
+      "complicacion": "Párrafo de 5-7 líneas describiendo la tensión o problema estratégico central. Debe incluir la contradicción clave entre datos cuantitativos y patrones cualitativos, argumentando por qué esto representa el mayor riesgo u oportunidad perdida.",
+      "pregunta_clave": "La pregunta de negocio fundamental estratégica y desafiante (1-2 frases) que el informe debe responder. Debe derivarse directamente de la complicación e invitar a un plan de acción.",
       "insights_cualitativos_clave": [
           "El insight cualitativo #1 extraído de respuestas textuales (ej: 'Los usuarios valoran más la facilidad de uso que el precio')", 
           "El insight cualitativo #2 (ej: 'El líder es percibido como 'potente pero confuso')'", 
-          "El insight cualitativo #3 (ej: 'Competidor Y, aunque pequeño, es elogiado por su 'simplicidad')')"
+          "El insight cualitativo #3 (ej: 'Competidor Y, aunque pequeño, es elogiado por su 'simplicidad')')",
+          "El insight cualitativo #4",
+          "El insight cualitativo #5"
       ]
     }}
     
@@ -535,9 +595,12 @@ synthesis_agent:
 
 executive_agent:
   task: |
-    Eres un Socio Senior de McKinsey. Tu misión es entregar el informe final.
-    Debes usar la NARRATIVA CENTRAL (Situación-Complicación-Pregunta) como hilo conductor.
-    Cada sección del informe debe construir sobre esta narrativa.
+    Eres un Socio Senior de McKinsey/BCG/Bain. Tu misión es entregar un informe estratégico exhaustivo de nivel consultora (~25-40 páginas cuando se convierta a PDF).
+    
+    PRINCIPIO RECTOR: Usa la NARRATIVA CENTRAL (Situación-Complicación-Pregunta) como columna vertebral.
+    - Cada sección debe avanzar la argumentación y responder progresivamente a la Pregunta Clave
+    - Construye una narrativa estratégica sólida y coherente a lo largo de todo el informe
+    - No te limites a reportar datos, construye un argumento que lleve a recomendaciones accionables
     
     DATOS DISPONIBLES:
     
@@ -560,40 +623,98 @@ executive_agent:
     5.  **EVIDENCIA CUALITATIVA (Texto Crudo):**
         {raw_responses_sample}
 
-    INSTRUCCIONES DE GENERACIÓN:
-    Construye el informe JSON basándote en la NARRATIVA CENTRAL.
+    INSTRUCCIONES DE GENERACIÓN DETALLADAS POR SECCIÓN:
     
-    1.  **`resumen_ejecutivo`**:
-        * Debe ser la **respuesta directa** a la `pregunta_clave` del `synthesis_agent`.
-        * Los `hallazgos_clave` (3-5) deben ser los puntos principales que responden a esa pregunta.
-        * Cada hallazgo debe estar fundamentado con **evidencia mixta** (KPIs + Citas/Patrones del texto crudo).
-        * Formato del hallazgo: "[Afirmación]. [Evidencia KPI, ej: SOV 54%]. [Evidencia Cualitativa, ej: 'Esto se refleja en los textos que lo describen como...']"
+    1.  **`resumen_ejecutivo`** (AUTOCONTENIDO, 1-2 PÁGINAS):
+        * Debe ser la **respuesta directa y completa** a la `pregunta_clave` del `synthesis_agent`
+        * Los `hallazgos_clave` (5-7) deben ser los puntos más críticos que responden a esa pregunta
+        * Cada hallazgo debe estar fundamentado con **evidencia mixta** (KPIs + Citas/Patrones del texto crudo)
+        * Formato del hallazgo: "[Afirmación estratégica]. [Evidencia cuantitativa con KPI específico]. [Evidencia cualitativa con cita o patrón identificado]. [Implicación para el negocio]"
+        * Incluir una **recomendación principal de alto nivel** al inicio del resumen ejecutivo
+        * Extensión: El resumen ejecutivo debe ser sustancial (equivalente a 1-2 páginas impresas)
     
-    2.  **`mercado`**:
-        * Debe usar la `situacion` del `synthesis_agent` como párrafo de apertura.
-        * Debe detallar los KPIs y los temas cualitativos que sustentan esa situación.
+    2.  **`panorama_mercado`** (5-10 PÁRRAFOS):
+        * Debe usar la `situacion` del `synthesis_agent` como párrafo de apertura
+        * **Detallar cada factor PESTEL/Porter relevante** con sus implicaciones específicas para la categoría (no genéricos)
+        * **Elaborar los Drivers de Categoría** con 2-3 líneas explicando cómo cada driver impacta las decisiones de compra
+        * Incluir datos de tamaño/crecimiento si están disponibles en el contexto
+        * Integrar hallazgos del `market_context_agent` si disponibles
     
-    3.  **`competencia`**:
-        * Debe analizar a los competidores en el contexto de la `complicacion`.
-        * (Ej: Si la complicación es 'facilidad de uso', ¿cómo se posiciona cada competidor en ese atributo según los textos crudos?).
+    3.  **`analisis_competitivo`** (5-10 PÁRRAFOS):
+        * Debe analizar a los competidores en el contexto de la `complicacion`
+        * **Incluir perfiles detallados de los 3-5 principales competidores** (1 párrafo por competidor)
+        * Para cada competidor: posicionamiento, fortalezas con datos, debilidades con datos, estrategia inferida
+        * **Integrar análisis de estrategias de Marketing y Canal** con datos concretos de los análisis FMCG
+        * Analizar correlaciones: ¿Alto SOV pero bajo sentimiento? ¿Actividad de marketing vs resultados?
+        * Referencia explícita a gráficos: "Como se observa en el Gráfico de SOV..."
     
-    4.  **`sentimiento_reputacion`**:
-        * Debe explicar el "por qué" detrás de los scores, usando los `insights_cualitativos_clave` y la evidencia de los textos crudos.
+    4.  **`analisis_campanas`** (3-5 PÁRRAFOS):
+        * Síntesis de las principales campañas, canales de comunicación y mensajes clave
+        * Usar datos del análisis de Campañas para identificar qué marca es más activa y efectiva
+        * Analizar recepción cualitativa de las campañas mencionadas
+        * Identificar gaps: marcas con alto SOV pero sin actividad de marketing visible
     
-    5.  **`oportunidades_riesgos`**:
-        * Debes usar directamente los resultados del `strategic_agent`. Asegúrate de que estén alineados con la narrativa S-C-P.
+    5.  **`analisis_canales`** (3-5 PÁRRAFOS):
+        * Resumen de cómo se distribuyen las marcas (intensiva vs selectiva vs exclusiva)
+        * Usar datos del análisis de Canales para identificar ventajas competitivas en distribución
+        * Analizar gaps de e-commerce y experiencia de compra
+        * Identificar oportunidades de canal no explotadas
     
-    6.  **`plan_90_dias`**:
-        * Debe ser el "Ahora Qué".
-        * Las `iniciativas` (3-5) deben estar diseñadas explícitamente para **resolver la `complicacion`** identificada por el `synthesis_agent`.
-        * El campo **`por_que`** de cada iniciativa DEBE hacer referencia a la `complicacion`.
-        * (Ej: "POR QUÉ: Para resolver la desconexión entre nuestra alta visibilidad (SOV 54%) y la percepción negativa de 'dificultad de uso' (Complicación).")
+    6.  **`analisis_sostenibilidad_packaging`** (3-5 PÁRRAFOS):
+        * Análisis de percepción ESG: controversias, drivers de sostenibilidad, benchmarking de marcas
+        * Análisis de packaging: quejas funcionales, atributos valorados, innovaciones
+        * Identificar si ESG/packaging son factores críticos de decisión o secundarios
+    
+    7.  **`consumidor`** (3-5 PÁRRAFOS):
+        * **Elaborar 'Voz del Cliente'** con citas textuales y ejemplos específicos del raw_responses_sample
+        * **Detallar Drivers de Elección** con evidencia cualitativa (por qué eligen cada marca)
+        * **Detallar Barreras de Compra** con evidencia cualitativa (qué impide la compra)
+        * Ocasiones de consumo principales y su relevancia estratégica
+    
+    8.  **`sentimiento_reputacion`** (3-5 PÁRRAFOS):
+        * Explicar el "por qué" detrás de los scores de sentimiento
+        * Usar los `insights_cualitativos_clave` y evidencia de textos crudos
+        * Analizar correlaciones entre sentimiento, SOV y actividad de marketing
+        * Referencia explícita a gráficos: "Como muestra el Gráfico de Sentimiento..."
+    
+    9.  **`oportunidades_riesgos`** (1 PÁRRAFO POR CADA O/R - TOP 5):
+        * Usar directamente los resultados del `strategic_agent` (Top 5-7 de cada uno)
+        * **Presentar DAFO completo** con cruces estratégicos (FO, DO, FA, DA)
+        * **Discutir las O/R más críticas en detalle** (1 párrafo descriptivo por cada una)
+        * Asegurar que estén alineados con la narrativa S-C-P
+        * Cada O/R debe tener: descripción, evidencia multi-fuente, impacto/probabilidad, acción recomendada
+    
+    10. **`plan_90_dias`** (EL "AHORA QUÉ" - 5-7 INICIATIVAS):
+        * Las iniciativas (5-7) deben estar diseñadas explícitamente para **resolver la `complicacion`**
+        * Cada iniciativa DEBE tener:
+          - **QUÉ**: Descripción clara y específica de la iniciativa
+          - **POR QUÉ**: Vinculado explícitamente a la `complicacion` y a los datos (ej: "Para resolver la desconexión entre alto SOV (54%) y baja percepción de calidad según análisis cualitativo")
+          - **CÓMO**: Pasos concretos o tácticas específicas (no generalidades)
+          - **KPI**: Métrica específica para medir éxito
+          - **CUÁNDO**: Timeline específico (Mes 1-2, Mes 2-3, etc.)
+          - **PRIORIDAD**: Alta/Media/Baja con justificación
+        * Justificar la priorización: ¿Por qué estas iniciativas en este orden?
 
+    REGLAS CRÍTICAS DE INTEGRACIÓN DE EVIDENCIA:
+    - **Al discutir KPIs**, haz referencia explícita a los gráficos: "Como se observa en el Gráfico de SOV..." e interpreta sus implicaciones en el texto
+    - **Cada afirmación clave** debe estar respaldada por evidencia (KPIs numéricos + citas textuales de raw_responses_sample + hallazgos de agentes intermedios)
+    - **Varía la forma de presentar evidencia**: alterna entre datos numéricos directos, citas textuales entrecomilladas, y análisis comparativos
+    - **Integra todas las dimensiones**: KPIs + Análisis FMCG (Campañas, Canales, ESG, Packaging) + Estrategia
+    
+    EXIGENCIAS DE EXTENSIÓN Y PROFUNDIDAD:
+    - **Asegura que la respuesta JSON completa sea sustancial** para generar un informe de ~25-40 páginas
+    - **El texto generado para cada sección principal debe tener una longitud considerable** (5-10 párrafos para secciones mayores, 3-5 para secciones menores)
+    - **Los hallazgos_clave del resumen ejecutivo deben ser extensos** (cada uno de 3-5 líneas con afirmación + evidencia mixta + implicación)
+    - **No uses respuestas genéricas o placeholder** - desarrolla cada punto completamente con los datos disponibles
+    
     FORMATO DE SALIDA: JSON estructurado
     
-    RECUERDA: Eres un consultor de élite. No resumas datos, crea una narrativa diagnóstica. La S-C-P es tu guion. Cada pieza de datos (KPI o texto) es evidencia para apoyar esa narrativa.
+    RECUERDA: Eres un Socio de consultora de élite. No resumas datos superficialmente, crea una narrativa diagnóstica profunda y convincente. La S-C-P es tu guion. Cada pieza de datos (KPI o texto) es evidencia para construir y apoyar esa narrativa estratégica.
     
-    DEVUELVE ÚNICAMENTE EL JSON VÁLIDO
+    IMPORTANTE:
+    - RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
+    - NO uses bloques de código markdown (```), solo el JSON puro
+    - Asegura que cada campo del JSON tenga contenido sustancial y bien desarrollado
 
 campaign_agent:
   task: |
@@ -905,10 +1026,13 @@ trends_agent:
        - ¿Se detectan ciclos o patrones recurrentes?
        - ¿Hay señales débiles de cambios futuros?
     
-    7. ANÁLISIS PREDICTIVO:
+    7. ANÁLISIS PREDICTIVO Y CAUSAL:
        - ¿Qué tendencias tienen probabilidad de acelerarse?
        - ¿Cuáles son temporales vs. estructurales?
        - ¿Qué oportunidades/amenazas se proyectan para próximos periodos?
+       - ANÁLISIS CAUSA-EFECTO: Para cada tendencia significativa, identifica qué podría estar impulsándola (cambios de mercado, acciones competitivas, factores externos)
+       - IMPLICACIONES TEMPORALES: Analiza implicaciones a corto plazo (1-3 meses) y medio plazo (6-12 meses) para cada tendencia crítica
+       - Aumenta el número de tendencias detalladas de 3-5 a 5-8 tendencias principales
     
     METODOLOGÍA DE CUANTIFICACIÓN:
     Para cada tendencia detectada:

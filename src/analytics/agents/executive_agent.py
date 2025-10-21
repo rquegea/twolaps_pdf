@@ -24,22 +24,11 @@ class ExecutiveAgent(BaseAgent):
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
         self.client = OpenAIClient()
-        self.load_prompts()
+        # task/system prompts se cargarán dinámicamente al analizar
     
     def load_prompts(self):
-        """Carga prompts de configuración"""
-        prompt_path = Path("config/prompts/agent_prompts.yaml")
-        system_path = Path("config/prompts/system_prompts.yaml")
-        
-        if prompt_path.exists():
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('executive_agent', {}).get('task', '')
-        
-        if system_path.exists():
-            with open(system_path, 'r', encoding='utf-8') as f:
-                system = yaml.safe_load(f)
-                self.system_prompt = system.get('base_consultant_role', '')
+        """Compat: método legado no usado."""
+        pass
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
@@ -61,6 +50,8 @@ class ExecutiveAgent(BaseAgent):
         categoria_nombre = f"{mercado.nombre}/{categoria.nombre}"
         
         # Obtener todos los análisis previos
+        # Cargar prompts según tipo de mercado
+        self.load_prompts_dynamic(categoria_id, default_key='executive_agent')
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
         if not qualitative:
@@ -121,12 +112,12 @@ class ExecutiveAgent(BaseAgent):
             packaging
         )
         
-        # Generar informe con LLM (aumentar tokens para contenido expandido)
+        # Generar informe con LLM (tokens aumentados para informe extenso de nivel consultora)
         try:
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.5,
-                max_tokens=6000,
+                max_tokens=10000,  # Aumentado de 6000 a 10000 para permitir mayor extensión
                 json_mode=True
             )
             
@@ -310,9 +301,9 @@ ANÁLISIS ESTRATÉGICO (DAFO, OPORTUNIDADES, RIESGOS):
 - Riesgos: {json.dumps(strategic.get('riesgos', [])[:3], indent=2)}
 
 ========================================
-MUESTRA DE RESPUESTAS TEXTUALES:
+MUESTRA DE RESPUESTAS TEXTUALES (AMPLIADA):
 ========================================
-{raw_responses[:2000]}
+{raw_responses[:4000]}
 
 ========================================
 INSTRUCCIONES DE GENERACIÓN:

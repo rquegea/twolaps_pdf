@@ -21,15 +21,11 @@ class StrategicAgent(BaseAgent):
     def __init__(self, session, version: str = "1.0.0"):
         super().__init__(session, version)
         self.client = AnthropicClient()  # Cambiado a Anthropic
-        self.load_prompts()
+        # Prompt se cargará dinámicamente
     
     def load_prompts(self):
-        """Carga prompts de configuración"""
-        prompt_path = Path("config/prompts/agent_prompts.yaml")
-        if prompt_path.exists():
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('strategic_agent', {}).get('task', '')
+        # Deprecated: usar load_prompts_dynamic
+        pass
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
@@ -42,6 +38,9 @@ class StrategicAgent(BaseAgent):
         Returns:
             Dict con oportunidades y riesgos
         """
+        # Cargar prompt por tipo de mercado
+        self.load_prompts_dynamic(categoria_id, default_key='strategic_agent')
+
         # Leer análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)

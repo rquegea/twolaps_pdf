@@ -5,6 +5,8 @@ Clase base abstracta para todos los agentes de análisis
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+from pathlib import Path
+import yaml
 from datetime import datetime
 from collections import defaultdict
 import random
@@ -34,6 +36,12 @@ class BaseAgent(ABC):
         # Logger específico del agente
         # Usamos el nombre de la clase para separar logs por agente
         self.logger = setup_logger(self.__class__.__name__)
+        # Atributos comunes para prompts por mercado
+        self.tipo_mercado = None
+        self.task_prompt = ""
+        self.system_prompt = ""
+        # Carga de system prompt común
+        self._load_system_prompt()
     
     @abstractmethod
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
@@ -105,6 +113,60 @@ class BaseAgent(ABC):
         )
         
         return analysis_id
+
+    # =============================
+    # Prompt Loading Helpers
+    # =============================
+    def _load_system_prompt(self) -> None:
+        """Carga prompt de sistema base si existe."""
+        system_path = Path("config/prompts/system_prompts.yaml")
+        if system_path.exists():
+            with open(system_path, 'r', encoding='utf-8') as f:
+                system = yaml.safe_load(f)
+                self.system_prompt = system.get('base_consultant_role', '')
+
+    def load_prompts_dynamic(self, categoria_id: int, default_key: str) -> None:
+        """
+        Carga task_prompt dinámicamente según tipo_mercado.
+        - Obtiene tipo_mercado vía join Categoria->Mercado
+        - Selecciona prompts[default_key][tipo] o prompts[default_key]['default'] o prompts[default_key]['task']
+        """
+        from src.database.models import Categoria, Mercado
+        # Resolver tipo de mercado
+        categoria = self.session.query(Categoria).get(categoria_id)
+        if not categoria:
+            self.logger.warning("Categoría no encontrada para carga de prompt", categoria_id=categoria_id)
+            return
+        mercado = self.session.query(Mercado).get(categoria.mercado_id)
+        self.tipo_mercado = getattr(mercado, 'tipo_mercado', None) or 'FMCG'
+
+        prompt_path = Path("config/prompts/agent_prompts.yaml")
+        if not prompt_path.exists():
+            self.logger.warning("Archivo de prompts no encontrado", path=str(prompt_path))
+            return
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            prompts_yaml = yaml.safe_load(f) or {}
+
+        agent_block = prompts_yaml.get(default_key, {})
+        # Compatibilidad: si hay 'task' al nivel raíz
+        if 'task' in agent_block and isinstance(agent_block.get('task'), str):
+            base_task = agent_block.get('task', '')
+        else:
+            base_task = ''
+
+        # Variantes por tipo
+        # Estructura esperada:
+        # key: { default: { task: "..." }, fmcg: { task: "..." }, digital_saas: { task: "..." } }
+        # Normalizamos claves a lower para matching robusto
+        variant_task = None
+        normalized = {str(k).lower(): v for k, v in agent_block.items() if isinstance(v, dict)}
+        tipo_key = (self.tipo_mercado or '').lower()
+        if tipo_key in normalized:
+            variant_task = normalized[tipo_key].get('task')
+        if not variant_task and 'default' in normalized:
+            variant_task = normalized['default'].get('task')
+
+        self.task_prompt = variant_task or base_task or self.task_prompt
     
     def get_previous_analysis(
         self,

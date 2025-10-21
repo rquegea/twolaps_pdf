@@ -21,6 +21,7 @@ def seed_health_market():
         mercado = Mercado(
             nombre="Salud",
             descripcion="Programas médicos online para pérdida de peso (GLP-1, seguimiento multidisciplinar)",
+            tipo_mercado="Health_Digital",
             activo=True,
         )
         session.add(mercado)

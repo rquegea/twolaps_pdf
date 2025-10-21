@@ -18,7 +18,8 @@ from src.analytics.agents import (
     CampaignAnalysisAgent,
     ChannelAnalysisAgent,
     ESGAnalysisAgent,
-    PackagingAnalysisAgent
+    PackagingAnalysisAgent,
+    TransversalAgent
 )
 from src.utils.logger import setup_logger, log_agent_analysis
 
@@ -42,6 +43,7 @@ class AnalysisOrchestrator:
             ('esg_analysis', ESGAnalysisAgent),                # NUEVO: Análisis ESG
             ('packaging_analysis', PackagingAnalysisAgent),    # NUEVO: Análisis packaging
             ('strategic', StrategicAgent),
+            ('transversal', TransversalAgent),
             ('synthesis', SynthesisAgent),
             ('executive', ExecutiveAgent)
         ]
@@ -70,13 +72,17 @@ class AnalysisOrchestrator:
                 "starting_analysis",
                 categoria=categoria_nombre,
                 categoria_id=categoria_id,
-                periodo=periodo
+                periodo=periodo,
+                tipo_mercado=getattr(mercado, 'tipo_mercado', 'FMCG')
             )
             
             # Ejecutar agentes en orden
             results = {}
             report_id = None
             
+            # Conjuntos de agentes condicionales por tipo de mercado
+            FMCG_AGENTS = {'campaign_analysis', 'channel_analysis', 'esg_analysis', 'packaging_analysis'}
+
             for agent_name, AgentClass in self.agent_order:
                 start_time = time.time()
                 
@@ -87,6 +93,16 @@ class AnalysisOrchestrator:
                         categoria=categoria_nombre
                     )
                     
+                    # Skipping condicional según tipo de mercado
+                    if agent_name in FMCG_AGENTS and getattr(mercado, 'tipo_mercado', 'FMCG') != 'FMCG':
+                        logger.info(
+                            "skipping_agent_for_market",
+                            agent=agent_name,
+                            tipo_mercado=getattr(mercado, 'tipo_mercado', 'N/A')
+                        )
+                        results[agent_name] = {'status': 'skipped'}
+                        continue
+
                     # Crear instancia del agente
                     agent = AgentClass(session)
                     

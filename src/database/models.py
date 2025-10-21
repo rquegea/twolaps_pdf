@@ -28,6 +28,14 @@ class Mercado(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     descripcion: Mapped[Optional[str]] = mapped_column(Text)
+    # Tipo de mercado para condicionar prompts, agentes y plantillas
+    # Valores permitidos: 'FMCG', 'Health_Digital', 'Digital_SaaS', 'Services'
+    tipo_mercado: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="FMCG",
+        index=True
+    )
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -42,6 +50,13 @@ class Mercado(Base):
         "Categoria", 
         back_populates="mercado",
         cascade="all, delete-orphan"
+    )
+    
+    __table_args__ = (
+        CheckConstraint(
+            "tipo_mercado IN ('FMCG', 'Health_Digital', 'Digital_SaaS', 'Services')",
+            name="check_tipo_mercado_valido"
+        ),
     )
     
     def __repr__(self):

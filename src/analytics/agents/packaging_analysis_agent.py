@@ -25,15 +25,11 @@ class PackagingAnalysisAgent(BaseAgent):
         # Normalizamos el nombre del agente
         self.agent_name = 'packaging_analysis'
         self.top_k_fragments = 10
-        self.load_prompts()
+        # Prompt se cargará dinámicamente
     
     def load_prompts(self):
-        """Carga prompts de configuración"""
-        prompt_path = Path("config/prompts/agent_prompts.yaml")
-        if prompt_path.exists():
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('packaging_analysis_agent', {}).get('task', '')
+        # Deprecated: usar load_prompts_dynamic
+        pass
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
@@ -52,6 +48,9 @@ class PackagingAnalysisAgent(BaseAgent):
             periodo=periodo
         )
         
+        # Cargar prompt según tipo de mercado
+        self.load_prompts_dynamic(categoria_id, default_key='packaging_analysis_agent')
+
         # Definir query analítica para recuperar fragmentos relevantes
         analytical_query = (
             "Packaging, envase, empaque, diseño de producto, botella, lata, caja, "

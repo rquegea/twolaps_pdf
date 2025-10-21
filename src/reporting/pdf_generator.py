@@ -114,6 +114,7 @@ class PDFGenerator:
             'mercado': mercado.nombre,
             'categoria': categoria.nombre,
             'periodo': report.periodo,
+            'tipo_mercado': getattr(mercado, 'tipo_mercado', 'FMCG'),
             'fecha_generacion': datetime.now().strftime('%d de %B de %Y'),
             'resumen_ejecutivo': contenido.get('resumen_ejecutivo', {}),
             'mercado_section': contenido.get('mercado', {}),

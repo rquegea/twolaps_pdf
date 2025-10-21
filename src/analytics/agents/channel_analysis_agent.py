@@ -4,8 +4,6 @@ Análisis especializado de canales de distribución y estrategias retail usando 
 """
 
 import json
-import yaml
-from pathlib import Path
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
@@ -25,15 +23,7 @@ class ChannelAnalysisAgent(BaseAgent):
         # Normalizamos el nombre del agente
         self.agent_name = 'channel_analysis'
         self.top_k_fragments = 10
-        self.load_prompts()
-    
-    def load_prompts(self):
-        """Carga prompts de configuración"""
-        prompt_path = Path("config/prompts/agent_prompts.yaml")
-        if prompt_path.exists():
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompts = yaml.safe_load(f)
-                self.task_prompt = prompts.get('channel_analysis_agent', {}).get('task', '')
+        # Prompt se cargará dinámicamente
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
@@ -51,6 +41,9 @@ class ChannelAnalysisAgent(BaseAgent):
             categoria_id=categoria_id,
             periodo=periodo
         )
+        
+        # Cargar prompt según tipo de mercado
+        self.load_prompts_dynamic(categoria_id, default_key='channel_analysis_agent')
         
         # Definir query analítica para recuperar fragmentos relevantes
         analytical_query = (
@@ -90,7 +83,7 @@ class ChannelAnalysisAgent(BaseAgent):
             )
             
             # Parsear respuesta
-            response_text = self._clean_json_response(result.get('response_text', ''))
+            response_text = result.get('response_text', '').strip()
             parsed_result = json.loads(response_text)
             
             # Añadir metadata
@@ -118,36 +111,6 @@ class ChannelAnalysisAgent(BaseAgent):
             )
             resultado = {'error': f'Error en análisis de canales: {str(e)}'}
             return resultado
-    
-    def _clean_json_response(self, response_text: str) -> str:
-        """
-        Limpia la respuesta del LLM para extraer JSON válido
-        
-        Args:
-            response_text: Respuesta del LLM
-        
-        Returns:
-            JSON limpio como string
-        """
-        # Si tiene bloques de markdown, extraer el JSON
-        if '```' in response_text:
-            lines = response_text.split('\n')
-            json_lines = []
-            in_json = False
-            
-            for line in lines:
-                if line.strip().startswith('```'):
-                    if not in_json:
-                        in_json = True
-                        continue
-                    else:
-                        break
-                if in_json:
-                    json_lines.append(line)
-            
-            response_text = '\n'.join(json_lines).strip()
-        
-        return response_text.strip()
     
     def _get_empty_result(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """Retorna resultado vacío si no hay datos"""

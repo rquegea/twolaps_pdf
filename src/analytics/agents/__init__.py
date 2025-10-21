@@ -13,6 +13,7 @@ from src.analytics.agents.campaign_analysis_agent import CampaignAnalysisAgent
 from src.analytics.agents.channel_analysis_agent import ChannelAnalysisAgent
 from src.analytics.agents.esg_analysis_agent import ESGAnalysisAgent
 from src.analytics.agents.packaging_analysis_agent import PackagingAnalysisAgent
+from src.analytics.agents.transversal_agent import TransversalAgent
 
 __all__ = [
     'BaseAgent',
@@ -26,6 +27,7 @@ __all__ = [
     'CampaignAnalysisAgent',
     'ChannelAnalysisAgent',
     'ESGAnalysisAgent',
-    'PackagingAnalysisAgent'
+    'PackagingAnalysisAgent',
+    'TransversalAgent'
 ]
 

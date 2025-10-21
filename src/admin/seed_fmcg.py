@@ -14,6 +14,7 @@ def seed_all_fmcg():
         mercado = Mercado(
             nombre="FMCG",
             descripcion="Fast Moving Consumer Goods - Productos de gran consumo",
+            tipo_mercado="FMCG",
             activo=True
         )
         session.add(mercado)
