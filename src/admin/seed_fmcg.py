@@ -241,16 +241,37 @@ def seed_champagnes(session, categoria):
         )
         session.add(marca)
     
-    # Queries
+    # Queries - 20 queries estratégicas para el mercado del champagne
     queries = [
-        "¿Cuál es el mejor champagne para celebraciones?",
-        "¿Moët & Chandon o Veuve Clicquot? ¿Cuál es mejor?",
-        "¿Qué champagne premium vale realmente la pena?",
-        "¿Cuál es el mejor champagne para regalar?",
-        "¿Qué champagne tiene mejor relación calidad-precio?",
-        "¿Cuál es el champagne más exclusivo?",
-        "¿Qué champagne recomendarías para una boda?",
-        "¿Cuál es el mejor champagne para brindis?",
+        # Análisis General y Competitivo
+        "Describe el posicionamiento percibido de las principales marcas de champagne en 2025. ¿Cuáles son sus fortalezas y debilidades clave según los consumidores?",
+        "¿Qué marca de champagne está ganando más popularidad o cuota de conversación recientemente y por qué?",
+        "Más allá del precio, ¿qué diferencia realmente a un champagne de gran marca de uno de un productor más pequeño o grower champagne?",
+        "¿Cómo se compara la reputación y percepción de calidad de los principales champagne en el segmento de lujo?",
+        "¿Qué champagne ofrece la mejor experiencia global (sabor, botella, marca) para un regalo importante?",
+        
+        # Consumidor y Ocasiones de Uso
+        "¿En qué ocasiones específicas los consumidores eligen champagne en lugar de otros vinos espumosos (Cava, Prosecco)? ¿Qué impulsa esa decisión?",
+        "¿Qué buscan los consumidores más jóvenes (millennials, Gen Z) cuando compran champagne? ¿Difieren sus preferencias de las generaciones anteriores?",
+        "Describe la \"voz del cliente\" sobre el champagne: ¿qué palabras, emociones o asociaciones son más comunes al hablar de marcas como Moët & Chandon o Bollinger?",
+        "¿Cuáles son las principales barreras o motivos por los que un consumidor *no* elegiría champagne para una celebración?",
+        "¿Cómo influye el diseño de la botella y el packaging en la decisión de compra de champagne, especialmente para regalos?",
+        
+        # Marketing y Comunicación
+        "¿Qué campañas publicitarias recientes de Moët & Chandon o Veuve Clicquot han sido más memorables o comentadas? ¿Qué mensaje transmitían?",
+        "¿Cómo utilizan las marcas de champagne a influencers o celebridades en su marketing? ¿Es efectivo?",
+        "¿Qué marca de champagne tiene la comunicación más innovadora o disruptiva en canales digitales (redes sociales, web)?",
+        "¿Cuál es la percepción sobre las ediciones limitadas o colaboraciones especiales lanzadas por marcas como Dom Pérignon? ¿Aportan valor real?",
+        
+        # Canal y Distribución
+        "¿Cuál es la experiencia de comprar champagne online versus en tiendas físicas especializadas o supermercados? ¿Dónde prefieren comprar los consumidores y por qué?",
+        "¿Qué retailers (ej. El Corte Inglés, Lavinia, Carrefour, Amazon) se asocian más con la venta de champagne de alta gama? ¿Ofrecen una buena experiencia?",
+        "¿Hay quejas sobre la disponibilidad o conservación del champagne en los puntos de venta habituales?",
+        
+        # Tendencias, Innovación y Sostenibilidad
+        "¿Cuáles son las principales tendencias emergentes en el mundo del champagne para 2025-2026 (ej. orgánico, bajo dosaje, nuevos formatos)?",
+        "¿Qué se dice sobre la sostenibilidad (prácticas vitícolas, packaging ecológico, huella de carbono) en relación con las grandes casas de champagne? ¿Es un factor de decisión importante?",
+        "¿Qué innovaciones (en producto, packaging o experiencia) podrían transformar el mercado del champagne en los próximos años?",
     ]
     
     for pregunta in queries:
