@@ -40,13 +40,14 @@ class PDFGenerator:
         self.env.filters['format_percent'] = self._format_percent
         self.env.filters['format_score'] = self._format_score
     
-    def generate(self, report_id: int, output_path: Optional[str] = None) -> str:
+    def generate(self, report_id: int, output_path: Optional[str] = None, agents_stats: dict = None) -> str:
         """
         Genera PDF desde un report
         
         Args:
             report_id: ID del report
             output_path: Ruta de salida (opcional)
+            agents_stats: Estadísticas de agentes ejecutados (opcional)
         
         Returns:
             Ruta del PDF generado
@@ -63,8 +64,25 @@ class PDFGenerator:
             categoria = session.query(Categoria).get(report.categoria_id)
             mercado = session.query(Mercado).get(categoria.mercado_id)
             
+            logger.info(
+                "starting_pdf_generation",
+                report_id=report_id,
+                categoria=f"{mercado.nombre}/{categoria.nombre}",
+                periodo=report.periodo
+            )
+            
             # Preparar datos para template
             context = self._prepare_context(report, categoria, mercado)
+            
+            # Contar gráficos generados
+            charts_generated = sum(1 for v in context.get('charts', {}).values() if v is not None)
+            
+            logger.info(
+                "charts_generated",
+                report_id=report_id,
+                charts_count=charts_generated,
+                charts_list=list(context.get('charts', {}).keys())
+            )
             
             # Renderizar HTML
             template = self.env.get_template('base_template.html')
@@ -83,20 +101,27 @@ class PDFGenerator:
                 stylesheets=[CSS(filename=str(self.templates_dir / 'styles.css'))]
             )
             
+            # Calcular tamaño del PDF
+            pdf_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+            
             # Actualizar report con ruta
             report.pdf_path = str(output_path)
             report.estado = 'published'
             session.commit()
             
-            # Log
+            # Log detallado
             generation_time = time.time() - start_time
             log_report_generation(
                 logger=logger,
                 report_id=report_id,
                 categoria_id=report.categoria_id,
+                categoria_nombre=f"{mercado.nombre}/{categoria.nombre}",
                 periodo=report.periodo,
                 pdf_path=str(output_path),
-                generation_time_seconds=generation_time
+                pdf_size_mb=pdf_size_mb,
+                generation_time_seconds=generation_time,
+                agents_executed=agents_stats.get('agents_executed', {}) if agents_stats else {},
+                charts_generated=charts_generated
             )
             
             return str(output_path)
@@ -144,17 +169,18 @@ class PDFGenerator:
         return f"{value:.2f}"
 
 
-def generate_pdf(report_id: int, output_path: Optional[str] = None) -> str:
+def generate_pdf(report_id: int, output_path: Optional[str] = None, agents_stats: dict = None) -> str:
     """
     Helper function para generar PDF
     
     Args:
         report_id: ID del report
         output_path: Ruta de salida opcional
+        agents_stats: Estadísticas de agentes ejecutados (opcional)
     
     Returns:
         Ruta del PDF generado
     """
     generator = PDFGenerator()
-    return generator.generate(report_id, output_path)
+    return generator.generate(report_id, output_path, agents_stats)
 

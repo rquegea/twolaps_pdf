@@ -68,7 +68,7 @@ class SynthesisAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.7,   # Aumentado para más creatividad narrativa
-                max_tokens=6000    # Aumentado para narrativas S-C-P más profundas
+                max_tokens=8000    # 🔥 AMPLIADO: Permite narrativas S-C-P de 8-12 líneas con máxima densidad
             )
             
             # Parsear con limpieza robusta y fallback

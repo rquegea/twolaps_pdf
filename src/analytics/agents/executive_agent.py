@@ -117,7 +117,7 @@ class ExecutiveAgent(BaseAgent):
             result = self.client.generate(
                 prompt=prompt,
                 temperature=0.7,   # Mayor creatividad para narrativas fluidas tipo McKinsey
-                max_tokens=16000,  # 🔥 Límite máximo de gpt-4o (16384), dejando margen
+                max_tokens=16000,  # 🔥 Límite máximo (16K permite informes de 35-50 páginas con densidad máxima)
                 json_mode=True
             )
             

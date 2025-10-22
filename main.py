@@ -128,12 +128,13 @@ def generate_report(category, period, output):
     try:
         # 1. Ejecutar análisis multi-agente
         click.echo("🤖 Ejecutando análisis multi-agente...")
-        report_id = run_analysis(category, period)
+        report_id, agents_stats = run_analysis(category, period)
         click.echo(f"  ✓ Análisis completado (report_id: {report_id})")
+        click.echo(f"  ✓ Agentes ejecutados: {agents_stats['agents_executed']['successful']}/{agents_stats['agents_executed']['total']}")
         
         # 2. Generar PDF
         click.echo("📄 Generando PDF...")
-        pdf_path = generate_pdf(report_id, output_path=output)
+        pdf_path = generate_pdf(report_id, output_path=output, agents_stats=agents_stats)
         
         click.echo(f"\n✅ Informe generado exitosamente:")
         click.echo(f"  📁 {pdf_path}")
@@ -178,8 +179,8 @@ def generate_batch(categories, all_categories, period):
         category_full = f"{mercado}/{categoria}"
         try:
             click.echo(f"🔄 Procesando: {category_full}")
-            report_id = run_analysis(category_full, period)
-            pdf_path = generate_pdf(report_id)
+            report_id, agents_stats = run_analysis(category_full, period)
+            pdf_path = generate_pdf(report_id, agents_stats=agents_stats)
             results.append({'category': category_full, 'status': 'success', 'path': pdf_path})
             click.echo(f"  ✓ {pdf_path}\n")
         except Exception as e:

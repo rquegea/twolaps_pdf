@@ -115,20 +115,31 @@ def log_report_generation(
     logger: structlog.BoundLogger,
     report_id: int,
     categoria_id: int,
+    categoria_nombre: str,
     periodo: str,
     pdf_path: str,
-    generation_time_seconds: float
+    pdf_size_mb: float,
+    generation_time_seconds: float,
+    agents_executed: dict = None,
+    charts_generated: int = 0,
+    total_pages: int = None
 ):
     """
-    Log de generación de reporte
+    Log detallado de generación de reporte
     """
     logger.info(
         "report_generated",
         report_id=report_id,
         categoria_id=categoria_id,
+        categoria=categoria_nombre,
         periodo=periodo,
         pdf_path=pdf_path,
-        generation_time_seconds=generation_time_seconds
+        pdf_size_mb=round(pdf_size_mb, 2),
+        generation_time_seconds=round(generation_time_seconds, 2),
+        agents_executed=agents_executed or {},
+        charts_generated=charts_generated,
+        total_pages=total_pages,
+        status="success"
     )
 
 

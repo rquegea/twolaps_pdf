@@ -190,7 +190,17 @@ class AnalysisOrchestrator:
                     raise Exception(f"No se pudo generar el report (executive agent falló): {exec_error}")
                 raise Exception("No se pudo generar el report (executive agent falló)")
             
-            return report_id
+            # Retornar report_id y estadísticas
+            return report_id, {
+                'agents_executed': {
+                    'total': len(results),
+                    'successful': successful,
+                    'failed': failed,
+                    'skipped': sum(1 for r in results.values() if r.get('status') == 'skipped')
+                },
+                'total_time_seconds': total_time,
+                'results_detail': results
+            }
     
     def _get_result_summary(self, agent_name: str, result: Dict) -> Dict[str, Any]:
         """Extrae un resumen del resultado para logging"""
@@ -251,7 +261,7 @@ class AnalysisOrchestrator:
 
 
 # Función helper para uso desde CLI
-def run_analysis(category_path: str, periodo: str) -> int:
+def run_analysis(category_path: str, periodo: str) -> tuple:
     """
     Ejecuta análisis completo desde un path de categoría
     
@@ -260,7 +270,7 @@ def run_analysis(category_path: str, periodo: str) -> int:
         periodo: Periodo (YYYY-MM)
     
     Returns:
-        ID del report generado
+        Tupla (report_id: int, stats: dict) con el ID del report generado y estadísticas de ejecución
     """
     try:
         market_name, cat_name = category_path.split('/')

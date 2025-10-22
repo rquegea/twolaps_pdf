@@ -194,6 +194,24 @@
         </div>
         {% endif %}
         
+        {% if charts.sov_pie_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.sov_pie_chart }}" alt="Share of Voice - Pie Chart" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 2: Proporción del Share of Voice por marca
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if charts.sov_trend_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.sov_trend_chart }}" alt="Evolución Share of Voice" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 3: Evolución temporal del Share of Voice por marca
+            </div>
+        </div>
+        {% endif %}
+        
         {# NUEVO: Narrativa de dinámica competitiva - contenido principal #}
         {% if analisis_competitivo.narrativa_dinamica %}
         <div class="narrativa-competitiva">
@@ -238,6 +256,15 @@
             </div>
         </div>
         {% endfor %}
+        {% endif %}
+        
+        {% if charts.attribute_radar %}
+        <div class="chart-container">
+            <img src="{{ charts.attribute_radar }}" alt="Radar de Atributos" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 8: Radar de atributos percibidos por marca
+            </div>
+        </div>
         {% endif %}
         
         <!-- NUEVO: Actividad de Marketing y Campañas -->
@@ -302,6 +329,15 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
+        
+        {% if charts.channel_penetration %}
+        <div class="chart-container">
+            <img src="{{ charts.channel_penetration }}" alt="Penetración por Canal" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 9: Penetración por canal de distribución por marca
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -432,6 +468,15 @@
         </ul>
         {% endif %}
         {% endif %}
+        
+        {% if charts.esg_leadership %}
+        <div class="chart-container">
+            <img src="{{ charts.esg_leadership }}" alt="Liderazgo ESG" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 10: Matriz de liderazgo ESG (Share of Voice vs Score ESG, tamaño = Sentimiento)
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
     
@@ -490,7 +535,16 @@
         <div class="chart-container">
             <img src="{{ charts.sentiment_chart }}" alt="Análisis de Sentimiento" class="chart-img">
             <div class="chart-caption">
-                Gráfico 2: Análisis de Sentimiento por marca (escala -1 a +1)
+                Gráfico 4: Análisis de Sentimiento por marca (escala -1 a +1)
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if charts.sentiment_trend_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.sentiment_trend_chart }}" alt="Evolución del Sentimiento" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 5: Evolución temporal del sentimiento por marca
             </div>
         </div>
         {% endif %}
@@ -535,7 +589,7 @@
         <div class="chart-container">
             <img src="{{ charts.opportunity_matrix }}" alt="Matriz de Oportunidades" class="chart-img">
             <div class="chart-caption">
-                Gráfico 3: Matriz de priorización de oportunidades (Impacto vs Esfuerzo)
+                Gráfico 6: Matriz de priorización de oportunidades (Impacto vs Esfuerzo)
             </div>
         </div>
         {% endif %}
@@ -567,7 +621,7 @@
         <div class="chart-container">
             <img src="{{ charts.risk_matrix }}" alt="Matriz de Riesgos" class="chart-img">
             <div class="chart-caption">
-                Gráfico 4: Matriz de evaluación de riesgos (Probabilidad vs Severidad)
+                Gráfico 7: Matriz de evaluación de riesgos (Probabilidad vs Severidad)
             </div>
         </div>
         {% endif %}

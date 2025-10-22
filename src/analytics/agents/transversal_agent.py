@@ -60,6 +60,13 @@ class TransversalAgent(BaseAgent):
             strategic=json.dumps(resultados.get('strategic', {}), indent=2)
         )
 
+        # Estructura por defecto SIEMPRE disponible
+        default_data = {
+            'temas_comunes': [],
+            'contradicciones': [],
+            'insights_nuevos': []
+        }
+        
         try:
             result = self.client.generate(
                 prompt=prompt,
@@ -69,47 +76,98 @@ class TransversalAgent(BaseAgent):
             )
             response_text = (result.get('response_text') or '').strip()
             
+            if not response_text:
+                self.logger.warning("Transversal agent: respuesta vacía del LLM")
+                self.save_results(categoria_id, periodo, default_data)
+                return default_data
+            
             # Limpiar respuesta por si tiene markdown o texto extra
             response_text = self._clean_json_response(response_text)
             
-            # Parsear JSON con manejo robusto de comillas escapadas
+            # Limpieza ULTRA agresiva de comillas escapadas
+            response_text = response_text.replace('\\"', '"').replace('\\\\', '\\')
+            
+            # Parsear JSON con manejo multi-capa
+            data = None
             try:
                 data = json.loads(response_text)
-            except json.JSONDecodeError:
-                # Si falla, intentar limpiar caracteres escapados problemáticos
-                response_text = response_text.replace('\\"', '"')
+            except json.JSONDecodeError as e1:
+                self.logger.warning(f"Intento 1 falló: {e1}. Intentando limpieza adicional...")
+                # Intento 2: Limpiar más agresivamente
                 try:
-                    data = json.loads(response_text)
-                except json.JSONDecodeError:
-                    # Si aún falla, crear estructura por defecto
-                    self.logger.warning(f"No se pudo parsear JSON, usando estructura por defecto. Respuesta: {response_text[:200]}")
-                    raise ValueError("No se pudo parsear el JSON")
+                    # Remover posibles comillas extras al inicio/final
+                    cleaned = response_text.strip('"').strip("'")
+                    data = json.loads(cleaned)
+                except json.JSONDecodeError as e2:
+                    self.logger.warning(f"Intento 2 falló: {e2}. Usando estructura por defecto.")
+                    self.logger.debug(f"Respuesta problemática: {response_text[:500]}")
+                    data = default_data.copy()
             
-            # Limpiar claves mal formadas (con comillas literales)
-            cleaned_data = {}
-            for key, value in data.items():
-                # Remover TODAS las comillas y espacios de las claves
-                clean_key = key.strip().strip('"').strip("'").strip()
-                cleaned_data[clean_key] = value
-            
-            data = cleaned_data
-            
-            # Validar estructura mínima
+            # Si data no es dict, usar default
             if not isinstance(data, dict):
-                raise ValueError("Respuesta no es un diccionario")
+                self.logger.warning(f"Respuesta no es un diccionario: {type(data)}. Usando estructura por defecto.")
+                data = default_data.copy()
+            else:
+                # Limpiar claves mal formadas de forma ULTRA AGRESIVA
+                cleaned_data = {}
+                for key, value in data.items():
+                    try:
+                        # Convertir key a string y limpiar TODO
+                        clean_key = str(key).strip()
+                        
+                        # Remover comillas de todo tipo
+                        for quote_char in ['"', "'", '`']:
+                            clean_key = clean_key.strip(quote_char)
+                        
+                        # Remover espacios y caracteres especiales
+                        clean_key = clean_key.strip()
+                        
+                        # Normalizar a claves conocidas usando fuzzy matching
+                        clean_key_lower = clean_key.lower().replace(' ', '_').replace('-', '_')
+                        
+                        if 'tema' in clean_key_lower and 'comun' in clean_key_lower:
+                            clean_key = 'temas_comunes'
+                        elif 'contradicc' in clean_key_lower:
+                            clean_key = 'contradicciones'
+                        elif 'insight' in clean_key_lower or 'nuevo' in clean_key_lower:
+                            clean_key = 'insights_nuevos'
+                        elif clean_key_lower in ['temas_comunes', 'contradicciones', 'insights_nuevos']:
+                            # Ya está bien
+                            pass
+                        else:
+                            # Clave desconocida, intentar mapear
+                            self.logger.debug(f"Clave desconocida ignorada: {key}")
+                            continue
+                        
+                        cleaned_data[clean_key] = value
+                    except Exception as e:
+                        self.logger.warning(f"Error procesando clave {key}: {e}")
+                        continue
+                
+                data = cleaned_data
             
-            # Asegurar que existen las claves esperadas
-            data.setdefault('temas_comunes', [])
-            data.setdefault('contradicciones', [])
-            data.setdefault('insights_nuevos', [])
+            # Asegurar que existen TODAS las claves esperadas
+            for required_key in ['temas_comunes', 'contradicciones', 'insights_nuevos']:
+                if required_key not in data:
+                    data[required_key] = []
+                # Asegurar que el valor es una lista
+                if not isinstance(data[required_key], list):
+                    self.logger.warning(f"Clave {required_key} no es lista, convirtiendo...")
+                    try:
+                        # Si es string, intentar parsear como JSON
+                        if isinstance(data[required_key], str):
+                            data[required_key] = json.loads(data[required_key])
+                        # Si es otro tipo, envolver en lista
+                        elif data[required_key] is not None:
+                            data[required_key] = [data[required_key]]
+                        else:
+                            data[required_key] = []
+                    except (json.JSONDecodeError, TypeError, ValueError):
+                        data[required_key] = []
             
         except Exception as e:
-            self.logger.warning(f"Error parseando respuesta transversal: {e}")
-            data = {
-                'temas_comunes': [],
-                'contradicciones': [],
-                'insights_nuevos': []
-            }
+            self.logger.error(f"Error CRÍTICO en transversal agent: {e}", exc_info=True)
+            data = default_data.copy()
 
         self.save_results(categoria_id, periodo, data)
         return data
