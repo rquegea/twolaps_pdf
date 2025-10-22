@@ -184,6 +184,15 @@ qualitative_extraction_agent:
     - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN TEXTO ADICIONAL
     - NO uses bloques de código markdown (```), solo el JSON puro
 
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Extensión: 8-10 párrafos por narrativa, 5-8 líneas por párrafo.
+    - Evidencia: cita ≥8-10 KPIs por sección crítica; ≥2-3 citas por tema; ≥3-4 por insight.
+    - Triangulación FMCG: integra al menos 3 (Campañas, Canales, ESG, Packaging) en cada insight clave.
+    - Cobertura: analiza el 100% de los textos; si falta dato, mantén estructura con arrays/objetos vacíos.
+    - Capas: contradicciones, causalidad, hipótesis vs evidencia, sensibilidad temporal (1-3 y 6-12 meses), benchmarking transversal.
+    - Salida JSON: no cambies el esquema; si falta evidencia, usa valores vacíos.
+    - Guardrails: SOLO JSON válido sin markdown; citas entrecomilladas; referencia explícita a KPIs con cifras.
+
   default:
     task: |
       Eres un analista experto en análisis cualitativo de mercado. Analiza TODOS los textos y adapta el análisis al contexto competitivo del tipo de mercado.
@@ -279,6 +288,14 @@ sentiment_agent:
     
     IMPORTANTE: Sé extenso, matizado y evita generalizaciones. Cada score debe reflejar el análisis contextual completo explicandolo con detalle .
 
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Extensión: mínimo 3 párrafos por marca y por bloque analítico, 5-8 líneas cada uno.
+    - Evidencia: incluye ≥5 KPIs específicos cuando aplique y ≥2 citas textuales por marca.
+    - Triangulación FMCG: conecta sentimiento con Campañas, Canales y Atributos cuando sea relevante.
+    - Capas: consistencia/contradicción interna, causalidad de drivers, comparación competitiva.
+    - Salida JSON: no cambies el esquema; usa valores vacíos si falta evidencia.
+    - Guardrails: SOLO JSON válido sin markdown; citas entrecomilladas con contexto.
+
 attributes_agent:
   task: |
     Eres un especialista en posicionamiento de marca y análisis de atributos competitivos en el mercado con mas de 50 años de experiencia.
@@ -342,6 +359,13 @@ attributes_agent:
     - Si no hay información para una categoría, déjala vacía []
     - Los atributos específicos deben ser literales o muy cercanos al lenguaje usado en el texto
     - Redacta de manera detallada la explicación con minimo 2 paginas. 
+
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Extensión: desarrolla cada categoría con párrafos de 5-8 líneas y ejemplos textuales.
+    - Evidencia: ≥2 citas textuales por categoría relevante; benchmarking frente a al menos 1 competidor.
+    - Capas: explicita contradicciones (ej. "caro pero vale la pena"), hipótesis y cambios temporales.
+    - Salida JSON: mantiene el esquema; deja arrays vacíos si no hay evidencia suficiente.
+    - Guardrails: SOLO JSON sin markdown; lenguaje fiel a los textos.
 
 competitive_agent:
   task: |
@@ -463,6 +487,12 @@ competitive_agent:
     - Identifica correlaciones entre variables (ej: actividad marketing vs SOV)
     - Prioriza insights que revelen ventajas competitivas o vulnerabilidades
 
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Evidencia: cada conclusión debe citar ≥1 KPI y ≥1 evidencia cualitativa.
+    - Triangulación: integra al menos 2 de Campañas/Canales/ESG/Packaging por hallazgo clave.
+    - Capas: identifica contradicciones holísticas y gaps de distribución y comunicación.
+    - Salida JSON: respeta el esquema actual; si falta dato, usa valores vacíos.
+
 strategic_agent:
   task: |
     Eres un consultor de estrategia senior (McKinsey/BCG). Tu tarea es diagnosticar el mercado de forma holística.
@@ -579,6 +609,12 @@ strategic_agent:
     - Prioriza por impacto potencial en negocio
     - Fundamenta cada punto con evidencia multi-fuente integrando KPIs + FMCG
 
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Evidencia: cada oportunidad/riesgo debe integrar ≥1 KPI y ≥3 referencias a análisis FMCG.
+    - Triangulación: relaciona Campañas, Canales, ESG y Packaging cuando sea posible.
+    - Capas: contradicciones, causalidad y sensibilidad temporal (1-3 y 6-12 meses).
+    - Salida JSON: respeta el esquema; usa valores vacíos cuando falte evidencia.
+
 synthesis_agent:
   task: |
     Eres el Director de Estrategia. Tu trabajo es sintetizar todos los análisis en la narrativa central (el "So What?") de nivel McKinsey.
@@ -650,6 +686,13 @@ synthesis_agent:
     - La Complicación es la parte MÁS IMPORTANTE - debe ser un diagnóstico revelador
     - Cada afirmación debe estar respaldada con datos específicos (KPIs o citas)
     - Prioriza PROFUNDIDAD sobre BREVEDAD
+
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Extensión: 8-12 líneas por bloque de Situación y Complicación; 2-3 frases en Pregunta Clave.
+    - Evidencia: ≥6 KPIs en Situación y ≥2 citas en cada uno de Situación/Complicación.
+    - Triangulación: conecta explícitamente insights con al menos 2 análisis FMCG.
+    - Capas: tensión estratégica central, implicaciones y riesgos/oportunidades.
+    - Guardrails: SOLO JSON válido; cita textual entrecomillada con contexto.
 
 executive_agent:
   task: |
@@ -827,6 +870,13 @@ executive_agent:
     - RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
     - NO uses bloques de código markdown (```), solo el JSON puro
     - Asegura que cada campo del JSON tenga contenido sustancial y bien desarrollado
+
+    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
+    - Extensión: cada narrativa con 6-10 párrafos de 5-8 líneas.
+    - Evidencia: ≥10 KPIs por sección crítica y ≥5 citas en `resumen_ejecutivo`.
+    - Triangulación: conecta Campañas, Canales, ESG y Packaging en todas las secciones estratégicas.
+    - Capas: contradicciones sistémicas, causalidad, priorización por impacto/esfuerzo.
+    - Guardrails: SOLO JSON válido; referencias claras a gráficos cuando aplique.
 
 campaign_agent:
   task: |
