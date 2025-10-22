@@ -67,8 +67,8 @@ class SynthesisAgent(BaseAgent):
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.5,
-                max_tokens=2000
+                temperature=0.7,   # Aumentado para más creatividad narrativa
+                max_tokens=6000    # Aumentado para narrativas S-C-P más profundas
             )
             
             # Parsear con limpieza robusta y fallback

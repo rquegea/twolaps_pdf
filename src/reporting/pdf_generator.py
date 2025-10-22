@@ -118,15 +118,19 @@ class PDFGenerator:
             'fecha_generacion': datetime.now().strftime('%d de %B de %Y'),
             'resumen_ejecutivo': contenido.get('resumen_ejecutivo', {}),
             'mercado_section': contenido.get('mercado', {}),
-            'panorama_mercado': contenido.get('panorama_mercado', {}),  # NUEVO
-            'analisis_competitivo': contenido.get('analisis_competitivo', {}),  # NUEVO (estructura expandida)
+            'panorama_mercado': contenido.get('panorama_mercado', {}),  # NUEVO narrativo
+            'analisis_competitivo': contenido.get('analisis_competitivo', {}),  # NUEVO narrativo
             'competencia': contenido.get('competencia', {}),  # Mantener compatibilidad
-            'actividad_marketing': contenido.get('analisis_competitivo', {}).get('actividad_marketing', {}),  # NUEVO
-            'estrategias_canal': contenido.get('analisis_competitivo', {}).get('estrategias_canal', {}),  # NUEVO
-            'consumidor': contenido.get('consumidor', {}),  # NUEVO
-            'sentimiento': contenido.get('sentimiento_reputacion', {}),
-            'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),
-            'plan_90_dias': contenido.get('plan_90_dias', {}),
+            'actividad_marketing': contenido.get('analisis_competitivo', {}).get('actividad_marketing', {}),  # Mantener compatibilidad
+            'estrategias_canal': contenido.get('analisis_competitivo', {}).get('estrategias_canal', {}),  # Mantener compatibilidad
+            'analisis_campanas': contenido.get('analisis_campanas', {}),  # NUEVO narrativo
+            'analisis_canales': contenido.get('analisis_canales', {}),  # NUEVO narrativo
+            'analisis_sostenibilidad_packaging': contenido.get('analisis_sostenibilidad_packaging', {}),  # NUEVO narrativo
+            'consumidor': contenido.get('consumidor', {}),  # NUEVO narrativo
+            'sentimiento': contenido.get('sentimiento_reputacion', {}),  # Mantener compatibilidad
+            'sentimiento_reputacion': contenido.get('sentimiento_reputacion', {}),  # NUEVO narrativo
+            'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),  # NUEVO narrativo
+            'plan_90_dias': contenido.get('plan_90_dias', {}),  # NUEVO narrativo
             'metricas_calidad': report.metricas_calidad or {},
             'charts': charts  # Gráficos en base64
         }

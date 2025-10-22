@@ -116,8 +116,8 @@ class ExecutiveAgent(BaseAgent):
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.5,
-                max_tokens=10000,  # Aumentado de 6000 a 10000 para permitir mayor extensión
+                temperature=0.7,   # Mayor creatividad para narrativas fluidas tipo McKinsey
+                max_tokens=16000,  # 🔥 Límite máximo de gpt-4o (16384), dejando margen
                 json_mode=True
             )
             
@@ -252,13 +252,25 @@ class ExecutiveAgent(BaseAgent):
         prompt = f"""
 {self.system_prompt}
 
-HAS SIDO CONTRATADO PARA GENERAR EL INFORME ESTRATÉGICO COMPLETO ESTILO NIELSEN/KANTAR.
+===========================================
+MISIÓN: GENERAR INFORME NARRATIVO TIPO McKINSEY
+===========================================
+
+⚠️ NO GENERES UN "DUMP" DE DATOS. CUENTA UNA HISTORIA ESTRATÉGICA. ⚠️
+
+REGLAS NARRATIVAS CRÍTICAS:
+1. Cada sección debe DESARROLLARSE en 3-7 párrafos fluidos y conectados
+2. NO uses listas de bullets como respuesta principal (úsalas solo para respaldar narrativas)
+3. USA transiciones narrativas: "Esto explica...", "Sin embargo...", "A pesar de...", "Lo que revela..."
+4. CITA datos específicos DENTRO de las narrativas (no como apéndices)
+5. CONECTA insights entre secciones para construir un argumento coherente
+6. Escribe como si estuvieras presentando en vivo a un CEO
 
 CATEGORÍA: {categoria}
 PERIODO: {periodo}
 
 ========================================
-NARRATIVA CENTRAL (SITUACIÓN-COMPLICACIÓN-PREGUNTA):
+NARRATIVA CENTRAL (TU GUION):
 ========================================
 Situación: {synthesis.get('situacion', '')}
 Complicación: {synthesis.get('complicacion', '')}
@@ -297,122 +309,153 @@ ANÁLISIS DE PACKAGING Y DISEÑO:
 ANÁLISIS ESTRATÉGICO (DAFO, OPORTUNIDADES, RIESGOS):
 ========================================
 - DAFO: {json.dumps(strategic.get('dafo', {}), indent=2)}
-- Oportunidades: {json.dumps(strategic.get('oportunidades', [])[:3], indent=2)}
-- Riesgos: {json.dumps(strategic.get('riesgos', [])[:3], indent=2)}
+- Oportunidades: {json.dumps(strategic.get('oportunidades', [])[:5], indent=2)}
+- Riesgos: {json.dumps(strategic.get('riesgos', [])[:5], indent=2)}
 
 ========================================
-MUESTRA DE RESPUESTAS TEXTUALES (AMPLIADA):
+MUESTRA DE RESPUESTAS TEXTUALES (PARA CITAS):
 ========================================
 {raw_responses[:4000]}
 
 ========================================
-INSTRUCCIONES DE GENERACIÓN:
+ESTRUCTURA JSON NARRATIVA REQUERIDA:
 ========================================
 
-Genera un informe ejecutivo completo integrando TODAS las dimensiones: KPIs, Contexto de Mercado, Competencia, Marketing, Canales y Estrategia.
-
-ESTRUCTURA JSON EXPANDIDA REQUERIDA:
+⚠️ IMPORTANTE: Los campos "narrativa_*" y "narrativa" son el CONTENIDO PRINCIPAL del informe.
+Cada uno debe tener 3-7 párrafos sustanciales desarrollando el argumento.
 
 {{
   "resumen_ejecutivo": {{
+    "narrativa_principal": "DESARROLLA EN 4-6 PÁRRAFOS: Empieza con la situación del mercado (integrando KPIs clave como SOV, menciones, tendencias), luego desarrolla la complicación (la tensión estratégica central con evidencia cuantitativa + citas cualitativas del raw_responses), y finalmente responde a la pregunta clave con los hallazgos principales y su implicación. Esta debe ser una narrativa fluida y argumentativa, no una lista.",
     "hallazgos_clave": [
-      "Hallazgo 1 integrado con datos específicos",
-      "Hallazgo 2 que responde a la pregunta clave",
-      "Hallazgo 3 accionable"
+      "Hallazgo 1 con evidencia integrada (KPI + cita cualitativa)",
+      "Hallazgo 2 respondiendo a la pregunta clave",
+      "Hallazgo 3 accionable con implicación de negocio",
+      "Hallazgo 4",
+      "Hallazgo 5"
     ],
-    "contexto": "Resumen de situación y complicación (2-3 líneas)"
+    "recomendacion_principal": "1-2 párrafos con la recomendación estratégica de más alto nivel, vinculada a resolver la complicación"
   }},
   
   "panorama_mercado": {{
-    "contexto_fmcg": "Descripción del mercado/categoría (2-3 líneas)",
-    "tamano_crecimiento": "Tamaño y crecimiento estimado si disponible",
-    "drivers_principales": ["Driver 1", "Driver 2", "Driver 3"],
-    "factores_pestel_clave": [
-      "Factor PESTEL más relevante 1",
-      "Factor PESTEL más relevante 2"
-    ],
-    "fuerzas_competitivas": "Resumen de intensidad competitiva y principales fuerzas de Porter"
+    "narrativa": "DESARROLLA EN 5-7 PÁRRAFOS: Describe la naturaleza del mercado/categoría (usando la situación del synthesis_agent como apertura), tamaño y crecimiento si disponible, drivers de categoría principales con ejemplos específicos de cómo impactan decisiones, factores PESTEL más relevantes con implicaciones concretas (NO genéricas), análisis de Fuerzas de Porter adaptado a este mercado. Cuenta cómo funciona este mercado y qué factores lo moldean. Conecta los factores entre sí."
   }},
   
   "analisis_competitivo": {{
-    "lider": "{competitive.get('lider_mercado', '')}",
-    "sov_tendencias": "Análisis de cuota de voz y tendencias con datos",
-    "benchmarking_resumen": "Resumen de cómo se comparan las marcas en atributos clave",
-    "perfiles_top3": [
+    "narrativa_dinamica": "DESARROLLA EN 4-6 PÁRRAFOS: Analiza la dinámica competitiva actual: quién domina y por qué (con datos de SOV y sentimiento), cómo se posicionan las marcas principales, correlaciones entre visibilidad/percepción/marketing/canal, gaps competitivos explotables. Conecta múltiples dimensiones para revelar la historia competitiva. Menciona explícitamente 'Como muestra el Gráfico de SOV...'",
+    "perfiles_narrativos": [
       {{
-        "marca": "Marca 1",
-        "posicionamiento": "Breve descripción",
-        "fortalezas": ["F1", "F2"],
-        "debilidades": ["D1", "D2"]
+        "marca": "Marca Principal 1",
+        "analisis_profundo": "DESARROLLA EN 2-3 PÁRRAFOS: Posicionamiento percibido con evidencia, fortalezas clave sustentadas por datos, debilidades y vulnerabilidades específicas, estrategia de marketing y canal inferida, oportunidades de ataque o defensa. Cuenta la historia de esta marca en el mercado."
+      }},
+      {{
+        "marca": "Marca Principal 2",
+        "analisis_profundo": "DESARROLLA EN 2-3 PÁRRAFOS: [Mismo formato]"
+      }},
+      {{
+        "marca": "Marca Principal 3",
+        "analisis_profundo": "DESARROLLA EN 2-3 PÁRRAFOS: [Mismo formato]"
       }}
     ]
   }},
   
   "analisis_campanas": {{
-    "resumen_actividad": "Síntesis de las principales campañas, canales y mensajes clave (usando datos de Campañas)",
-    "marca_mas_activa": "Marca X",
-    "insights_recepcion": ["Recepción cualitativa de campañas..."]
+    "narrativa": "DESARROLLA EN 3-5 PÁRRAFOS: Síntesis de la actividad de marketing en el mercado: qué marcas comunican activamente y cómo, principales campañas y mensajes clave, canales utilizados, percepción de efectividad y recepción cualitativa, gaps (marcas silenciosas o con comunicación inefectiva a pesar de alto SOV). Usa datos del análisis de Campañas."
   }},
   
   "analisis_canales": {{
-    "estrategia_canal_inferida": "Resumen de cómo se distribuyen las marcas (usando datos de Canales)",
-    "gaps_e_commerce": ["Principales fallos o aciertos en la experiencia online..."],
-    "marca_mejor_distribuida": "Marca Y"
+    "narrativa": "DESARROLLA EN 3-5 PÁRRAFOS: Estrategias de distribución observadas (intensiva/selectiva/exclusiva), ventajas competitivas en accesibilidad y presencia omnicanal, gaps de e-commerce y oportunidades digitales, retailers clave y experiencia de compra diferenciada. Usa datos del análisis de Canales."
   }},
   
   "analisis_sostenibilidad_packaging": {{
-    "resumen_esg": "Análisis de la percepción de sostenibilidad del mercado (usando datos ESG)",
-    "quejas_packaging": "Análisis de problemas funcionales o de diseño (usando datos Packaging)",
-    "benchmarking_atributos": ["Marca X lidera en packaging funcional, Marca Y en percepción ESG."]
+    "narrativa": "DESARROLLA EN 3-4 PÁRRAFOS: Percepción ESG del mercado (controversias, líderes, rezagados), análisis de packaging (problemas funcionales, diseño, innovaciones), importancia relativa de ESG y packaging como drivers de decisión, oportunidades de diferenciación. Conecta ESG y packaging cuando sea relevante."
   }},
   
   "consumidor": {{
-    "voz_cliente_resumen": "Principales temas y preocupaciones de consumidores",
-    "drivers_eleccion": ["Driver 1", "Driver 2"],
-    "barreras_compra": ["Barrera 1", "Barrera 2"],
-    "ocasiones_principales": ["Ocasión 1", "Ocasión 2"]
+    "narrativa_voz_cliente": "DESARROLLA EN 4-5 PÁRRAFOS: Integra citas textuales directas del raw_responses para dar vida a la voz del consumidor. Desarrolla drivers de elección con ejemplos específicos de POR QUÉ eligen cada marca, explica barreras de compra con evidencia cualitativa, describe ocasiones de consumo principales y cómo impactan la decisión, identifica tensiones o contradicciones. HAZ QUE EL CONSUMIDOR COBRE VIDA con sus propias palabras entrecomilladas."
   }},
   
   "sentimiento_reputacion": {{
-    "resumen": "Análisis de sentimiento con datos específicos por marca",
-    "correlaciones": "Correlaciones entre sentimiento, SOV y actividad de marketing"
+    "narrativa": "DESARROLLA EN 3-4 PÁRRAFOS: Presenta scores de sentimiento por marca con contexto (no solo números), EXPLICA el 'por qué' detrás de cada score con insights cualitativos del texto crudo, analiza correlaciones entre sentimiento/SOV/marketing, identifica cambios vs periodos anteriores si hay contexto histórico. Menciona 'Como muestra el Gráfico de Sentimiento...'"
   }},
   
   "oportunidades_riesgos": {{
-    "oportunidades": {json.dumps(strategic.get('oportunidades', [])[:3])},
-    "riesgos": {json.dumps(strategic.get('riesgos', [])[:3])},
+    "narrativa_oportunidades": "DESARROLLA EN 3-4 PÁRRAFOS: Profundiza en las TOP 3-5 oportunidades más críticas, explicando la lógica, evidencia multi-fuente, impacto potencial, y cómo capitalizarlas. Conecta oportunidades entre sí si es relevante.",
+    "narrativa_riesgos": "DESARROLLA EN 3-4 PÁRRAFOS: Profundiza en los TOP 3-5 riesgos más graves, explicando probabilidad, severidad, evidencia, y estrategias de mitigación. Identifica escenarios de mayor peligro.",
+    "oportunidades": {json.dumps(strategic.get('oportunidades', [])[:5])},
+    "riesgos": {json.dumps(strategic.get('riesgos', [])[:5])},
     "dafo_sintesis": {{
-      "fortalezas_clave": ["F1", "F2"],
-      "debilidades_clave": ["D1", "D2"],
-      "oportunidades_clave": ["O1", "O2"],
-      "amenazas_clave": ["A1", "A2"]
+      "fortalezas_clave": ["F1", "F2", "F3"],
+      "debilidades_clave": ["D1", "D2", "D3"],
+      "oportunidades_clave": ["O1", "O2", "O3"],
+      "amenazas_clave": ["A1", "A2", "A3"],
+      "cruces_estrategicos": "DESARROLLA EN 2-3 PÁRRAFOS: Analiza los cruces DAFO más relevantes (FO: cómo usar fortalezas para oportunidades, DO: cómo superar debilidades para oportunidades, FA: cómo usar fortalezas contra amenazas, DA: escenarios de mayor riesgo)"
     }}
   }},
   
   "plan_90_dias": {{
+    "narrativa_estrategia": "DESARROLLA EN 2-3 PÁRRAFOS: Explica la lógica del plan de acción completo: por qué estas iniciativas, en este orden, para resolver la complicación identificada. Justifica la priorización.",
     "iniciativas": [
       {{
-        "titulo": "Iniciativa 1 accionable",
-        "descripcion": "Qué hacer exactamente",
-        "por_que": "Razón estratégica basada en la complicación y datos",
-        "como": "Pasos concretos o tácticas",
-        "kpi_medicion": "Métrica para medir éxito",
+        "titulo": "Iniciativa 1",
+        "descripcion": "QUÉ hacer exactamente (2-3 líneas detalladas, NO bullets)",
+        "por_que": "POR QUÉ hacerlo - vinculado explícitamente a la complicación y datos específicos (2-3 líneas)",
+        "como": "CÓMO ejecutarlo con pasos concretos o tácticas (2-3 líneas)",
+        "kpi_medicion": "Métrica específica para medir éxito",
         "timeline": "Mes 1-2",
         "prioridad": "alta"
+      }},
+      {{
+        "titulo": "Iniciativa 2",
+        "descripcion": "...",
+        "por_que": "...",
+        "como": "...",
+        "kpi_medicion": "...",
+        "timeline": "Mes 2-3",
+        "prioridad": "alta"
+      }},
+      {{
+        "titulo": "Iniciativa 3",
+        "descripcion": "...",
+        "por_que": "...",
+        "como": "...",
+        "kpi_medicion": "...",
+        "timeline": "Mes 2-3",
+        "prioridad": "media"
+      }},
+      {{
+        "titulo": "Iniciativa 4",
+        "descripcion": "...",
+        "por_que": "...",
+        "como": "...",
+        "kpi_medicion": "...",
+        "timeline": "Mes 3",
+        "prioridad": "media"
+      }},
+      {{
+        "titulo": "Iniciativa 5",
+        "descripcion": "...",
+        "por_que": "...",
+        "como": "...",
+        "kpi_medicion": "...",
+        "timeline": "Mes 3",
+        "prioridad": "baja"
       }}
     ]
   }}
 }}
 
-REGLAS CRÍTICAS:
-1. INTEGRA todas las dimensiones: KPIs + ANÁLISIS FMCG (Campañas, Canales, ESG, Packaging) + Estrategia
-2. El Resumen Ejecutivo (punto 1) y el Plan de 90 Días deben ser la culminación de TODOS los datos disponibles, especialmente el ANÁLISIS FMCG DETALLADO
-3. CITA los datos de Campañas, Canales, ESG y Packaging en las secciones correspondientes (analisis_campanas, analisis_canales, analisis_sostenibilidad_packaging)
-4. Cada afirmación debe estar FUNDAMENTADA con datos específicos
-5. El plan de 90 días debe RESOLVER la complicación identificada
-6. Prioriza INSIGHTS ACCIONABLES sobre descripciones genéricas
-7. RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN
-8. NO uses bloques de código markdown (```), solo el JSON puro
+REGLAS CRÍTICAS DE NARRATIVA:
+1. **NARRATIVA SOBRE BULLETS**: Los campos "narrativa_*" y "narrativa" son el CONTENIDO PRINCIPAL. Los bullets son complemento.
+2. **TRANSICIONES**: Usa conectores argumentativos: "Esto explica...", "Sin embargo...", "A pesar de...", "Lo que revela..."
+3. **INTEGRACIÓN DE DATOS**: Cita KPIs DENTRO de las narrativas: "El líder domina con 54% de SOV, sin embargo, su sentimiento neutral (0.05) revela..."
+4. **CITAS TEXTUALES**: Incluye citas directas del raw_responses: "Como menciona un consumidor: '...'"
+5. **REFERENCIAS A GRÁFICOS**: Menciona explícitamente: "Como muestra el Gráfico de SOV..."
+6. **CONEXIONES**: Crea puentes narrativos entre secciones para mantener el hilo argumentativo
+7. **INTEGRA TODO**: KPIs + FMCG (Campañas, Canales, ESG, Packaging) + Estrategia en una historia cohesiva
+8. **PROFUNDIDAD**: Cada campo narrativo debe tener 3-7 párrafos sustanciales (4-8 líneas cada uno)
+9. **El plan de 90 días debe RESOLVER la complicación identificada**
+10. **RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN, SIN BLOQUES DE CÓDIGO**
 """
         
         return prompt

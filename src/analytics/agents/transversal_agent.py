@@ -72,7 +72,27 @@ class TransversalAgent(BaseAgent):
             # Limpiar respuesta por si tiene markdown o texto extra
             response_text = self._clean_json_response(response_text)
             
-            data = json.loads(response_text)
+            # Parsear JSON con manejo robusto de comillas escapadas
+            try:
+                data = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Si falla, intentar limpiar caracteres escapados problemáticos
+                response_text = response_text.replace('\\"', '"')
+                try:
+                    data = json.loads(response_text)
+                except json.JSONDecodeError:
+                    # Si aún falla, crear estructura por defecto
+                    self.logger.warning(f"No se pudo parsear JSON, usando estructura por defecto. Respuesta: {response_text[:200]}")
+                    raise ValueError("No se pudo parsear el JSON")
+            
+            # Limpiar claves mal formadas (con comillas literales)
+            cleaned_data = {}
+            for key, value in data.items():
+                # Remover TODAS las comillas y espacios de las claves
+                clean_key = key.strip().strip('"').strip("'").strip()
+                cleaned_data[clean_key] = value
+            
+            data = cleaned_data
             
             # Validar estructura mínima
             if not isinstance(data, dict):

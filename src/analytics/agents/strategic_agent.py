@@ -78,8 +78,8 @@ class StrategicAgent(BaseAgent):
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.4,
-                max_tokens=3000
+                temperature=0.6,   # Más creativo para oportunidades/riesgos diferenciados
+                max_tokens=4500    # Espacio para descripciones ricas de oportunidades y riesgos
             )
             
             # Parsear JSON con limpieza robusta

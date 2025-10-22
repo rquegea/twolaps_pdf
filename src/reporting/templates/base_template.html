@@ -68,11 +68,16 @@
         {% if resumen_ejecutivo.recomendacion_principal %}
         <div class="recommendation-box">
             <div class="rec-title">Recomendación Principal</div>
-            <div class="rec-content">{{ resumen_ejecutivo.recomendacion_principal }}</div>
+            <div class="rec-content narrative-text">{{ resumen_ejecutivo.recomendacion_principal|safe|replace('\n', '<br>') }}</div>
         </div>
         {% endif %}
         
-        {% if resumen_ejecutivo.contexto %}
+        {# NUEVO: Narrativa principal - contenido principal del resumen #}
+        {% if resumen_ejecutivo.narrativa_principal %}
+        <div class="narrativa-principal">
+            <p class="narrative-text">{{ resumen_ejecutivo.narrativa_principal|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% elif resumen_ejecutivo.contexto %}
         <p class="contexto">{{ resumen_ejecutivo.contexto }}</p>
         {% endif %}
         
@@ -86,11 +91,18 @@
         {% endif %}
     </div>
 
-    <!-- PANORAMA DEL MERCADO - ESTRUCTURADO POR SUBSECCIONES -->
+    <!-- PANORAMA DEL MERCADO - NARRATIVO -->
     {% if panorama_mercado %}
     <div class="seccion">
         <h1 class="seccion-titulo">Panorama del Mercado</h1>
         
+        {# NUEVO: Narrativa del mercado - contenido principal #}
+        {% if panorama_mercado.narrativa %}
+        <div class="narrativa-mercado">
+            <p class="narrative-text">{{ panorama_mercado.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua si no hay narrativa #}
         {% if panorama_mercado.contexto_fmcg %}
         <p class="contexto">{{ panorama_mercado.contexto_fmcg }}</p>
         {% endif %}
@@ -139,6 +151,7 @@
             <p>{{ panorama_mercado.fuerzas_competitivas }}</p>
         </div>
         {% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
@@ -168,23 +181,30 @@
         {% endif %}
     </div>
 
-    <!-- ANÁLISIS COMPETITIVO -->
+    <!-- ANÁLISIS COMPETITIVO - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Análisis Competitivo</h1>
         
-        {% if competencia.lider %}
-        <div class="lider-box">
-            <strong>Líder del Mercado:</strong> {{ competencia.lider }}
-        </div>
-        {% endif %}
-        
         {% if charts.sov_chart %}
-        <h2>Share of Voice (SOV)</h2>
         <div class="chart-container">
             <img src="{{ charts.sov_chart }}" alt="Share of Voice" class="chart-img">
             <div class="chart-caption">
                 Gráfico 1: Distribución de Share of Voice por marca en el periodo analizado
             </div>
+        </div>
+        {% endif %}
+        
+        {# NUEVO: Narrativa de dinámica competitiva - contenido principal #}
+        {% if analisis_competitivo.narrativa_dinamica %}
+        <div class="narrativa-competitiva">
+            <h2>Dinámica Competitiva</h2>
+            <p class="narrative-text">{{ analisis_competitivo.narrativa_dinamica|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
+        {% if competencia.lider %}
+        <div class="lider-box">
+            <strong>Líder del Mercado:</strong> {{ competencia.lider }}
         </div>
         {% endif %}
         
@@ -204,6 +224,20 @@
             <li>{{ comp }}</li>
             {% endfor %}
         </ul>
+        {% endif %}
+        {% endif %}
+        
+        {# NUEVO: Perfiles narrativos de competidores principales #}
+        {% if analisis_competitivo.perfiles_narrativos %}
+        <h2>Perfiles de Competidores</h2>
+        {% for perfil in analisis_competitivo.perfiles_narrativos %}
+        <div class="perfil-competidor">
+            <h3>{{ perfil.marca }}</h3>
+            <div class="perfil-analisis">
+                <p class="narrative-text">{{ perfil.analisis_profundo|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+            </div>
+        </div>
+        {% endfor %}
         {% endif %}
         
         <!-- NUEVO: Actividad de Marketing y Campañas -->
@@ -271,11 +305,18 @@
         {% endif %}
     </div>
 
-    <!-- ANÁLISIS DE CAMPAÑAS Y MARKETING (FMCG) -->
+    <!-- ANÁLISIS DE CAMPAÑAS Y MARKETING (FMCG) - NARRATIVO -->
     {% if tipo_mercado == 'FMCG' and analisis_campanas %}
     <div class="seccion">
         <h1 class="seccion-titulo">📢 Análisis de Campañas y Marketing</h1>
         
+        {# NUEVO: Narrativa de campañas #}
+        {% if analisis_campanas.narrativa %}
+        <div class="narrativa-campanas">
+            <p class="narrative-text">{{ analisis_campanas.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
         {% if analisis_campanas.resumen_actividad %}
         <p class="contexto">{{ analisis_campanas.resumen_actividad }}</p>
         {% endif %}
@@ -298,14 +339,22 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- ANÁLISIS DE CANALES Y DISTRIBUCIÓN (FMCG) -->
+    <!-- ANÁLISIS DE CANALES Y DISTRIBUCIÓN (FMCG) - NARRATIVO -->
     {% if tipo_mercado == 'FMCG' and analisis_canales %}
     <div class="seccion">
         <h1 class="seccion-titulo">🛒 Análisis de Canales y Distribución</h1>
         
+        {# NUEVO: Narrativa de canales #}
+        {% if analisis_canales.narrativa %}
+        <div class="narrativa-canales">
+            <p class="narrative-text">{{ analisis_canales.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
         {% if analisis_canales.estrategia_canal_inferida %}
         <p class="contexto">{{ analisis_canales.estrategia_canal_inferida }}</p>
         {% endif %}
@@ -328,14 +377,22 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- ANÁLISIS DE SOSTENIBILIDAD Y PACKAGING (FMCG) -->
+    <!-- ANÁLISIS DE SOSTENIBILIDAD Y PACKAGING (FMCG) - NARRATIVO -->
     {% if tipo_mercado == 'FMCG' and analisis_sostenibilidad_packaging %}
     <div class="seccion">
         <h1 class="seccion-titulo">🌱 Análisis de Sostenibilidad y Packaging</h1>
         
+        {# NUEVO: Narrativa de sostenibilidad y packaging #}
+        {% if analisis_sostenibilidad_packaging.narrativa %}
+        <div class="narrativa-sostenibilidad">
+            <p class="narrative-text">{{ analisis_sostenibilidad_packaging.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
         <!-- Subsección ESG -->
         {% if analisis_sostenibilidad_packaging.resumen_esg %}
         <h2>Sostenibilidad (ESG)</h2>
@@ -374,14 +431,22 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
     </div>
     {% endif %}
     
-    <!-- NUEVO: Análisis del Consumidor (Shopper Insights) -->
+    <!-- ANÁLISIS DEL CONSUMIDOR - NARRATIVO -->
     {% if consumidor %}
     <div class="seccion">
         <h1 class="seccion-titulo">Análisis del Consumidor</h1>
         
+        {# NUEVO: Narrativa de voz del cliente #}
+        {% if consumidor.narrativa_voz_cliente %}
+        <div class="narrativa-consumidor">
+            <p class="narrative-text">{{ consumidor.narrativa_voz_cliente|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
         {% if consumidor.voz_cliente_resumen %}
         <h2>Voz del Cliente</h2>
         <p>{{ consumidor.voz_cliente_resumen }}</p>
@@ -413,16 +478,13 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
-    <!-- SENTIMIENTO Y REPUTACIÓN -->
+    <!-- SENTIMIENTO Y REPUTACIÓN - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Sentimiento y Reputación</h1>
-        
-        {% if sentimiento.resumen %}
-        <p>{{ sentimiento.resumen }}</p>
-        {% endif %}
         
         {% if charts.sentiment_chart %}
         <div class="chart-container">
@@ -431,6 +493,21 @@
                 Gráfico 2: Análisis de Sentimiento por marca (escala -1 a +1)
             </div>
         </div>
+        {% endif %}
+        
+        {# NUEVO: Narrativa de sentimiento #}
+        {% if sentimiento_reputacion.narrativa %}
+        <div class="narrativa-sentimiento">
+            <p class="narrative-text">{{ sentimiento_reputacion.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% elif sentimiento.narrativa %}
+        <div class="narrativa-sentimiento">
+            <p class="narrative-text">{{ sentimiento.narrativa|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% else %}
+        {# Fallback a estructura antigua #}
+        {% if sentimiento.resumen %}
+        <p>{{ sentimiento.resumen }}</p>
         {% endif %}
         
         {% if sentimiento.por_marca_destacado %}
@@ -446,9 +523,10 @@
             {% endfor %}
         </ul>
         {% endif %}
+        {% endif %}
     </div>
 
-    <!-- OPORTUNIDADES Y RIESGOS -->
+    <!-- OPORTUNIDADES Y RIESGOS - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Oportunidades y Riesgos</h1>
         
@@ -459,6 +537,14 @@
             <div class="chart-caption">
                 Gráfico 3: Matriz de priorización de oportunidades (Impacto vs Esfuerzo)
             </div>
+        </div>
+        {% endif %}
+        
+        {# NUEVO: Narrativa de oportunidades #}
+        {% if oportunidades_riesgos.narrativa_oportunidades %}
+        <h2 class="oportunidades-titulo">Análisis de Oportunidades</h2>
+        <div class="narrativa-oportunidades">
+            <p class="narrative-text">{{ oportunidades_riesgos.narrativa_oportunidades|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
         </div>
         {% endif %}
         
@@ -486,6 +572,14 @@
         </div>
         {% endif %}
         
+        {# NUEVO: Narrativa de riesgos #}
+        {% if oportunidades_riesgos.narrativa_riesgos %}
+        <h2 class="riesgos-titulo">Análisis de Riesgos</h2>
+        <div class="narrativa-riesgos">
+            <p class="narrative-text">{{ oportunidades_riesgos.narrativa_riesgos|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% endif %}
+        
         {% if oportunidades_riesgos.riesgos %}
         <h2 class="riesgos-titulo">Detalle de Riesgos</h2>
         {% for riesgo in oportunidades_riesgos.riesgos %}
@@ -504,9 +598,19 @@
         </div>
         {% endfor %}
         {% endif %}
+        
+        {# NUEVO: DAFO con cruces estratégicos #}
+        {% if oportunidades_riesgos.dafo_sintesis %}
+        <h2>Análisis DAFO</h2>
+        {% if oportunidades_riesgos.dafo_sintesis.cruces_estrategicos %}
+        <div class="narrativa-dafo">
+            <p class="narrative-text">{{ oportunidades_riesgos.dafo_sintesis.cruces_estrategicos|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% endif %}
+        {% endif %}
     </div>
 
-    <!-- PLAN DE ACCIÓN 90 DÍAS -->
+    <!-- PLAN DE ACCIÓN 90 DÍAS - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Plan de Acción 90 Días</h1>
         
@@ -516,6 +620,13 @@
             <div class="chart-caption">
                 Gráfico 5: Timeline de implementación del Plan de Acción a 90 días
             </div>
+        </div>
+        {% endif %}
+        
+        {# NUEVO: Narrativa de estrategia del plan #}
+        {% if plan_90_dias.narrativa_estrategia %}
+        <div class="narrativa-plan">
+            <p class="narrative-text">{{ plan_90_dias.narrativa_estrategia|safe|replace('\n\n', '</p><p class="narrative-text">')|replace('\n', '<br>') }}</p>
         </div>
         {% endif %}
         
@@ -530,19 +641,19 @@
             
             {% if iniciativa.descripcion %}
             <div class="iniciativa-seccion">
-                <strong>QUÉ:</strong> {{ iniciativa.descripcion }}
+                <strong>QUÉ:</strong> {{ iniciativa.descripcion|safe|replace('\n', '<br>') }}
             </div>
             {% endif %}
             
             {% if iniciativa.por_que %}
             <div class="iniciativa-seccion">
-                <strong>POR QUÉ:</strong> {{ iniciativa.por_que }}
+                <strong>POR QUÉ:</strong> {{ iniciativa.por_que|safe|replace('\n', '<br>') }}
             </div>
             {% endif %}
             
             {% if iniciativa.como %}
             <div class="iniciativa-seccion">
-                <strong>CÓMO:</strong> {{ iniciativa.como }}
+                <strong>CÓMO:</strong> {{ iniciativa.como|safe|replace('\n', '<br>') }}
             </div>
             {% endif %}
             
