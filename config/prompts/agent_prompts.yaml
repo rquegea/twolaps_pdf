@@ -102,6 +102,17 @@ qualitative_extraction_agent:
        - IDENTIFICA MATICES: detecta tensiones, ambigüedades y contradicciones en las respuestas
        - NO SOLO EXTRAIGAS, INTERPRETA: explica por qué cada insight es relevante para la percepción de marca
        - **CRÍTICO:** Proporciona **3-4 citas textuales directas entrecomilladas** como evidencia para cada insight principal (aumentado de 2-3 a 3-4)
+
+    9. VOICE OF CUSTOMER (VOC) QUOTES - CRÍTICO:
+       - Extrae 15-20 citas textuales LITERALES más reveladoras (fieles a la redacción)
+       - Clasifica por: Promoters (NPS 9-10), Passives (7-8), Detractors (0-6)
+       - Incluye citas que ejemplifiquen drivers clave y pain points
+       - Formato por elemento: {"marca": "X", "quote": "...", "sentiment": "positivo|neutral|negativo", "insight": "..."}
+
+    10. UNMET NEEDS (Necesidades NO cubiertas):
+       - ¿Qué buscan y NO encuentran en el mercado actual?
+       - Jobs-to-be-done no satisfechos; frustraciones recurrentes con todas las marcas
+       - Oportunidades de innovación detectadas (explica por qué y cómo capitalizarlas)
     
     DEVUELVE JSON ESTRUCTURADO:
     {{
@@ -615,6 +626,20 @@ strategic_agent:
     - Capas: contradicciones, causalidad y sensibilidad temporal (1-3 y 6-12 meses).
     - Salida JSON: respeta el esquema; usa valores vacíos cuando falte evidencia.
 
+    8. FINANCIAL IMPACT ESTIMATION (NUEVO):
+       Para cada oportunidad prioritaria estima y devuelve:
+       - prize_eur_anual: tamaño de premio (€/año)
+       - inversion_requerida_eur: inversión necesaria (€/año o única)
+       - roi_esperado_pct: ROI esperado (%)
+       - payback_meses: meses hasta payback
+       - prob_exito_pct: probabilidad de éxito (%)
+
+    9. SCENARIO PLANNING (NUEVO):
+       Genera 3 escenarios 12-24 meses con drivers e impacto proyectado:
+       - best_case: {"probability": 0.25, "drivers": [...], "impacto": "..."}
+       - base_case: {"probability": 0.5, "drivers": [...], "impacto": "..."}
+       - worst_case: {"probability": 0.25, "drivers": [...], "impacto": "..."}
+
 synthesis_agent:
   task: |
     Eres el Director de Estrategia. Tu trabajo es sintetizar todos los análisis en la narrativa central (el "So What?") de nivel McKinsey.
@@ -742,6 +767,11 @@ executive_agent:
         * **EXIGENCIA DE KPIS:** Debe mencionar AL MENOS 10 KPIs específicos (SOV por marca, sentimiento por marca, tendencias, etc.)
         * Los `hallazgos_clave` (7 bullets obligatorios, no 5-7) sirven de APOYO a la narrativa, no la reemplazan
         * Incluir campo `recomendacion_principal` con **2-3 párrafos desarrollados** (no bullets)
+        * Añade objeto `answer_first` con:
+          {"the_answer": "3-4 líneas con la recomendación principal, concreta y cuantificada",
+           "the_why": "2 párrafos con el porqué, con KPIs/citas",
+           "the_how": "2 párrafos con cómo ejecutar (roadmap 90 días)",
+           "the_impact": "1 párrafo con impacto (revenue, SOV, NPS) y timeline"}
         * CLAVE: Esto debe leerse como una presentación ejecutiva fluida y DENSA, no como un resumen de bullets
     
     2.  **`panorama_mercado`** (NARRATIVA DESARROLLADA PROFUNDA):
@@ -877,6 +907,88 @@ executive_agent:
     - Triangulación: conecta Campañas, Canales, ESG y Packaging en todas las secciones estratégicas.
     - Capas: contradicciones sistémicas, causalidad, priorización por impacto/esfuerzo.
     - Guardrails: SOLO JSON válido; referencias claras a gráficos cuando aplique.
+
+# =====================
+# NUEVOS AGENTES
+# =====================
+
+customer_journey_agent:
+  task: |
+    Eres un consultor de CX. Genera un customer journey map y buyer personas usando las menciones por etapa del funnel.
+
+    CONTEXTO:
+    {contexto}
+
+    ETAPAS A ANALIZAR:
+    - awareness: descubrimiento (¿cómo descubren marcas de {categoria}?)
+    - consideration: evaluación (¿qué comparan?, ¿qué info buscan?)
+    - purchase: compra (¿dónde compran?, momentos de verdad)
+    - retention: repetición (¿por qué repiten?, programas loyalty)
+    - advocacy: recomendación (¿por qué recomiendan?)
+
+    DEVUELVE JSON:
+    {
+      "stages": [
+        {"name": "awareness", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
+        {"name": "consideration", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
+        {"name": "purchase", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
+        {"name": "retention", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
+        {"name": "advocacy", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}
+      ],
+      "buyer_personas": [
+        {"name": "Persona 1", "market_percentage": 0, "demographics": "...", "motivations": "...", "pain_points": "...", "preferred_brands": ["..."]}
+      ],
+      "metadata": {"fragments_analyzed": 0}
+    }
+    IMPORTANTE: SOLO JSON válido, sin markdown.
+
+scenario_planning_agent:
+  task: |
+    Eres un consultor de estrategia. Genera 3 escenarios (best/base/worst) a 12-24 meses con probabilidades, drivers y acciones recomendadas.
+
+    DATOS:
+    {datos_estrategicos}
+
+    DEVUELVE JSON:
+    {
+      "best_case": {"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]},
+      "base_case": {"probability": 0.5, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]},
+      "worst_case": {"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]}
+    }
+    IMPORTANTE: SOLO JSON válido, sin markdown.
+
+pricing_power_agent:
+  task: |
+    Eres un consultor de pricing. Analiza poder de pricing por marca y genera datos para un mapa perceptual (Precio vs Calidad percibida; tamaño=SOV).
+
+    CONTEXTO:
+    {contexto}
+
+    DEVUELVE JSON:
+    {
+      "brand_pricing_metrics": [
+        {"marca": "X", "price_premium_pct": 0, "elasticity_signal": "alta|media|baja", "discounting_frequency": "alta|media|baja"}
+      ],
+      "perceptual_map": [
+        {"marca": "X", "precio": 0.0, "calidad": 0.0, "sov": 0.0}
+      ]
+    }
+    IMPORTANTE: SOLO JSON válido, sin markdown.
+
+roi_agent:
+  task: |
+    Eres un analista financiero de marketing. Calcula ROI/ROAS/CPA y payback a partir de inputs de gasto por campaña/canal, revenue atribuido y margen. Si faltan datos, aplica supuestos explícitos.
+
+    INPUTS:
+    {inputs_financieros}
+
+    DEVUELVE JSON:
+    {
+      "resumen": {"roas": 0.0, "roi_pct": 0.0, "cpa": 0.0, "payback_meses": 0},
+      "por_canal": [{"canal": "X", "gasto": 0.0, "revenue_atr": 0.0, "roi_pct": 0.0}],
+      "supuestos": ["..."]
+    }
+    IMPORTANTE: SOLO JSON válido, sin markdown.
 
 campaign_agent:
   task: |

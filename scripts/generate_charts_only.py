@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """
 Genera únicamente las gráficas (PNG) a partir de análisis ya existentes en BD,
-sin invocar LLMs ni crear PDFs.
 
 Uso:
   python scripts/generate_charts_only.py -c "FMCG/Champagnes" -p "2025-10" [--out DIR]
 """
 
+import sys
+import os
 import argparse
-import base64
+# Fix: Añadir la carpeta raíz del proyecto a sys.path para resolver 'src'
+# Esto permite importar módulos como src.database.connection
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from pathlib import Path
 from typing import Dict, Any
+import base64
 
 from src.database.connection import get_session
 from src.database.models import Mercado, Categoria, AnalysisResult
@@ -28,6 +33,10 @@ def _to_data_uri_bytes(data_uri: str) -> bytes:
     if not data_uri or "," not in data_uri:
         return b""
     try:
+        # Nota: La condición de fallo en la función original puede ser redundante, 
+        # pero se mantiene la lógica de extracción de base64.
+        if "," not in data_uri:
+             return b""
         return base64.b64decode(data_uri.split(",", 1)[1])
     except Exception:
         return b""
@@ -58,8 +67,11 @@ def main():
 
         # Análisis existentes (NO llama a LLM)
         quantitative = _get_analysis(session, categoria.id, periodo, "quantitative")
-        qualitative = _get_analysis(session, categoria.id, periodo, "qualitative") or 
-                      _get_analysis(session, categoria.id, periodo, "qualitativeextraction")
+        # Fix de sintaxis para la continuación de línea (usando paréntesis)
+        qualitative = (
+            _get_analysis(session, categoria.id, periodo, "qualitative") or 
+            _get_analysis(session, categoria.id, periodo, "qualitativeextraction")
+        )
         channel = _get_analysis(session, categoria.id, periodo, "channel_analysis")
         strategic = _get_analysis(session, categoria.id, periodo, "strategic")
         esg = _get_analysis(session, categoria.id, periodo, "esg_analysis")
@@ -144,6 +156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

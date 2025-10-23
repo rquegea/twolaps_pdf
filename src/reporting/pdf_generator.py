@@ -71,6 +71,25 @@ class PDFGenerator:
                 periodo=report.periodo
             )
             
+            # Enriquecer contenido con resultados de agentes adicionales (pricing_power, customer_journey, scenarios, roi)
+            try:
+                from src.database.models import AnalysisResult
+                extra_agents = ['pricing_power', 'customer_journey', 'scenario_planning', 'roi']
+                contenido = report.contenido or {}
+                for agent in extra_agents:
+                    if agent not in contenido:
+                        res = session.query(AnalysisResult).filter_by(
+                            categoria_id=report.categoria_id,
+                            periodo=report.periodo,
+                            agente=agent
+                        ).first()
+                        if res and res.resultado:
+                            contenido[agent] = res.resultado
+                # Actualizar en memoria (no persistimos en BD aquí)
+                report.contenido = contenido
+            except Exception:
+                pass
+
             # Preparar datos para template
             context = self._prepare_context(report, categoria, mercado)
             
@@ -156,6 +175,11 @@ class PDFGenerator:
             'sentimiento_reputacion': contenido.get('sentimiento_reputacion', {}),  # NUEVO narrativo
             'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),  # NUEVO narrativo
             'plan_90_dias': contenido.get('plan_90_dias', {}),  # NUEVO narrativo
+            # NUEVOS BLOQUES: ROI / Escenarios / Customer Journey / Pricing Power
+            'roi': contenido.get('roi', {}),
+            'scenarios': contenido.get('scenario_planning', {}),
+            'customer_journey': contenido.get('customer_journey', {}),
+            'pricing_power': contenido.get('pricing_power', {}),
             'metricas_calidad': report.metricas_calidad or {},
             'charts': charts  # Gráficos en base64
         }

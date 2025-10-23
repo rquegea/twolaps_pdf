@@ -66,6 +66,10 @@ class ExecutiveAgent(BaseAgent):
         channel = self._get_analysis('channel_analysis', categoria_id, periodo)
         esg = self._get_analysis('esg_analysis', categoria_id, periodo)
         packaging = self._get_analysis('packaging_analysis', categoria_id, periodo)
+        # NUEVO: ROI / Escenarios / Journey
+        roi = self._get_analysis('roi', categoria_id, periodo)
+        scenarios = self._get_analysis('scenario_planning', categoria_id, periodo)
+        journey = self._get_analysis('customer_journey', categoria_id, periodo)
         
         # Degradación para primer ciclo: si faltan algunos análisis, generamos un informe mínimo
         missing = []
@@ -109,7 +113,10 @@ class ExecutiveAgent(BaseAgent):
             campaign,
             channel,
             esg,
-            packaging
+            packaging,
+            roi,
+            scenarios,
+            journey
         )
         
         # Generar informe con LLM (tokens aumentados para informe extenso de nivel consultora)
@@ -245,7 +252,10 @@ class ExecutiveAgent(BaseAgent):
         campaign: Dict,
         channel: Dict,
         esg: Dict,
-        packaging: Dict
+        packaging: Dict,
+        roi: Dict,
+        scenarios: Dict,
+        journey: Dict
     ) -> str:
         """Construye el prompt completo con todos los datos (EXPANDIDO para FMCG Premium)"""
         
@@ -304,6 +314,15 @@ ANÁLISIS ESG Y SOSTENIBILIDAD:
 
 ANÁLISIS DE PACKAGING Y DISEÑO:
 {json.dumps(packaging, indent=2) if packaging else 'No disponible'}
+
+ROI DE MARKETING (por canal):
+{json.dumps(roi, indent=2) if roi else 'No disponible'}
+
+ESCENARIOS (12-24 meses):
+{json.dumps(scenarios, indent=2) if scenarios else 'No disponible'}
+
+CUSTOMER JOURNEY:
+{json.dumps(journey, indent=2) if journey else 'No disponible'}
 
 ========================================
 ANÁLISIS ESTRATÉGICO (DAFO, OPORTUNIDADES, RIESGOS):
@@ -394,11 +413,11 @@ Cada uno debe tener 3-7 párrafos sustanciales desarrollando el argumento.
   }},
   
   "plan_90_dias": {{
-    "narrativa_estrategia": "DESARROLLA EN 2-3 PÁRRAFOS: Explica la lógica del plan de acción completo: por qué estas iniciativas, en este orden, para resolver la complicación identificada. Justifica la priorización.",
+    "narrativa_estrategia": "DESARROLLA EN 2-3 PÁRRAFOS: Explica la lógica del plan de acción completo: por qué estas iniciativas, en este orden, para resolver la complicación identificada. Integra hallazgos de ROI para priorizar canales con mejor ROAS/ROI y acciones de optimización (realloc budget, creatividades, landing).",
     "iniciativas": [
       {{
         "titulo": "Iniciativa 1",
-        "descripcion": "QUÉ hacer exactamente (2-3 líneas detalladas, NO bullets)",
+        "descripcion": "QUÉ hacer exactamente (2-3 líneas detalladas, NO bullets). Incluye optimizaciones de marketing basadas en ROI (p.ej., +15% presupuesto en canal con ROAS>2.5, pausar campañas con ROI<0, test A/B creatividades).",
         "por_que": "POR QUÉ hacerlo - vinculado explícitamente a la complicación y datos específicos (2-3 líneas)",
         "como": "CÓMO ejecutarlo con pasos concretos o tácticas (2-3 líneas)",
         "kpi_medicion": "Métrica específica para medir éxito",

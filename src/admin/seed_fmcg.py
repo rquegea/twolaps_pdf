@@ -241,7 +241,7 @@ def seed_champagnes(session, categoria):
         )
         session.add(marca)
     
-    # Queries - 20 queries estratégicas para el mercado del champagne
+    # Queries - estratégicas y cuantitativas para el mercado del champagne
     queries = [
         # Análisis General y Competitivo
         "Describe el posicionamiento percibido de las principales marcas de champagne en 2025. ¿Cuáles son sus fortalezas y debilidades clave según los consumidores?",
@@ -272,6 +272,37 @@ def seed_champagnes(session, categoria):
         "¿Cuáles son las principales tendencias emergentes en el mundo del champagne para 2025-2026 (ej. orgánico, bajo dosaje, nuevos formatos)?",
         "¿Qué se dice sobre la sostenibilidad (prácticas vitícolas, packaging ecológico, huella de carbono) en relación con las grandes casas de champagne? ¿Es un factor de decisión importante?",
         "¿Qué innovaciones (en producto, packaging o experiencia) podrían transformar el mercado del champagne en los próximos años?",
+
+        # Sizing & Benchmarks (cuantitativas)
+        "¿Cuál es el tamaño del mercado de champagne en España en 2024? (en millones de euros y botellas)",
+        "¿Cuál es la tasa de crecimiento anual (CAGR) del mercado de champagne 2024-2028? Cita fuentes.",
+        "¿Cuál es la cuota de mercado real de Moët & Chandon vs Veuve Clicquot según fuentes externas (Kantar/Nielsen/estudios)?",
+        "¿Cuál es el precio medio de una botella de champagne en España y cómo varía por canal (retail vs online vs horeca)?",
+
+        # Customer Journey
+        "¿Dónde buscan información los consumidores antes de comprar champagne? (Google, RRSS, recomendaciones)",
+        "¿Cuánto tiempo pasa desde consideración a compra en champagne (buyer journey)?",
+        "¿Qué hace que recomienden un champagne específico a amigos/familiares?",
+
+        # Segmentación
+        "¿Quiénes son los heavy buyers de champagne en España? (perfil demográfico y psicográfico)",
+        "¿Qué segmento está creciendo más: jóvenes, corporativo, lujo?",
+        "¿Cuál es el ticket promedio de compra por ocasión (celebración, regalo, horeca)?",
+
+        # Competitive Moats
+        "¿Qué barreras de entrada existen para competir contra Moët o Veuve Clicquot? (escala, distribución, marca)",
+        "¿Qué tan leales son los consumidores a una marca específica de champagne? ¿Qué genera switching?",
+        "¿Existen patentes, procesos o ventajas exclusivas relevantes en champagne?",
+
+        # Pricing Power
+        "¿Los consumidores perciben que el precio del champagne premium está justificado? ¿Por qué?",
+        "¿Cuál es el precio psicológico máximo por botella en segmentos clave?",
+        "¿Se percibe sobrevalorado frente a espumosos alternativos? (prosecco/cava)",
+
+        # Riesgos
+        "¿Qué amenazas enfrenta el mercado de champagne en los próximos años? (inflación, sustitutos, regulación)",
+        "¿Está el prosecco o cava ganando terreno al champagne en ciertas ocasiones? Evidencia",
+        "¿Cómo impacta la inflación y el poder adquisitivo en el consumo de champagne?",
     ]
     
     for pregunta in queries:

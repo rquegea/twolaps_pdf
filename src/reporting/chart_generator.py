@@ -669,6 +669,227 @@ class ChartGenerator:
         plt.tight_layout()
         
         return self._fig_to_base64(fig)
+
+    def generate_perceptual_map(self, brands: List[Dict[str, Any]]) -> str:
+        """
+        Genera mapa perceptual 2D: Eje X (Precio), Eje Y (Calidad percibida)
+        Cada marca como burbuja con tamaño = SOV (%), color por cuadrante.
+
+        Args:
+            brands: Lista de dicts con claves: marca, precio (0-100), calidad (0-100), sov (0-100)
+
+        Returns:
+            String base64 del gráfico
+        """
+        if not brands:
+            return None
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        nombres = [b.get('marca', '') for b in brands]
+        precios = [float(b.get('precio', 0)) for b in brands]
+        calidades = [float(b.get('calidad', 0)) for b in brands]
+        sovs = [max(float(b.get('sov', 0)), 0.1) for b in brands]
+
+        # Tamaño proporcional al SOV (escala 50-1200)
+        sizes = [50 + (sov / max(max(sovs), 1)) * 1150 for sov in sovs]
+
+        # Líneas medianas para cuadrantes
+        x_med = np.median(precios) if precios else 50
+        y_med = np.median(calidades) if calidades else 50
+
+        colors = []
+        for x, y in zip(precios, calidades):
+            if x >= x_med and y >= y_med:
+                colors.append(SUCCESS_COLOR)  # Premium percibido alto, precio alto
+            elif x < x_med and y >= y_med:
+                colors.append(BRAND_COLOR)    # Valor superior (calidad alta, precio bajo)
+            elif x >= x_med and y < y_med:
+                colors.append(DANGER_COLOR)   # Riesgo (precio alto, calidad baja)
+            else:
+                colors.append(NEUTRAL_COLOR)  # Económico (precio bajo, calidad baja)
+
+        ax.scatter(precios, calidades, s=sizes, c=colors, alpha=0.6, edgecolors='white', linewidth=2)
+
+        for i, name in enumerate(nombres):
+            ax.annotate(name, (precios[i], calidades[i]), fontsize=10, fontweight='bold', ha='center', va='bottom')
+
+        # Cuadrantes
+        ax.axvline(x=x_med, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+        ax.axhline(y=y_med, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+
+        ax.text(x_med + (100 - x_med) * 0.5, y_med + (100 - y_med) * 0.7, 'PREMIUM',
+                fontsize=11, ha='center', fontweight='bold', color=SUCCESS_COLOR, alpha=0.7)
+        ax.text(x_med * 0.5, y_med + (100 - y_med) * 0.7, 'VALOR',
+                fontsize=11, ha='center', fontweight='bold', color=BRAND_COLOR, alpha=0.7)
+        ax.text(x_med + (100 - x_med) * 0.5, y_med * 0.5, 'RIESGO',
+                fontsize=11, ha='center', fontweight='bold', color=DANGER_COLOR, alpha=0.7)
+        ax.text(x_med * 0.5, y_med * 0.5, 'ECONÓMICO',
+                fontsize=11, ha='center', fontweight='bold', color=NEUTRAL_COLOR, alpha=0.7)
+
+        ax.set_xlabel('Precio percibido (0-100)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Calidad percibida (0-100)', fontsize=12, fontweight='bold')
+        ax.set_title('Mapa Perceptual: Precio vs Calidad (Tamaño = SOV)', fontsize=14, fontweight='bold', pad=20)
+        ax.set_xlim(0, 100)
+        ax.set_ylim(0, 100)
+        ax.grid(True, alpha=0.2, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Leyenda de tamaños
+        legend_sizes = [min(max(sovs), 5), max(np.median(sovs), 10), max(sovs)]
+        legend_sizes = [max(ls, 1) for ls in legend_sizes]
+        legend_markers = [plt.scatter([], [], s=50 + (ls / max(max(sovs), 1)) * 1150, c='gray', alpha=0.5, edgecolors='white', linewidth=2)
+                          for ls in legend_sizes]
+        legend_labels = [f'SOV {ls:.0f}%' for ls in legend_sizes]
+        ax.legend(legend_markers, legend_labels, title='Tamaño burbuja', loc='upper left', framealpha=0.9, fontsize=9)
+
+        plt.tight_layout()
+        return self._fig_to_base64(fig)
+
+    def generate_waterfall_chart(self, steps: List[Dict[str, Any]]) -> str:
+        """
+        Genera un Waterfall Chart para explicar cambios en SOV entre periodos.
+
+        Args:
+            steps: lista de pasos [{label: str, value: float, type: 'start'|'delta'|'end'}]
+                   Ej: [{"label": "Q3", "value": 35, "type": "start"},
+                        {"label": "Campaña +TV", "value": +3, "type": "delta"},
+                        {"label": "Pérdida retail", "value": -1, "type": "delta"},
+                        {"label": "Q4", "value": 37, "type": "end"}]
+
+        Returns:
+            String base64 del gráfico
+        """
+        if not steps or not isinstance(steps, list):
+            return None
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+
+        labels = [s.get('label', '') for s in steps]
+        types = [s.get('type', 'delta') for s in steps]
+        values = [float(s.get('value', 0)) for s in steps]
+
+        # Calcular posiciones y alturas
+        running = []
+        total = 0.0
+        start_val = None
+        for t, v in zip(types, values):
+            if t == 'start':
+                start_val = v
+                total = v
+                running.append(total)
+            elif t == 'delta':
+                total += v
+                running.append(total)
+            else:
+                # end: aseguramos coherencia si no coincide
+                if start_val is not None and abs(total - v) > 0.01:
+                    total = v
+                running.append(total)
+
+        bars = []
+        cumulative = start_val if start_val is not None else 0.0
+        for idx, (t, v) in enumerate(zip(types, values)):
+            if t == 'start':
+                bars.append((cumulative, v - 0))
+                cumulative = v
+            elif t == 'delta':
+                bars.append((min(cumulative, cumulative + v), abs(v)))
+                cumulative += v
+            else:  # end
+                bars.append((0, cumulative))
+
+        colors = []
+        for t, v in zip(types, values):
+            if t == 'start' or t == 'end':
+                colors.append(NEUTRAL_COLOR)
+            else:
+                colors.append(SUCCESS_COLOR if v >= 0 else DANGER_COLOR)
+
+        x = np.arange(len(steps))
+        for i, ((y0, height), color) in enumerate(zip(bars, colors)):
+            ax.bar(x[i], height, bottom=y0, width=0.6, color=color, edgecolor='white', linewidth=1.5)
+            # etiqueta de valor
+            val = values[i] if types[i] == 'delta' else bars[i][0] + bars[i][1]
+            ax.text(x[i], y0 + height + 0.8, f"{val:+.1f}%" if types[i] == 'delta' else f"{val:.1f}%",
+                    ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=30, ha='right')
+        ax.set_ylabel('Share of Voice (%)', fontsize=12, fontweight='bold')
+        ax.set_title('Waterfall de cambios en SOV', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(True, axis='y', alpha=0.2, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+        return self._fig_to_base64(fig)
+
+    def generate_bcg_matrix(self, brands_metrics: Dict[str, Dict[str, Any]]) -> str:
+        """
+        Genera BCG Matrix: Market Share (X) vs Growth Rate (Y)
+
+        Args:
+            brands_metrics: { marca: {market_share: float, growth_rate: float, size: float?} }
+
+        Returns:
+            String base64 del gráfico
+        """
+        if not brands_metrics:
+            return None
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        marcas = list(brands_metrics.keys())
+        shares = [float(brands_metrics[m].get('market_share', 0)) for m in marcas]
+        growths = [float(brands_metrics[m].get('growth_rate', 0)) for m in marcas]
+        sizes = [float(brands_metrics[m].get('size', max(shares))) for m in marcas]
+
+        # Escalar tamaños (50-1200)
+        max_size = max(sizes) if sizes else 1
+        bubble_sizes = [50 + (s / max_size) * 1150 for s in sizes]
+
+        # Medianas para cuadrantes
+        x_med = np.median(shares) if shares else 10
+        y_med = np.median(growths) if growths else 0
+
+        colors = []
+        for s, g in zip(shares, growths):
+            if s >= x_med and g >= y_med:
+                colors.append(SUCCESS_COLOR)  # Stars
+            elif s >= x_med and g < y_med:
+                colors.append(BRAND_COLOR)    # Cash Cows
+            elif s < x_med and g >= y_med:
+                colors.append(WARNING_COLOR)  # Question Marks
+            else:
+                colors.append(NEUTRAL_COLOR)  # Dogs
+
+        ax.scatter(shares, growths, s=bubble_sizes, c=colors, alpha=0.6, edgecolors='white', linewidth=2)
+
+        for i, m in enumerate(marcas):
+            ax.annotate(m, (shares[i], growths[i]), fontsize=10, fontweight='bold', ha='center', va='bottom')
+
+        # Cuadrantes
+        ax.axvline(x=x_med, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+        ax.axhline(y=y_med, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+
+        max_x = max(shares) if shares else 50
+        max_y = max(growths) if growths else 20
+        ax.text(x_med + (max_x - x_med) * 0.5, y_med + (max_y - y_med) * 0.8, 'STARS', fontsize=11, ha='center', fontweight='bold', color=SUCCESS_COLOR, alpha=0.7)
+        ax.text(x_med + (max_x - x_med) * 0.5, y_med * 0.6, 'CASH COWS', fontsize=11, ha='center', fontweight='bold', color=BRAND_COLOR, alpha=0.7)
+        ax.text(x_med * 0.5, y_med + (max_y - y_med) * 0.8, 'QUESTION MARKS', fontsize=11, ha='center', fontweight='bold', color=WARNING_COLOR, alpha=0.7)
+        ax.text(x_med * 0.5, y_med * 0.6, 'DOGS', fontsize=11, ha='center', fontweight='bold', color=NEUTRAL_COLOR, alpha=0.7)
+
+        ax.set_xlabel('Cuota (Share) %', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Crecimiento (%)', fontsize=12, fontweight='bold')
+        ax.set_title('Matriz BCG (Share vs Growth)', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(True, alpha=0.2, linestyle='--')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+        return self._fig_to_base64(fig)
     
     def generate_esg_leadership_scatter(self, esg_data: Dict[str, Dict[str, Any]]) -> str:
         """
@@ -965,6 +1186,10 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     
     if risks:
         charts['risk_matrix'] = generator.generate_risk_matrix(risks)
+
+    # Waterfall SOV (si hay pasos disponibles)
+    if competencia.get('sov_waterfall') and isinstance(competencia['sov_waterfall'], list):
+        charts['waterfall_chart'] = generator.generate_waterfall_chart(competencia['sov_waterfall'])
     
     # Timeline
     plan = report_data.get('plan_90_dias', {})
@@ -1045,6 +1270,37 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
         
         if len(esg_combined) >= 2:  # Solo generar si hay al menos 2 marcas
             charts['esg_leadership'] = generator.generate_esg_leadership_scatter(esg_combined)
+
+    # Perceptual Map (Precio vs Calidad, tamaño=SOV)
+    pricing_power = report_data.get('pricing_power', {})
+    pm_data = pricing_power.get('perceptual_map') if isinstance(pricing_power, dict) else None
+    if isinstance(pm_data, list) and len(pm_data) >= 2:
+        charts['perceptual_map'] = generator.generate_perceptual_map(pm_data)
+
+    # BCG Matrix (derivar si no se provee explícitamente)
+    bcg_metrics = report_data.get('bcg_metrics')
+    if not bcg_metrics:
+        # Intentar construir a partir de SOV y su tendencia (dos últimos puntos)
+        sov_now = competencia.get('sov_data') or {}
+        sov_trend = competencia.get('sov_trend_data') or {}
+        derived = {}
+        if isinstance(sov_now, dict):
+            for marca, share in sov_now.items():
+                growth = 0.0
+                if isinstance(sov_trend, dict) and marca in sov_trend and len(sov_trend[marca]) >= 2:
+                    last = sov_trend[marca][-1].get('sov', 0)
+                    prev = sov_trend[marca][-2].get('sov', 0) or 0
+                    denom = prev if abs(prev) > 1e-6 else max(last, 1)
+                    growth = ((last - prev) / denom) * 100
+                derived[marca] = {
+                    'market_share': float(share),
+                    'growth_rate': float(growth),
+                    'size': float(share)
+                }
+        bcg_metrics = derived
+
+    if isinstance(bcg_metrics, dict) and len(bcg_metrics) >= 2:
+        charts['bcg_matrix'] = generator.generate_bcg_matrix(bcg_metrics)
     
     return charts
 

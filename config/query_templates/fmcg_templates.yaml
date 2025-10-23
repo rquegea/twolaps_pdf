@@ -138,6 +138,20 @@ ejemplos:
       - "¿Cuál es el champagne más exclusivo?"
       - "¿Qué champagne recomendarías para una boda?"
       - "¿Cuál es el mejor champagne para brindis?"
+      # Cuantitativas y benchmarks
+      - "¿Cuál es el tamaño del mercado de champagne en España en 2024? (millones de euros y botellas)"
+      - "¿Cuál es el CAGR del mercado de champagne 2024-2028? Cita fuentes."
+      - "¿Cuál es la cuota de mercado real de Moët & Chandon vs Veuve Clicquot según estudios?"
+      - "¿Cuál es el precio medio por botella y cómo varía por canal?"
+      # Journey y segmentación
+      - "¿Dónde buscan info los consumidores antes de comprar champagne?"
+      - "¿Tiempo medio de consideración a compra en champagne?"
+      - "¿Quiénes son heavy buyers de champagne en España? (perfil)"
+      - "¿Qué segmento crece más: jóvenes, corporativo o lujo?"
+      # Pricing y moats
+      - "¿Está justificado el precio del champagne premium? ¿Por qué?"
+      - "¿Precio psicológico máximo por botella en segmentos clave?"
+      - "¿Barreras de entrada para competir con casas líderes?"
   
   galletas:
     producto: "galleta"

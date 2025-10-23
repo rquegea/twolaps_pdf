@@ -19,7 +19,11 @@ from src.analytics.agents import (
     ChannelAnalysisAgent,
     ESGAnalysisAgent,
     PackagingAnalysisAgent,
-    TransversalAgent
+    TransversalAgent,
+    CustomerJourneyAgent,
+    ScenarioPlanningAgent,
+    PricingPowerAgent,
+    ROIAgent
 )
 from src.utils.logger import setup_logger, log_agent_analysis
 
@@ -38,10 +42,14 @@ class AnalysisOrchestrator:
             ('qualitative', QualitativeExtractionAgent),
             ('competitive', CompetitiveAgent),
             ('trends', TrendsAgent),
+            ('customer_journey', CustomerJourneyAgent),          # NUEVO: Customer Journey
+            ('scenario_planning', ScenarioPlanningAgent),        # NUEVO: Escenarios
             ('campaign_analysis', CampaignAnalysisAgent),      # NUEVO: Análisis de campañas
             ('channel_analysis', ChannelAnalysisAgent),        # NUEVO: Análisis de canales
             ('esg_analysis', ESGAnalysisAgent),                # NUEVO: Análisis ESG
             ('packaging_analysis', PackagingAnalysisAgent),    # NUEVO: Análisis packaging
+            ('pricing_power', PricingPowerAgent),              # NUEVO: Pricing & mapa perceptual
+            ('roi', ROIAgent),                                 # NUEVO: ROI campañas/canales
             ('strategic', StrategicAgent),
             ('transversal', TransversalAgent),
             ('synthesis', SynthesisAgent),

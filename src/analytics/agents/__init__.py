@@ -14,6 +14,10 @@ from src.analytics.agents.channel_analysis_agent import ChannelAnalysisAgent
 from src.analytics.agents.esg_analysis_agent import ESGAnalysisAgent
 from src.analytics.agents.packaging_analysis_agent import PackagingAnalysisAgent
 from src.analytics.agents.transversal_agent import TransversalAgent
+from src.analytics.agents.customer_journey_agent import CustomerJourneyAgent
+from src.analytics.agents.scenario_planning_agent import ScenarioPlanningAgent
+from src.analytics.agents.pricing_power_agent import PricingPowerAgent
+from src.analytics.agents.roi_agent import ROIAgent
 
 __all__ = [
     'BaseAgent',
@@ -28,6 +32,10 @@ __all__ = [
     'ChannelAnalysisAgent',
     'ESGAnalysisAgent',
     'PackagingAnalysisAgent',
-    'TransversalAgent'
+    'TransversalAgent',
+    'CustomerJourneyAgent',
+    'ScenarioPlanningAgent',
+    'PricingPowerAgent',
+    'ROIAgent'
 ]
 

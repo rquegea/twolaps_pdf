@@ -65,6 +65,30 @@
     <div class="seccion executive-summary-highlight">
         <h1 class="seccion-titulo">Resumen Ejecutivo</h1>
         
+        {% if resumen_ejecutivo.answer_first %}
+        <div class="answer-first-box">
+            <h2>La Respuesta</h2>
+            <div class="answer-box">
+                <div class="answer-icon">💡</div>
+                <p class="answer-text">{{ resumen_ejecutivo.answer_first.the_answer }}</p>
+            </div>
+            <div class="answer-details">
+                {% if resumen_ejecutivo.answer_first.the_why %}
+                <h3>¿Por qué?</h3>
+                <p>{{ resumen_ejecutivo.answer_first.the_why|safe|replace('\n', '<br>') }}</p>
+                {% endif %}
+                {% if resumen_ejecutivo.answer_first.the_how %}
+                <h3>¿Cómo?</h3>
+                <p>{{ resumen_ejecutivo.answer_first.the_how|safe|replace('\n', '<br>') }}</p>
+                {% endif %}
+                {% if resumen_ejecutivo.answer_first.the_impact %}
+                <h3>Impacto Esperado</h3>
+                <p>{{ resumen_ejecutivo.answer_first.the_impact|safe|replace('\n', '<br>') }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if resumen_ejecutivo.recomendacion_principal %}
         <div class="recommendation-box">
             <div class="rec-title">Recomendación Principal</div>
@@ -211,6 +235,14 @@
             </div>
         </div>
         {% endif %}
+        {% if charts.waterfall_chart %}
+        <div class="chart-container">
+            <img src="{{ charts.waterfall_chart }}" alt="Waterfall SOV" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 4: Waterfall de cambios en SOV por drivers
+            </div>
+        </div>
+        {% endif %}
         
         {# NUEVO: Narrativa de dinámica competitiva - contenido principal #}
         {% if analisis_competitivo.narrativa_dinamica %}
@@ -262,7 +294,7 @@
         <div class="chart-container">
             <img src="{{ charts.attribute_radar }}" alt="Radar de Atributos" class="chart-img">
             <div class="chart-caption">
-                Gráfico 8: Radar de atributos percibidos por marca
+                Gráfico 9: Radar de atributos percibidos por marca
             </div>
         </div>
         {% endif %}
@@ -335,7 +367,24 @@
         <div class="chart-container">
             <img src="{{ charts.channel_penetration }}" alt="Penetración por Canal" class="chart-img">
             <div class="chart-caption">
-                Gráfico 9: Penetración por canal de distribución por marca
+                Gráfico 10: Penetración por canal de distribución por marca
+            </div>
+        </div>
+        {% endif %}
+
+        {% if charts.perceptual_map %}
+        <div class="chart-container">
+            <img src="{{ charts.perceptual_map }}" alt="Mapa Perceptual" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 11: Mapa perceptual Precio vs Calidad (tamaño = SOV)
+            </div>
+        </div>
+        {% endif %}
+        {% if charts.bcg_matrix %}
+        <div class="chart-container">
+            <img src="{{ charts.bcg_matrix }}" alt="Matriz BCG" class="chart-img">
+            <div class="chart-caption">
+                Gráfico 12: Matriz BCG (Share vs Growth)
             </div>
         </div>
         {% endif %}
@@ -527,6 +576,23 @@
     </div>
     {% endif %}
 
+    <!-- CUSTOMER JOURNEY -->
+    {% if customer_journey and customer_journey.stages %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">Customer Journey</h1>
+        <div class="journey-stages">
+            {% for stage in customer_journey.stages %}
+            <div class="stage-box">
+                <h3>{{ stage.name }}</h3>
+                {% if stage.pain_points %}<p><strong>Pain Points:</strong> {{ stage.pain_points }}</p>{% endif %}
+                {% if stage.touchpoints %}<p><strong>Touchpoints:</strong> {{ stage.touchpoints }}</p>{% endif %}
+                {% if stage.insights %}<p><strong>Insights:</strong> {{ stage.insights }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- SENTIMIENTO Y REPUTACIÓN - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Sentimiento y Reputación</h1>
@@ -664,6 +730,82 @@
         {% endif %}
     </div>
 
+    <!-- ESCENARIOS FUTUROS -->
+    {% if scenarios %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">Escenarios Futuros (12-24 meses)</h1>
+        <div class="scenario-grid">
+            {% if scenarios.best_case %}
+            <div class="scenario best-case">
+                <h3>🌟 Best Case ({{ scenarios.best_case.probability }})</h3>
+                {% if scenarios.best_case.description %}<p>{{ scenarios.best_case.description }}</p>{% endif %}
+                {% if scenarios.best_case.drivers %}
+                <ul>
+                    {% for driver in scenarios.best_case.drivers %}
+                    <li>{{ driver }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if scenarios.best_case.impact %}
+                <div class="scenario-impact">Impacto: {{ scenarios.best_case.impact }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if scenarios.base_case %}
+            <div class="scenario base-case">
+                <h3>📈 Base Case ({{ scenarios.base_case.probability }})</h3>
+                {% if scenarios.base_case.description %}<p>{{ scenarios.base_case.description }}</p>{% endif %}
+                {% if scenarios.base_case.drivers %}
+                <ul>
+                    {% for driver in scenarios.base_case.drivers %}
+                    <li>{{ driver }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if scenarios.base_case.impact %}
+                <div class="scenario-impact">Impacto: {{ scenarios.base_case.impact }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if scenarios.worst_case %}
+            <div class="scenario worst-case">
+                <h3>⚠️ Worst Case ({{ scenarios.worst_case.probability }})</h3>
+                {% if scenarios.worst_case.description %}<p>{{ scenarios.worst_case.description }}</p>{% endif %}
+                {% if scenarios.worst_case.drivers %}
+                <ul>
+                    {% for driver in scenarios.worst_case.drivers %}
+                    <li>{{ driver }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if scenarios.worst_case.impact %}
+                <div class="scenario-impact">Impacto: {{ scenarios.worst_case.impact }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ROI DE MARKETING -->
+    {% if roi and roi.resumen %}
+    <div class="seccion">
+        <h1 class="seccion-titulo">ROI de Marketing</h1>
+        <p><strong>Resumen:</strong> ROAS {{ roi.resumen.roas|round(2) }}, ROI {{ roi.resumen.roi_pct|round(1) }}%, CPA {% if roi.resumen.cpa %}{{ roi.resumen.cpa|round(2) }}{% else %}N/A{% endif %}, Payback {{ roi.resumen.payback_meses }} meses</p>
+        {% if roi.por_canal %}
+        <ul>
+            {% for canal in roi.por_canal %}
+            <li>
+                <strong>{{ canal.canal }}:</strong> gasto {{ canal.gasto }}, revenue {{ canal.revenue_atr }}, ROAS {{ canal.roas|round(2) }}, ROI {{ canal.roi_pct|round(1) }}%, {% if canal.cpa %}CPA {{ canal.cpa|round(2) }}, {% endif %}payback {{ canal.payback_meses }}m
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if roi.supuestos %}
+        <p><em>Supuestos:</em> {{ roi.supuestos }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
     <!-- PLAN DE ACCIÓN 90 DÍAS - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Plan de Acción 90 Días</h1>

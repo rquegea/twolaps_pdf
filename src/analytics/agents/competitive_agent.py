@@ -61,6 +61,22 @@ class CompetitiveAgent(BaseAgent):
                     'razon': f"Alto SOV ({sov_val:.1f}%) pero sentimiento bajo ({sent_val:.2f})"
                 })
         
+        # Moats y brand equity (borrador basado en datos disponibles)
+        moats = []
+        for marca in sov.keys():
+            moat_entry = {
+                'marca': marca,
+                'barreras_entrada': [],
+                'switching_costs': [],
+                'network_effects': [],
+                'brand_equity': {
+                    'reconocimiento': 'N/A',
+                    'lealtad': 'N/A',
+                    'premium_power': 'N/A'
+                }
+            }
+            moats.append(moat_entry)
+
         resultado = {
             'periodo': periodo,
             'categoria_id': categoria_id,
@@ -74,7 +90,8 @@ class CompetitiveAgent(BaseAgent):
                     'posicion': 'lider' if marca == lider else 'seguidor'
                 }
                 for marca in sov.keys()
-            }
+            },
+            'moats': moats
         }
         
         self.save_results(categoria_id, periodo, resultado)
