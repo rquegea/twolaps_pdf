@@ -6,9 +6,10 @@ Comandos de administración para gestionar mercados, categorías, queries y marc
 import click
 import json
 from datetime import datetime
+from sqlalchemy import extract
 from tabulate import tabulate
 from src.database.connection import get_session
-from src.database.models import Mercado, Categoria, Query, Marca, QueryExecution, BrandCandidate
+from src.database.models import Mercado, Categoria, Query, Marca, QueryExecution, BrandCandidate, Embedding, AnalysisResult, Report
 from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import setup_logger
 
@@ -301,6 +302,85 @@ def show_queries(category, show_all):
                 click.echo(f"  Nunca ejecutada")
             
             click.echo("")
+
+
+@admin.command()
+@click.option('--category', '-c', required=True, help='Categoría (formato: Mercado/Categoría)')
+@click.option('--period', '-p', required=True, help='Periodo específico (YYYY-MM)')
+def clean_period(category, period):
+    """Borrar datos de UN período: ejecuciones, embeddings, análisis y reportes"""
+    # Validar periodo
+    try:
+        if len(period) != 7 or period[4] != '-':
+            raise ValueError
+        year, month = map(int, period.split('-'))
+    except Exception:
+        click.echo("✗ Formato de periodo incorrecto. Usa: YYYY-MM (ej: 2025-10)", err=True)
+        return
+
+    with get_session() as session:
+        # Parsear categoría
+        try:
+            market_name, cat_name = category.split('/')
+        except ValueError:
+            click.echo("✗ Formato de categoría inválido. Usa: Mercado/Categoría", err=True)
+            return
+
+        # Buscar categoría
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            return
+
+        categoria = session.query(Categoria).filter_by(
+            mercado_id=mercado.id,
+            nombre=cat_name
+        ).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            return
+
+        click.echo(f"🧹 Limpiando periodo {period} de {category} ...")
+
+        # 1) Borrar embeddings del periodo (cualquier tipo)
+        deleted_embeddings = session.query(Embedding).filter_by(
+            categoria_id=categoria.id,
+            periodo=period
+        ).delete(synchronize_session=False)
+
+        # 2) Borrar AnalysisResult y Report del periodo
+        deleted_analysis = session.query(AnalysisResult).filter_by(
+            categoria_id=categoria.id,
+            periodo=period
+        ).delete(synchronize_session=False)
+
+        deleted_reports = session.query(Report).filter_by(
+            categoria_id=categoria.id,
+            periodo=period
+        ).delete(synchronize_session=False)
+
+        # 3) Borrar QueryExecutions del periodo
+        exec_ids = [row.id for row in session.query(QueryExecution.id)
+                    .join(Query, QueryExecution.query_id == Query.id)
+                    .filter(
+                        Query.categoria_id == categoria.id,
+                        extract('year', QueryExecution.timestamp) == year,
+                        extract('month', QueryExecution.timestamp) == month
+                    ).all()]
+
+        deleted_executions = 0
+        if exec_ids:
+            deleted_executions = session.query(QueryExecution).filter(
+                QueryExecution.id.in_(exec_ids)
+            ).delete(synchronize_session=False)
+
+        session.commit()
+
+        click.echo("✅ Limpieza de periodo completada:")
+        click.echo(f"   - Embeddings borrados: {deleted_embeddings}")
+        click.echo(f"   - Análisis borrados:  {deleted_analysis}")
+        click.echo(f"   - Reportes borrados:  {deleted_reports}")
+        click.echo(f"   - Ejecuciones borradas: {deleted_executions}")
 
 
 @admin.command()

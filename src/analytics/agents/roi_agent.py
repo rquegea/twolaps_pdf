@@ -3,7 +3,9 @@ ROI Agent
 Calcula ROI/ROAS/CPA y payback por campaña/canal con modo de datos parciales
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from pathlib import Path
+import json
 from src.analytics.agents.base_agent import BaseAgent
 
 
@@ -25,8 +27,10 @@ class ROIAgent(BaseAgent):
         self.agent_name = 'roi'
 
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
-        # Obtener inputs si existen desde AnalysisResult previo (clave 'roi_inputs') o vacío
-        inputs = self._get_analysis('roi_inputs', categoria_id, periodo) or {}
+        # Obtener inputs desde archivo JSON (data/roi/{mercado}/{categoria}/{periodo}.json) o AnalysisResult('roi_inputs')
+        inputs = self._load_inputs_from_file(categoria_id, periodo)
+        if not inputs:
+            inputs = self._get_analysis('roi_inputs', categoria_id, periodo) or {}
         por_canal = inputs.get('por_canal', []) if isinstance(inputs, dict) else []
         supuestos = inputs.get('supuestos', []) if isinstance(inputs, dict) else []
 
@@ -114,5 +118,56 @@ class ROIAgent(BaseAgent):
             agente=agent_name
         ).first()
         return result.resultado if result else {}
+
+    def _load_inputs_from_file(self, categoria_id: int, periodo: str) -> Optional[Dict[str, Any]]:
+        """
+        Intenta leer inputs de ROI desde un archivo JSON en data/roi/{mercado}/{categoria}/{periodo}.json
+        Valida un esquema mínimo y normaliza tipos.
+        """
+        try:
+            # Resolver mercado y categoría
+            from src.database.models import Categoria, Mercado
+            categoria = self.session.query(Categoria).get(categoria_id)
+            if not categoria:
+                return None
+            mercado = self.session.query(Mercado).get(categoria.mercado_id)
+            market_name = (mercado.nombre or 'FMCG').replace(' ', '_')
+            cat_name = (categoria.nombre or 'Categoria').replace(' ', '_')
+            roi_path = Path(f"data/roi/{market_name}/{cat_name}/{periodo}.json")
+            if not roi_path.exists():
+                return None
+            with roi_path.open('r', encoding='utf-8') as f:
+                data = json.load(f)
+            # Validar esquema mínimo
+            por_canal = data.get('por_canal')
+            if not isinstance(por_canal, list):
+                return None
+            normalized = []
+            for item in por_canal:
+                if not isinstance(item, dict):
+                    continue
+                canal = str(item.get('canal', 'N/A'))
+                gasto = float(item.get('gasto', 0) or 0)
+                revenue_atr = float(item.get('revenue_atr', 0) or 0)
+                conversions = int(item.get('conversions', 0) or 0)
+                margen_pct = float(item.get('margen_pct', 0.35) or 0.35)
+                if gasto < 0 or revenue_atr < 0 or conversions < 0 or not (0 <= margen_pct <= 1):
+                    # Valores inválidos: descartar entrada
+                    continue
+                normalized.append({
+                    'canal': canal,
+                    'gasto': gasto,
+                    'revenue_atr': revenue_atr,
+                    'conversions': conversions,
+                    'margen_pct': margen_pct
+                })
+            if not normalized:
+                return None
+            return {
+                'por_canal': normalized,
+                'supuestos': data.get('supuestos', []) if isinstance(data.get('supuestos'), list) else []
+            }
+        except Exception:
+            return None
 
 

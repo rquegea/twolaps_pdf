@@ -575,23 +575,74 @@
         {% endif %}
     </div>
     {% endif %}
-
-    <!-- CUSTOMER JOURNEY -->
-    {% if customer_journey and customer_journey.stages %}
+    
+    <!-- CUSTOMER JOURNEY & BUYER PERSONAS -->
     <div class="seccion">
-        <h1 class="seccion-titulo">Customer Journey</h1>
-        <div class="journey-stages">
-            {% for stage in customer_journey.stages %}
-            <div class="stage-box">
-                <h3>{{ stage.name }}</h3>
-                {% if stage.pain_points %}<p><strong>Pain Points:</strong> {{ stage.pain_points }}</p>{% endif %}
-                {% if stage.touchpoints %}<p><strong>Touchpoints:</strong> {{ stage.touchpoints }}</p>{% endif %}
-                {% if stage.insights %}<p><strong>Insights:</strong> {{ stage.insights }}</p>{% endif %}
+        <h1 class="seccion-titulo">Customer Journey & Buyer Personas</h1>
+
+        {% if customer_journey %}
+            <h2>Customer Journey Map</h2>
+            {% if charts.customer_journey_map_image %}
+            <div class="chart-container">
+                <img src="{{ charts.customer_journey_map_image }}" class="chart-img">
+                <div class="chart-caption">Mapa del Customer Journey</div>
+            </div>
+            {% endif %}
+
+            {% if customer_journey.stages %}
+            <div class="journey-stages">
+                {% for stage in customer_journey.stages %}
+                <div class="stage-box">
+                    <h3>{{ stage.name }}</h3>
+                    {% if stage.pain_points %}<p><strong>Pain Points:</strong> {{ stage.pain_points | join(', ') if stage.pain_points is iterable else stage.pain_points }}</p>{% endif %}
+                    {% if stage.touchpoints %}<p><strong>Touchpoints:</strong> {{ stage.touchpoints | join(', ') if stage.touchpoints is iterable else stage.touchpoints }}</p>{% endif %}
+                    {% if stage.insights %}<p><strong>Insights:</strong> {{ stage.insights }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endif %}
+
+        {% if buyer_personas %}
+            <h2>Buyer Personas</h2>
+            {% for persona in buyer_personas %}
+            <div class="persona-card">
+                <div class="persona-header">
+                    <h3>{{ persona.name }}{% if persona.segment_name %} ({{ persona.segment_name }}){% endif %}</h3>
+                    {% if persona.market_percentage %}
+                    <span class="persona-size">{{ persona.market_percentage }}% del mercado</span>
+                    {% endif %}
+                </div>
+                <div class="persona-details">
+                    {% if persona.demographics %}<p><strong>Demografía:</strong> {{ persona.demographics }}</p>{% endif %}
+                    {% if persona.motivations %}<p><strong>Motivaciones:</strong> {{ persona.motivations | join(', ') if persona.motivations is iterable else persona.motivations }}</p>{% endif %}
+                    {% if persona.pain_points %}<p><strong>Pain Points:</strong> {{ persona.pain_points | join(', ') if persona.pain_points is iterable else persona.pain_points }}</p>{% endif %}
+                    {% if persona.preferred_brands %}<p><strong>Marcas Preferidas:</strong> {{ persona.preferred_brands | join(', ') }}</p>{% endif %}
+                    {% if persona.channels %}<p><strong>Canales Usados:</strong> {{ persona.channels | join(', ') }}</p>{% endif %}
+                </div>
             </div>
             {% endfor %}
-        </div>
+        {% elif customer_journey and customer_journey.buyer_personas %}
+            <h2>Buyer Personas</h2>
+            {% for persona in customer_journey.buyer_personas %}
+            <div class="persona-card">
+                <div class="persona-header">
+                    <h3>{{ persona.name }}{% if persona.segment_name %} ({{ persona.segment_name }}){% endif %}</h3>
+                    {% if persona.market_percentage %}
+                    <span class="persona-size">{{ persona.market_percentage }}% del mercado</span>
+                    {% endif %}
+                </div>
+                <div class="persona-details">
+                    {% if persona.demographics %}<p><strong>Demografía:</strong> {{ persona.demographics }}</p>{% endif %}
+                    {% if persona.motivations %}<p><strong>Motivaciones:</strong> {{ persona.motivations | join(', ') if persona.motivations is iterable else persona.motivations }}</p>{% endif %}
+                    {% if persona.pain_points %}<p><strong>Pain Points:</strong> {{ persona.pain_points | join(', ') if persona.pain_points is iterable else persona.pain_points }}</p>{% endif %}
+                    {% if persona.preferred_brands %}<p><strong>Marcas Preferidas:</strong> {{ persona.preferred_brands | join(', ') }}</p>{% endif %}
+                    {% if persona.channels %}<p><strong>Canales Usados:</strong> {{ persona.channels | join(', ') }}</p>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
     </div>
-    {% endif %}
 
     <!-- SENTIMIENTO Y REPUTACIÓN - NARRATIVO -->
     <div class="seccion">
@@ -730,56 +781,64 @@
         {% endif %}
     </div>
 
-    <!-- ESCENARIOS FUTUROS -->
     {% if scenarios %}
-    <div class="seccion">
+    <div class="seccion scenarios">
         <h1 class="seccion-titulo">Escenarios Futuros (12-24 meses)</h1>
+
         <div class="scenario-grid">
             {% if scenarios.best_case %}
             <div class="scenario best-case">
-                <h3>🌟 Best Case ({{ scenarios.best_case.probability }})</h3>
-                {% if scenarios.best_case.description %}<p>{{ scenarios.best_case.description }}</p>{% endif %}
-                {% if scenarios.best_case.drivers %}
+                <h3>🌟 Best Case ({{ (scenarios.best_case.probability * 100) | int }}%)</h3>
+                {% if scenarios.best_case.drivers %}<p><strong>Drivers:</strong> {{ scenarios.best_case.drivers | join(', ') }}</p>{% endif %}
+                {% if scenarios.best_case.description %}<p><strong>Descripción:</strong> {{ scenarios.best_case.description }}</p>{% endif %}
+                {% if scenarios.best_case.impact %}
+                <div class="scenario-impact"><strong>Impacto Esperado:</strong> {{ scenarios.best_case.impact }}</div>
+                {% endif %}
+                {% if scenarios.best_case.recommended_actions %}
+                <p><strong>Acciones Recomendadas:</strong></p>
                 <ul>
-                    {% for driver in scenarios.best_case.drivers %}
-                    <li>{{ driver }}</li>
+                    {% for action in scenarios.best_case.recommended_actions %}
+                    <li>{{ action }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
-                {% if scenarios.best_case.impact %}
-                <div class="scenario-impact">Impacto: {{ scenarios.best_case.impact }}</div>
-                {% endif %}
             </div>
             {% endif %}
+
             {% if scenarios.base_case %}
             <div class="scenario base-case">
-                <h3>📈 Base Case ({{ scenarios.base_case.probability }})</h3>
-                {% if scenarios.base_case.description %}<p>{{ scenarios.base_case.description }}</p>{% endif %}
-                {% if scenarios.base_case.drivers %}
+                <h3>➡️ Base Case ({{ (scenarios.base_case.probability * 100) | int }}%)</h3>
+                {% if scenarios.base_case.drivers %}<p><strong>Drivers:</strong> {{ scenarios.base_case.drivers | join(', ') }}</p>{% endif %}
+                {% if scenarios.base_case.description %}<p><strong>Descripción:</strong> {{ scenarios.base_case.description }}</p>{% endif %}
+                {% if scenarios.base_case.impact %}
+                <div class="scenario-impact"><strong>Impacto Esperado:</strong> {{ scenarios.base_case.impact }}</div>
+                {% endif %}
+                {% if scenarios.base_case.recommended_actions %}
+                <p><strong>Acciones Recomendadas:</strong></p>
                 <ul>
-                    {% for driver in scenarios.base_case.drivers %}
-                    <li>{{ driver }}</li>
+                    {% for action in scenarios.base_case.recommended_actions %}
+                    <li>{{ action }}</li>
                     {% endfor %}
                 </ul>
-                {% endif %}
-                {% if scenarios.base_case.impact %}
-                <div class="scenario-impact">Impacto: {{ scenarios.base_case.impact }}</div>
                 {% endif %}
             </div>
             {% endif %}
+
             {% if scenarios.worst_case %}
             <div class="scenario worst-case">
-                <h3>⚠️ Worst Case ({{ scenarios.worst_case.probability }})</h3>
-                {% if scenarios.worst_case.description %}<p>{{ scenarios.worst_case.description }}</p>{% endif %}
-                {% if scenarios.worst_case.drivers %}
+                <h3>⚠️ Worst Case ({{ (scenarios.worst_case.probability * 100) | int }}%)</h3>
+                {% if scenarios.worst_case.drivers %}<p><strong>Drivers:</strong> {{ scenarios.worst_case.drivers | join(', ') }}</p>{% endif %}
+                {% if scenarios.worst_case.description %}<p><strong>Descripción:</strong> {{ scenarios.worst_case.description }}</p>{% endif %}
+                {% if scenarios.worst_case.impact %}
+                <div class="scenario-impact"><strong>Impacto Esperado:</strong> {{ scenarios.worst_case.impact }}</div>
+                {% endif %}
+                {% if scenarios.worst_case.recommended_actions %}
+                <p><strong>Acciones Recomendadas:</strong></p>
                 <ul>
-                    {% for driver in scenarios.worst_case.drivers %}
-                    <li>{{ driver }}</li>
+                    {% for action in scenarios.worst_case.recommended_actions %}
+                    <li>{{ action }}</li>
                     {% endfor %}
                 </ul>
-                {% endif %}
-                {% if scenarios.worst_case.impact %}
-                <div class="scenario-impact">Impacto: {{ scenarios.worst_case.impact }}</div>
                 {% endif %}
             </div>
             {% endif %}

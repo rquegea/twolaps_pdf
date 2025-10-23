@@ -84,8 +84,15 @@ class TransversalAgent(BaseAgent):
             # Limpiar respuesta por si tiene markdown o texto extra
             response_text = self._clean_json_response(response_text)
             
-            # Limpieza ULTRA agresiva de comillas escapadas
+            # Limpieza ULTRA agresiva de comillas escapadas y mal formadas
             response_text = response_text.replace('\\"', '"').replace('\\\\', '\\')
+            # Remover comillas extra al inicio/fin de valores de claves
+            response_text = response_text.replace('": "\\"', '": "').replace('\\"",', '",')
+            # Limpiar claves mal formadas como '"temas_comunes"' -> 'temas_comunes'
+            response_text = response_text.replace(': "\\"', ': "').replace('\\":', '":')
+            response_text = response_text.replace('"\\"temas_comunes\\"', '"temas_comunes"')
+            response_text = response_text.replace('"\\"contradicciones\\"', '"contradicciones"')
+            response_text = response_text.replace('"\\"insights_nuevos\\"', '"insights_nuevos"')
             
             # Parsear JSON con manejo multi-capa
             data = None

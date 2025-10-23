@@ -436,7 +436,20 @@ competitive_agent:
        - Vulnerabilidades: ¿Dónde es más débil y por qué?
        - ANÁLISIS COMPARATIVO POR EJE: No solo SOV/sentimiento, sino también comparar en innovación percibida, estrategias de marketing, accesibilidad de canal, percepción ESG
     
-    8. COMPARACIONES DIRECTAS:
+    8. ANÁLISIS DE MOATS (VENTAJAS COMPETITIVAS SOSTENIBLES) - REFORZADO:
+       8.1 Barreras de Entrada (evidencias y señales): inversión inicial, economías de escala, acceso a distribución, IP
+            - Para cada marca, indica señales o fuentes (citas o patrones) y nivel_confianza: alto|medio|bajo
+       8.2 Switching Costs: coste de cambiar (monetario, temporal, psicológico), lock-in por suscripción/lealtad, hábitos
+            - Señales/fuentes y nivel_confianza por marca
+       8.3 Network Effects: directos/indirectos, ecosistema complementario
+            - Señales/fuentes y nivel_confianza por marca
+       8.4 Brand Equity (cuantificación proxy):
+            - reconocimiento: alto|medio|bajo (o % top-of-mind si hay),
+            - lealtad: alto|medio|bajo (o proxy repeat purchase si hay),
+            - premium_power: alto|medio|bajo (capacidad de cobrar >X% respecto al promedio)
+            - Para cada proxy, incluye breve justificación (fuentes/señales) y nivel_confianza
+
+    9. COMPARACIONES DIRECTAS:
        - Lider vs Retador: ventajas/desventajas
        - Marcas premium vs Marcas valor
        - Tradicionales vs Emergentes
@@ -485,6 +498,22 @@ competitive_agent:
         "Marca Y tiene presencia débil en e-commerce",
         "Ninguna marca capitaliza tendencia de personalización"
       ],
+      "moats": [
+        {{
+          "marca": "Marca X",
+          "barreras_entrada": ["escala_produccion", "distribucion_exclusiva"],
+          "switching_costs": ["programa_lealtad"],
+          "network_effects": ["ecosistema_complementario"],
+          "brand_equity": {{
+            "reconocimiento": "alto",
+            "lealtad": "medio",
+            "premium_power": "alto",
+            "justificacion": "Señales/fuentes resumidas"
+          }},
+          "fuentes_senales": ["cita o patrón 1", "cita o patrón 2"],
+          "nivel_confianza": "medio"
+        }}
+      ],
       "insights_clave": [
         "El líder domina en SOV pero no en sentimiento, oportunidad para retadores",
         "Estrategias de canal diferenciadas son fuente de ventaja competitiva",
@@ -503,6 +532,7 @@ competitive_agent:
     - Triangulación: integra al menos 2 de Campañas/Canales/ESG/Packaging por hallazgo clave.
     - Capas: identifica contradicciones holísticas y gaps de distribución y comunicación.
     - Salida JSON: respeta el esquema actual; si falta dato, usa valores vacíos.
+    - Guardrails JSON: SOLO devuelve un objeto JSON válido (sin markdown ni texto extra). Si no hay datos para un campo, devuelve arrays/objetos vacíos manteniendo el esquema. NUNCA devuelvas strings donde se esperan números/lógicos.
 
 strategic_agent:
   task: |
@@ -636,9 +666,9 @@ strategic_agent:
 
     9. SCENARIO PLANNING (NUEVO):
        Genera 3 escenarios 12-24 meses con drivers e impacto proyectado:
-       - best_case: {"probability": 0.25, "drivers": [...], "impacto": "..."}
-       - base_case: {"probability": 0.5, "drivers": [...], "impacto": "..."}
-       - worst_case: {"probability": 0.25, "drivers": [...], "impacto": "..."}
+       - best_case: {{"probability": 0.25, "drivers": [...], "impacto": "..."}}
+       - base_case: {{"probability": 0.5, "drivers": [...], "impacto": "..."}}
+       - worst_case: {{"probability": 0.25, "drivers": [...], "impacto": "..."}}
 
 synthesis_agent:
   task: |
@@ -920,27 +950,30 @@ customer_journey_agent:
     {contexto}
 
     ETAPAS A ANALIZAR:
-    - awareness: descubrimiento (¿cómo descubren marcas de {categoria}?)
+    - awareness: descubrimiento (¿cómo descubren las marcas?)
     - consideration: evaluación (¿qué comparan?, ¿qué info buscan?)
     - purchase: compra (¿dónde compran?, momentos de verdad)
     - retention: repetición (¿por qué repiten?, programas loyalty)
     - advocacy: recomendación (¿por qué recomiendan?)
 
     DEVUELVE JSON:
-    {
+    {{
       "stages": [
-        {"name": "awareness", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
-        {"name": "consideration", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
-        {"name": "purchase", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
-        {"name": "retention", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]},
-        {"name": "advocacy", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}
+        {{"name": "awareness", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}},
+        {{"name": "consideration", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}},
+        {{"name": "purchase", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}},
+        {{"name": "retention", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}},
+        {{"name": "advocacy", "pain_points": ["..."], "touchpoints": ["..."], "insights": ["..."]}}
       ],
       "buyer_personas": [
-        {"name": "Persona 1", "market_percentage": 0, "demographics": "...", "motivations": "...", "pain_points": "...", "preferred_brands": ["..."]}
+        {{"name": "Persona 1", "market_percentage": 0, "demographics": "...", "motivations": "...", "pain_points": "...", "preferred_brands": ["..."]}}
       ],
-      "metadata": {"fragments_analyzed": 0}
-    }
-    IMPORTANTE: SOLO JSON válido, sin markdown.
+      "metadata": {{"fragments_analyzed": 0}}
+    }}
+    IMPORTANTE:
+    - SOLO un objeto JSON válido, sin markdown ni texto adicional.
+    - Si falta evidencia para un campo, devuelve arrays/objetos vacíos manteniendo el esquema.
+    - Usa tipos correctos (números como números, booleanos como true/false).
 
 scenario_planning_agent:
   task: |
@@ -950,12 +983,15 @@ scenario_planning_agent:
     {datos_estrategicos}
 
     DEVUELVE JSON:
-    {
-      "best_case": {"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]},
-      "base_case": {"probability": 0.5, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]},
-      "worst_case": {"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]}
-    }
-    IMPORTANTE: SOLO JSON válido, sin markdown.
+    {{
+      "best_case": {{"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]}},
+      "base_case": {{"probability": 0.5, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]}},
+      "worst_case": {{"probability": 0.25, "drivers": ["..."], "description": "...", "impact": "...", "recommended_actions": ["..."]}}
+    }}
+    IMPORTANTE:
+    - SOLO un objeto JSON válido, sin markdown ni texto adicional.
+    - Si falta evidencia para un campo, devuelve strings vacíos o arrays vacíos manteniendo el esquema.
+    - Usa tipos correctos (probability como número 0-1).
 
 pricing_power_agent:
   task: |
@@ -965,15 +1001,18 @@ pricing_power_agent:
     {contexto}
 
     DEVUELVE JSON:
-    {
+    {{
       "brand_pricing_metrics": [
-        {"marca": "X", "price_premium_pct": 0, "elasticity_signal": "alta|media|baja", "discounting_frequency": "alta|media|baja"}
+        {{"marca": "X", "price_premium_pct": 0, "elasticity_signal": "alta|media|baja", "discounting_frequency": "alta|media|baja"}}
       ],
       "perceptual_map": [
-        {"marca": "X", "precio": 0.0, "calidad": 0.0, "sov": 0.0}
+        {{"marca": "X", "precio": 0.0, "calidad": 0.0, "sov": 0.0}}
       ]
-    }
-    IMPORTANTE: SOLO JSON válido, sin markdown.
+    }}
+    IMPORTANTE:
+    - SOLO un objeto JSON válido, sin markdown ni texto adicional.
+    - Si falta evidencia, devuelve arrays vacíos manteniendo el esquema.
+    - Asegúrate de que precio/calidad/sov sean números (0-100), no strings.
 
 roi_agent:
   task: |
@@ -988,7 +1027,10 @@ roi_agent:
       "por_canal": [{"canal": "X", "gasto": 0.0, "revenue_atr": 0.0, "roi_pct": 0.0}],
       "supuestos": ["..."]
     }
-    IMPORTANTE: SOLO JSON válido, sin markdown.
+    IMPORTANTE:
+    - SOLO un objeto JSON válido, sin markdown ni texto adicional.
+    - Si falta algún campo, usa valores por defecto seguros (0 o null) manteniendo el esquema.
+    - Asegúrate de que roas/roi_pct/cpa/payback_meses sean numéricos.
 
 campaign_agent:
   task: |

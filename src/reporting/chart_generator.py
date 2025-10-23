@@ -28,7 +28,7 @@ class ChartGenerator:
         self.fig_width = 10
         self.fig_height = 6
     
-    def generate_sov_chart(self, sov_data: Dict[str, float]) -> str:
+    def generate_sov_chart(self, sov_data: Dict[str, float]) -> Optional[str]:
         """
         Genera gráfico de barras para Share of Voice
         
@@ -81,7 +81,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_sov_pie_chart(self, sov_data: Dict[str, float]) -> str:
+    def generate_sov_pie_chart(self, sov_data: Dict[str, float]) -> Optional[str]:
         """
         Genera gráfico de pastel (pie chart) para Share of Voice
         
@@ -130,7 +130,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_sentiment_chart(self, sentiment_data: Dict[str, Dict[str, float]]) -> str:
+    def generate_sentiment_chart(self, sentiment_data: Dict[str, Dict[str, float]]) -> Optional[str]:
         """
         Genera gráfico de barras apiladas para sentimiento por marca
         
@@ -155,10 +155,10 @@ class ChartGenerator:
         x = np.arange(len(marcas))
         width = 0.6
         
-        p1 = ax.bar(x, positivo, width, label='Positivo', color=SUCCESS_COLOR)
-        p2 = ax.bar(x, neutral, width, bottom=positivo, label='Neutral', color=NEUTRAL_COLOR)
-        p3 = ax.bar(x, negativo, width, bottom=np.array(positivo) + np.array(neutral), 
-                    label='Negativo', color=DANGER_COLOR)
+        ax.bar(x, positivo, width, label='Positivo', color=SUCCESS_COLOR)
+        ax.bar(x, neutral, width, bottom=positivo, label='Neutral', color=NEUTRAL_COLOR)
+        ax.bar(x, negativo, width, bottom=np.array(positivo) + np.array(neutral), 
+               label='Negativo', color=DANGER_COLOR)
         
         # Añadir porcentajes
         for i, (pos, neu, neg) in enumerate(zip(positivo, neutral, negativo)):
@@ -186,7 +186,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_opportunity_matrix(self, opportunities: List[Dict[str, Any]]) -> str:
+    def generate_opportunity_matrix(self, opportunities: List[Dict[str, Any]]) -> Optional[str]:
         """
         Genera matriz 2x2 de oportunidades (Impacto vs Esfuerzo)
         
@@ -215,8 +215,9 @@ class ChartGenerator:
             esfuerzo = effort_map.get(str(opp.get('esfuerzo', 'medio')).lower(), 2)
             
             # Añadir ruido para evitar superposición
-            impacto += np.random.uniform(-0.15, 0.15)
-            esfuerzo += np.random.uniform(-0.15, 0.15)
+            rng = np.random.default_rng(42)
+            impacto += rng.uniform(-0.15, 0.15)
+            esfuerzo += rng.uniform(-0.15, 0.15)
             
             # Color según cuadrante
             if impacto >= 2.5 and esfuerzo <= 1.5:
@@ -271,7 +272,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_risk_matrix(self, risks: List[Dict[str, Any]]) -> str:
+    def generate_risk_matrix(self, risks: List[Dict[str, Any]]) -> Optional[str]:
         """
         Genera matriz 2x2 de riesgos (Probabilidad vs Severidad)
         
@@ -300,8 +301,9 @@ class ChartGenerator:
             severidad = sev_map.get(str(risk.get('severidad', 'media')).lower(), 2)
             
             # Añadir ruido
-            probabilidad += np.random.uniform(-0.15, 0.15)
-            severidad += np.random.uniform(-0.15, 0.15)
+            rng = np.random.default_rng(42)
+            probabilidad += rng.uniform(-0.15, 0.15)
+            severidad += rng.uniform(-0.15, 0.15)
             
             # Color según nivel de riesgo
             risk_level = probabilidad * severidad
@@ -350,7 +352,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_sov_trend_chart(self, sov_trend_data: Dict[str, List[Dict[str, Any]]]) -> str:
+    def generate_sov_trend_chart(self, sov_trend_data: Dict[str, List[Dict[str, Any]]]) -> Optional[str]:
         """
         Genera gráfico de líneas con tendencias de SOV por marca a lo largo del tiempo
         FUNCIONA INCLUSO CON UN SOLO PUNTO DE DATOS (muestra como barra en ese caso)
@@ -429,7 +431,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_sentiment_trend_chart(self, sentiment_trend_data: Dict[str, List[Dict[str, Any]]]) -> str:
+    def generate_sentiment_trend_chart(self, sentiment_trend_data: Dict[str, List[Dict[str, Any]]]) -> Optional[str]:
         """
         Genera gráfico de líneas con evolución del sentimiento por marca
         FUNCIONA INCLUSO CON UN SOLO PUNTO DE DATOS (muestra como barra en ese caso)
@@ -514,7 +516,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_attribute_radar_chart(self, attributes_by_brand: Dict[str, Dict[str, Any]]) -> str:
+    def generate_attribute_radar_chart(self, attributes_by_brand: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """
         Genera gráfico radar (telaraña) comparando atributos percibidos por marca
         
@@ -583,7 +585,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
     
-    def generate_channel_penetration_chart(self, channel_data: Dict[str, Dict[str, Any]]) -> str:
+    def generate_channel_penetration_chart(self, channel_data: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """
         Genera gráfico de barras agrupadas de penetración por canal y marca
         
@@ -670,7 +672,7 @@ class ChartGenerator:
         
         return self._fig_to_base64(fig)
 
-    def generate_perceptual_map(self, brands: List[Dict[str, Any]]) -> str:
+    def generate_perceptual_map(self, brands: List[Dict[str, Any]]) -> Optional[str]:
         """
         Genera mapa perceptual 2D: Eje X (Precio), Eje Y (Calidad percibida)
         Cada marca como burbuja con tamaño = SOV (%), color por cuadrante.
@@ -747,7 +749,7 @@ class ChartGenerator:
         plt.tight_layout()
         return self._fig_to_base64(fig)
 
-    def generate_waterfall_chart(self, steps: List[Dict[str, Any]]) -> str:
+    def generate_waterfall_chart(self, steps: List[Dict[str, Any]]) -> Optional[str]:
         """
         Genera un Waterfall Chart para explicar cambios en SOV entre periodos.
 
@@ -826,7 +828,7 @@ class ChartGenerator:
         plt.tight_layout()
         return self._fig_to_base64(fig)
 
-    def generate_bcg_matrix(self, brands_metrics: Dict[str, Dict[str, Any]]) -> str:
+    def generate_bcg_matrix(self, brands_metrics: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """
         Genera BCG Matrix: Market Share (X) vs Growth Rate (Y)
 
