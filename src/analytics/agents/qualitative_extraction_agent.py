@@ -37,7 +37,7 @@ class QualitativeExtractionAgent(BaseAgent):
         # Normalizamos el nombre del agente para que sea 'qualitative'
         self.agent_name = 'qualitative'
         # Número de fragmentos a recuperar por pregunta analítica
-        self.top_k_fragments = 10
+        self.top_k_fragments = 20
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """

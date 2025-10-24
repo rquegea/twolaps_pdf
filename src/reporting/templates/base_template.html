@@ -911,6 +911,12 @@
                 <strong>CÓMO:</strong> {{ iniciativa.como|safe|replace('\n', '<br>') }}
             </div>
             {% endif %}
+
+            {% if iniciativa.kpi_medicion %}
+            <div class="iniciativa-kpi">
+                <strong>KPI de medición:</strong> {{ iniciativa.kpi_medicion|safe|replace('\n', '<br>') }}
+            </div>
+            {% endif %}
             
             {% if iniciativa.timeline %}
             <div class="iniciativa-timeline">
@@ -948,22 +954,24 @@
         
         <h2>Métricas de Calidad</h2>
         <table class="metricas-table">
-            <tr>
-                <td><strong>Hallazgos identificados:</strong></td>
-                <td>{{ metricas_calidad.hallazgos or 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td><strong>Oportunidades detectadas:</strong></td>
-                <td>{{ metricas_calidad.oportunidades or 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td><strong>Riesgos identificados:</strong></td>
-                <td>{{ metricas_calidad.riesgos or 'N/A' }}</td>
-            </tr>
-            <tr>
-                <td><strong>Iniciativas en plan 90 días:</strong></td>
-                <td>{{ metricas_calidad.plan_acciones or 'N/A' }}</td>
-            </tr>
+            <tbody>
+                <tr>
+                    <td><strong>Hallazgos identificados:</strong></td>
+                    <td>{{ metricas_calidad.hallazgos or 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Oportunidades detectadas:</strong></td>
+                    <td>{{ metricas_calidad.oportunidades or 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Riesgos identificados:</strong></td>
+                    <td>{{ metricas_calidad.riesgos or 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Iniciativas en plan 90 días:</strong></td>
+                    <td>{{ metricas_calidad.plan_acciones or 'N/A' }}</td>
+                </tr>
+            </tbody>
         </table>
         
         <div class="disclaimer">

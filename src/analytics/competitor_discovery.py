@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
+from difflib import SequenceMatcher
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -81,13 +83,44 @@ TEXTO:
 
     def _filter_existing_brands(self, categoria_id: int, candidates: List[Dict[str, Any]]):
         existing = self.session.query(Marca).filter_by(categoria_id=categoria_id).all()
-        existing_names = set(m.nombre.lower() for m in existing)
-        existing_aliases = set(a.lower() for m in existing for a in (m.aliases or []))
+
+        def normalize(s: str) -> str:
+            s = s or ""
+            s = s.lower().strip()
+            s = unicodedata.normalize('NFKD', s)
+            s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+            # mantener alfanumérico y espacios
+            s = re.sub(r"[^a-z0-9 ]+", "", s)
+            s = re.sub(r"\s+", " ", s).strip()
+            return s
+
+        existing_norm = set()
+        for m in existing:
+            existing_norm.add(normalize(m.nombre))
+            for a in (m.aliases or []):
+                existing_norm.add(normalize(a))
+
+        def is_known(name: str) -> bool:
+            n = normalize(name)
+            if n in existing_norm:
+                return True
+            # fuzzy cerca de exacto
+            for known in existing_norm:
+                if not known or not n:
+                    continue
+                if abs(len(known) - len(n)) > max(2, int(0.2 * max(len(known), len(n)))):
+                    continue
+                if SequenceMatcher(None, n, known).ratio() >= 0.9:
+                    return True
+            return False
 
         filtered = []
         for c in candidates:
-            name_l = c["nombre"].lower()
-            if name_l in existing_names or name_l in existing_aliases:
+            if is_known(c["nombre"]):
+                # Ya es una variación/alias de una marca existente → no proponer candidato nuevo
+                continue
+            # también filtrar si cualquier alias propuesto coincide con existentes
+            if any(is_known(a) for a in (c.get("aliases") or [])):
                 continue
             filtered.append(c)
         return filtered

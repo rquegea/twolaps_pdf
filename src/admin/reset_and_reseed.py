@@ -38,17 +38,17 @@ def reset_and_reseed():
     print("\n🌱 Paso 3: Re-seed mercado FMCG...")
     seed_all_fmcg()
     
-    # Paso 4: Re-seed Salud
-    print("\n🌱 Paso 4: Re-seed mercado Salud...")
-    seed_health_market()
+    # Paso 4: (desactivado) Re-seed mercado Salud
+    # print("\n🌱 Paso 4: Re-seed mercado Salud...")
+    # seed_health_market()
     
     print("\n" + "=" * 80)
     print("✅ RESET Y RE-SEED COMPLETADO EXITOSAMENTE")
     print("=" * 80)
     print("\n📊 Estado actual:")
     print("   ✓ Todos los mercados y categorías recreados")
-    print("   ✓ Champagnes con 20 nuevas queries estratégicas")
-    print("   ✓ Listo para ejecutar queries desde cero")
+    print("   ✓ Champagnes y categorías FMCG específicas con queries cargadas")
+    print("   ✓ Listo para ejecutar queries desde cero (solo Champagne + nuevas categorías)")
     print("\n🚀 Siguiente paso: Ejecutar las queries con main.py o la interfaz")
 
 

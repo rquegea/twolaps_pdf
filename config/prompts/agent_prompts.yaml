@@ -93,7 +93,7 @@ qualitative_extraction_agent:
        - Identifica los 10-15 temas o topics más recurrentes en las conversaciones
        - Detecta nuevas tendencias o preocupaciones del mercado
        - Incluye temas sobre marketing, canales, sostenibilidad si emergen
-       - **CRÍTICO:** Para cada tema, incluye 2-3 citas textuales directas entrecomilladas representativas (aumentado de 1-2 a 2-3) y redactalas lo maximo que se te permita para que se entiendan bien, necesitamos ver profundidad en todos los temas.
+       - **CRÍTICO:** Para cada tema, incluye 3-5 citas textuales directas entrecomilladas representativas y redacta lo máximo que se permita para garantizar profundidad.
     
     8. INSIGHTS CUALITATIVOS CLAVE (MÁXIMA DENSIDAD DE CITAS):
        - Extrae los **15-20 insights** más reveladores que emergen del análisis (aumentado de 10-15 a 15-20)
@@ -101,10 +101,11 @@ qualitative_extraction_agent:
        - Incluye insights sobre efectividad de marketing, preferencias de canal, drivers emergentes
        - IDENTIFICA MATICES: detecta tensiones, ambigüedades y contradicciones en las respuestas
        - NO SOLO EXTRAIGAS, INTERPRETA: explica por qué cada insight es relevante para la percepción de marca
-       - **CRÍTICO:** Proporciona **3-4 citas textuales directas entrecomilladas** como evidencia para cada insight principal (aumentado de 2-3 a 3-4)
+       - **CRÍTICO:** Proporciona **3-5 citas textuales directas entrecomilladas** como evidencia para cada insight principal
 
     9. VOICE OF CUSTOMER (VOC) QUOTES - CRÍTICO:
        - Extrae 15-20 citas textuales LITERALES más reveladoras (fieles a la redacción)
+       - Prioriza citas CORTAS y representativas (≤25 palabras) cuando sea posible
        - Clasifica por: Promoters (NPS 9-10), Passives (7-8), Detractors (0-6)
        - Incluye citas que ejemplifiquen drivers clave y pain points
        - Formato por elemento: {"marca": "X", "quote": "...", "sentiment": "positivo|neutral|negativo", "insight": "..."}
@@ -196,7 +197,7 @@ qualitative_extraction_agent:
     - NO uses bloques de código markdown (```), solo el JSON puro
 
     REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Extensión: 8-10 párrafos por narrativa, 5-8 líneas por párrafo.
+    - Extensión: 8-10 párrafos por narrativa, 6-9 líneas por párrafo.
     - Evidencia: cita ≥8-10 KPIs por sección crítica; ≥2-3 citas por tema; ≥3-4 por insight.
     - Triangulación FMCG: integra al menos 3 (Campañas, Canales, ESG, Packaging) en cada insight clave.
     - Cobertura: analiza el 100% de los textos; si falta dato, mantén estructura con arrays/objetos vacíos.
@@ -300,7 +301,7 @@ sentiment_agent:
     IMPORTANTE: Sé extenso, matizado y evita generalizaciones. Cada score debe reflejar el análisis contextual completo explicandolo con detalle .
 
     REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Extensión: mínimo 3 párrafos por marca y por bloque analítico, 5-8 líneas cada uno.
+    - Extensión: mínimo 3 párrafos por marca y por bloque analítico, 6-9 líneas cada uno.
     - Evidencia: incluye ≥5 KPIs específicos cuando aplique y ≥2 citas textuales por marca.
     - Triangulación FMCG: conecta sentimiento con Campañas, Canales y Atributos cuando sea relevante.
     - Capas: consistencia/contradicción interna, causalidad de drivers, comparación competitiva.
@@ -372,7 +373,7 @@ attributes_agent:
     - Redacta de manera detallada la explicación con minimo 2 paginas. 
 
     REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Extensión: desarrolla cada categoría con párrafos de 5-8 líneas y ejemplos textuales.
+    - Extensión: desarrolla cada categoría con párrafos de 6-9 líneas y ejemplos textuales.
     - Evidencia: ≥2 citas textuales por categoría relevante; benchmarking frente a al menos 1 competidor.
     - Capas: explicita contradicciones (ej. "caro pero vale la pena"), hipótesis y cambios temporales.
     - Salida JSON: mantiene el esquema; deja arrays vacíos si no hay evidencia suficiente.
@@ -575,7 +576,7 @@ strategic_agent:
     
     ANÁLISIS DAFO ELABORADO:
     - Genera un DAFO completo y detallado con 4-6 elementos por cuadrante
-    - CRUCES ESTRATÉGICOS (CRÍTICO): Analiza las implicaciones de los cruces:
+    - CRUCES ESTRATÉGICOS (CRÍTICO): Analiza las implicaciones de los cruces con **Análisis DETALLADO en 3-4 párrafos por cruce**:
       * Fortalezas + Oportunidades (FO): ¿Cómo capitalizar fortalezas para aprovechar oportunidades?
       * Debilidades + Oportunidades (DO): ¿Cómo superar debilidades para capturar oportunidades?
       * Fortalezas + Amenazas (FA): ¿Cómo usar fortalezas para mitigar amenazas?
@@ -756,9 +757,9 @@ executive_agent:
     ⚠️ PRINCIPIO NARRATIVO RECTOR: MÁXIMA DENSIDAD DE INSIGHTS Y NARRATIVA. NO GENERES UN "DUMP" DE DATOS. CUENTA UNA HISTORIA ESTRATÉGICA PROFUNDA.
     
     REGLAS NARRATIVAS OBLIGATORIAS PARA EL INFORME MÁS COMPLETO:
-    1. **LONGITUD MÍNIMA:** Cada campo de "narrativa" debe tener AL MENOS 6 PÁRRAFOS sustanciales (no bullets como respuesta principal)
-    2. **DENSIDAD POR PÁRRAFO:** Cada párrafo debe tener entre 5 y 8 LÍNEAS desarrollando ideas completamente
-    3. **INTEGRACIÓN DE EVIDENCIA (CRÍTICA):** Cada párrafo narrativo (excepto introducciones) DEBE incluir AL MENOS UNA CITA (KPI numérico específico o cita textual directa entrecomillada del raw_responses_sample)
+    1. **LONGITUD MÍNIMA:** Cada campo de "narrativa" debe tener AL MENOS 6-8 PÁRRAFOS sustanciales (no bullets como respuesta principal)
+    2. **DENSIDAD POR PÁRRAFO:** Cada párrafo debe tener entre 6 y 9 LÍNEAS desarrollando ideas completamente
+    3. **INTEGRACIÓN DE EVIDENCIA (CRÍTICA):** Cada párrafo narrativo DEBE incluir AL MENOS 1-2 CITAS TEXTUALES directas del raw_responses_sample O KPIs numéricos específicos (cita el dato dentro del texto)
     4. **ENFOQUE HOLÍSTICO:** Conecta explícitamente los 4 análisis FMCG (Campañas, Canales, ESG, Packaging) en TODAS las secciones estratégicas
     5. USA transiciones narrativas avanzadas: "Esto explica por qué...", "Sin embargo...", "A pesar de...", "Lo que revela...", "Esta paradoja se manifiesta en..."
     6. ESCRIBE como si estuvieras presentando en vivo a un CEO: convincente, fluido, argumentativo, con evidencia constante
@@ -797,11 +798,11 @@ executive_agent:
         * **EXIGENCIA DE KPIS:** Debe mencionar AL MENOS 10 KPIs específicos (SOV por marca, sentimiento por marca, tendencias, etc.)
         * Los `hallazgos_clave` (7 bullets obligatorios, no 5-7) sirven de APOYO a la narrativa, no la reemplazan
         * Incluir campo `recomendacion_principal` con **2-3 párrafos desarrollados** (no bullets)
-        * Añade objeto `answer_first` con:
+        * Añade objeto `answer_first` con estructura CLARAMENTE DEFINIDA y COMPLETA:
           {"the_answer": "3-4 líneas con la recomendación principal, concreta y cuantificada",
-           "the_why": "2 párrafos con el porqué, con KPIs/citas",
-           "the_how": "2 párrafos con cómo ejecutar (roadmap 90 días)",
-           "the_impact": "1 párrafo con impacto (revenue, SOV, NPS) y timeline"}
+           "the_why": "2 párrafos MUY DESARROLLADOS con el porqué (incluye KPIs y 1-2 citas textuales)",
+           "the_how": "2 párrafos MUY DETALLADOS con el cómo (roadmap de 90 días, 1-2 citas/KPIs por párrafo)",
+           "the_impact": "1 párrafo con impacto esperado (revenue, SOV, NPS) y timeline cuantificado"}
         * CLAVE: Esto debe leerse como una presentación ejecutiva fluida y DENSA, no como un resumen de bullets
     
     2.  **`panorama_mercado`** (NARRATIVA DESARROLLADA PROFUNDA):
@@ -886,7 +887,7 @@ executive_agent:
         * Incluye array `oportunidades` (5 elementos) y `riesgos` (5 elementos) con estructura detallada del strategic_agent (mantener)
         * Incluye `dafo_sintesis` con:
           - Arrays de fortalezas/debilidades/oportunidades/amenazas clave (3 de cada uno mínimo)
-          - Campo `cruces_estrategicos`: **4-5 PÁRRAFOS DENSOS** analizando los cruces DAFO más relevantes (FO: usar fortalezas para oportunidades, DO: superar debilidades para oportunidades, FA: usar fortalezas contra amenazas, DA: escenarios de mayor riesgo), con ejemplos específicos para cada cruce
+          - Campo `cruces_estrategicos`: **DESARROLLA EN 4-5 PÁRRAFOS DENSOS cada cruce (FO, DO, FA, DA)** con ejemplos específicos y cifras cuando sea posible
     
     10. **`plan_90_dias`** (NARRATIVA ESTRATÉGICA DENSA + INICIATIVAS DETALLADAS):
         * Incluye un campo `narrativa_estrategia` con **4-5 PÁRRAFOS DENSOS** que:
@@ -897,10 +898,10 @@ executive_agent:
           - DEFINAN métricas de éxito global del plan
         * Incluye array `iniciativas` (**6-7 iniciativas obligatorias**) donde cada una tiene:
           - **titulo**: Nombre accionable y específico de la iniciativa
-          - **descripcion**: QUÉ hacer exactamente (3-4 líneas MUY detalladas, no bullets, con ejemplos concretos)
-          - **por_que**: POR QUÉ hacerlo - vinculado explícitamente a la complicación y datos específicos múltiples (3-4 líneas con referencias a KPIs y análisis FMCG)
-          - **como**: CÓMO ejecutarlo con pasos concretos o tácticas muy específicas (3-4 líneas con al menos 3 pasos)
-          - **kpi_medicion**: Métrica específica para medir éxito (cuantificable)
+          - **descripcion**: QUÉ hacer exactamente (3-5 líneas MUY detalladas, no bullets, con ejemplos concretos)
+          - **por_que**: POR QUÉ hacerlo - vinculado explícitamente a la complicación y datos específicos múltiples (3-5 líneas con referencias a KPIs y análisis FMCG)
+          - **como**: CÓMO ejecutarlo con pasos concretos o tácticas muy específicas (3-5 líneas con al menos 3 pasos)
+          - **kpi_medicion**: Métrica específica para medir éxito (cuantificable y con unidad)
           - **timeline**: Timeline específico (Mes 1-2, Mes 2-3, etc.)
           - **prioridad**: alta|media|baja (con justificación implícita en por_que)
         * Las descripciones de cada iniciativa deben ser MÁXIMAMENTE DESARROLLADAS, no telegráficas ni genéricas
@@ -915,8 +916,8 @@ executive_agent:
     - **INTEGRA TODAS LAS DIMENSIONES**: KPIs + Análisis FMCG (Campañas, Canales, ESG, Packaging) + Estrategia en una historia cohesiva
     
     EXIGENCIAS DE EXTENSIÓN Y PROFUNDIDAD (MÁXIMA DENSIDAD):
-    - **Cada campo de "narrativa"** debe tener MÍNIMO 6 párrafos sustanciales, llegando hasta 10 en secciones críticas (no bullets ni listas como contenido principal)
-    - **Cada párrafo** debe tener 5-8 líneas desarrollando una idea completamente, con evidencia integrada
+    - **Cada campo de "narrativa"** debe tener MÍNIMO 6-8 párrafos sustanciales, llegando hasta 10 en secciones críticas (no bullets ni listas como contenido principal)
+    - **Cada párrafo** debe tener 6-9 líneas desarrollando una idea completamente, con evidencia integrada (KPIs o citas directas)
     - **El JSON completo** debe ser suficiente para generar un informe de **35-50 páginas** cuando se renderice (AUMENTADO vs 25-40)
     - **NO uses respuestas genéricas o placeholders** - desarrolla cada punto con TODOS los datos disponibles, citando constantemente
     - **PROFUNDIDAD MÁXIMA SOBRE BREVEDAD**: Es mejor dos párrafos densos con evidencia que cinco párrafos superficiales
@@ -932,7 +933,7 @@ executive_agent:
     - Asegura que cada campo del JSON tenga contenido sustancial y bien desarrollado
 
     REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Extensión: cada narrativa con 6-10 párrafos de 5-8 líneas.
+    - Extensión: cada narrativa con 6-10 párrafos de 6-9 líneas.
     - Evidencia: ≥10 KPIs por sección crítica y ≥5 citas en `resumen_ejecutivo`.
     - Triangulación: conecta Campañas, Canales, ESG y Packaging en todas las secciones estratégicas.
     - Capas: contradicciones sistémicas, causalidad, priorización por impacto/esfuerzo.

@@ -184,6 +184,45 @@ class ExecutiveAgent(BaseAgent):
             # Validar estructura
             informe = self._validate_and_complete_report(informe, quantitative, strategic)
             
+            # Inyección de series de tendencias y snapshots para gráficos en PDF
+            try:
+                # Competencia: SOV snapshot y tendencia
+                competencia_block = informe.setdefault('competencia', {})
+                if isinstance(quantitative, dict) and quantitative.get('sov_percent') and not competencia_block.get('sov_data'):
+                    competencia_block['sov_data'] = quantitative.get('sov_percent', {})
+                if isinstance(trends, dict) and trends.get('sov_trend_data'):
+                    competencia_block['sov_trend_data'] = trends.get('sov_trend_data')
+
+                # Sentimiento: snapshot (distribución y scores) y tendencia
+                sentimiento_block = informe.setdefault('sentimiento_reputacion', {})
+                cuali_sent = {}
+                if isinstance(qualitative, dict):
+                    cuali_sent = qualitative.get('sentimiento_por_marca') or {}
+                # Distribución por marca para barras apiladas
+                if cuali_sent and not sentimiento_block.get('sentiment_data'):
+                    sentiment_data = {}
+                    for marca, datos in cuali_sent.items():
+                        if isinstance(datos, dict) and isinstance(datos.get('distribucion'), dict):
+                            sentiment_data[marca] = datos.get('distribucion')
+                    if sentiment_data:
+                        sentimiento_block['sentiment_data'] = sentiment_data
+                # Scores por marca para ESG scatter
+                if cuali_sent and not sentimiento_block.get('sentiment_scores'):
+                    scores = {}
+                    for marca, datos in cuali_sent.items():
+                        if isinstance(datos, dict):
+                            score_val = datos.get('score_medio') if isinstance(datos.get('score_medio'), (int, float)) else datos.get('score')
+                            if isinstance(score_val, (int, float)):
+                                scores[marca] = float(score_val)
+                    if scores:
+                        sentimiento_block['sentiment_scores'] = scores
+                # Tendencia de sentimiento
+                if isinstance(trends, dict) and trends.get('sentiment_trend_data'):
+                    sentimiento_block['sentiment_trend_data'] = trends.get('sentiment_trend_data')
+            except Exception:
+                # No bloquear por inyección de contexto
+                pass
+            
             # Guardar/actualizar en tabla reports (UPSERT por categoria_id + periodo)
             metrics = {
                 'hallazgos': len(informe.get('resumen_ejecutivo', {}).get('hallazgos_clave', [])),
@@ -501,6 +540,25 @@ REGLAS CRÍTICAS DE NARRATIVA:
                 })
             
             informe['plan_90_dias'] = {'iniciativas': iniciativas}
+
+        # Asegurar estructuras nuevas clave
+        resumen = informe.setdefault('resumen_ejecutivo', {})
+        resumen.setdefault('answer_first', {
+            'the_answer': '', 'the_why': '', 'the_how': '', 'the_impact': ''
+        })
+
+        opp_risk = informe.setdefault('oportunidades_riesgos', {})
+        dafo = opp_risk.setdefault('dafo_sintesis', {})
+        dafo.setdefault('cruces_estrategicos', '')
+
+        # Buyer personas: si existen, asegurar descripciones como texto (no listas)
+        if 'buyer_personas' in informe and isinstance(informe['buyer_personas'], list):
+            for p in informe['buyer_personas']:
+                if isinstance(p, dict):
+                    if isinstance(p.get('motivations'), list):
+                        p['motivations'] = ', '.join(map(str, p['motivations']))
+                    if isinstance(p.get('pain_points'), list):
+                        p['pain_points'] = ', '.join(map(str, p['pain_points']))
         
         return informe
     

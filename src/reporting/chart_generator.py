@@ -27,6 +27,8 @@ class ChartGenerator:
         self.dpi = 100
         self.fig_width = 10
         self.fig_height = 6
+        # Máximo de marcas a visualizar en gráficos
+        self.max_brands = 7
     
     def generate_sov_chart(self, sov_data: Dict[str, float]) -> Optional[str]:
         """
@@ -536,8 +538,8 @@ class ChartGenerator:
         key_attributes = ['calidad', 'precio', 'innovacion', 'confiabilidad', 
                          'servicio', 'reputacion', 'experiencia', 'disponibilidad']
         
-        # Filtrar marcas (máximo 5 para no saturar)
-        brands_to_plot = list(attributes_by_brand.keys())[:5]
+        # Filtrar marcas (máximo self.max_brands para no saturar)
+        brands_to_plot = list(attributes_by_brand.keys())[: self.max_brands]
         
         # Colores para diferentes marcas
         colors = [BRAND_COLOR, SUCCESS_COLOR, WARNING_COLOR, DANGER_COLOR, NEUTRAL_COLOR]
@@ -605,8 +607,8 @@ class ChartGenerator:
         key_channels = ['supermercados', 'ecommerce', 'conveniencia', 'especializado', 
                        'd2c', 'delivery', 'otros']
         
-        # Filtrar marcas (máximo 6 para legibilidad)
-        brands = list(channel_data.keys())[:6]
+        # Filtrar marcas (máximo self.max_brands para legibilidad)
+        brands = list(channel_data.keys())[: self.max_brands]
         
         # Preparar datos
         channel_scores = {channel: [] for channel in key_channels}
@@ -918,7 +920,9 @@ class ChartGenerator:
         for brand, data in esg_data.items():
             brands.append(brand)
             sov_values.append(data.get('sov', 0))
-            esg_scores.append(data.get('esg_score', 0))
+            # Manejar nulos/ceros: visualmente usar mínimo 0.1 si score=0 para visibilidad, pero mostrar etiqueta real
+            raw_esg = data.get('esg_score', 0)
+            esg_scores.append(raw_esg if raw_esg is not None else 0)
             sentiment_scores.append(data.get('sentiment', 0))
         
         # Convertir sentimiento (-1 a 1) a tamaño de burbuja (100-800)
@@ -937,12 +941,15 @@ class ChartGenerator:
                 colors.append(NEUTRAL_COLOR)  # Rezagados
         
         # Crear scatter
-        ax.scatter(sov_values, esg_scores, s=sizes, c=colors, 
+        # Aplicar un mínimo visual para scores 0 sin alterar el dato real
+        esg_visual = [0.1 if (v is not None and float(v) == 0.0) else (v or 0.0) for v in esg_scores]
+
+        ax.scatter(sov_values, esg_visual, s=sizes, c=colors, 
                   alpha=0.6, edgecolors='white', linewidth=2)
         
         # Añadir etiquetas
         for i, brand in enumerate(brands):
-            ax.annotate(brand, (sov_values[i], esg_scores[i]), 
+            ax.annotate(brand, (sov_values[i], esg_visual[i]), 
                        fontsize=10, fontweight='bold', ha='center', va='bottom')
         
         # Líneas divisoras (cuadrantes)
@@ -977,7 +984,7 @@ class ChartGenerator:
         
         # Configurar ejes
         ax.set_xlabel('Share of Voice (%)', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Score ESG (0-5)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Score ESG (0-5) [puntos en 0 ajustados a 0.1 para visibilidad]', fontsize=12, fontweight='bold')
         ax.set_title('Matriz de Liderazgo ESG\n(Tamaño de burbuja = Sentimiento)', 
                     fontsize=14, fontweight='bold', pad=20)
         ax.grid(True, alpha=0.3, linestyle='--')
@@ -1106,25 +1113,80 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     """
     generator = ChartGenerator()
     charts = {}
+
+    # Helper: seleccionar top N marcas (por SOV actual si existe; fallback a tendencias)
+    def select_top_brands(max_n: int) -> List[str]:
+        competencia = report_data.get('competencia', {}) or {}
+        sov_now = competencia.get('sov_data') or {}
+        if isinstance(sov_now, dict) and sov_now:
+            return [m for m, _ in sorted(sov_now.items(), key=lambda x: x[1], reverse=True)[:max_n]]
+        # Fallback: usar último valor de tendencia de SOV
+        sov_trend = competencia.get('sov_trend_data') or {}
+        if isinstance(sov_trend, dict) and sov_trend:
+            last_values = []
+            for marca, serie in sov_trend.items():
+                try:
+                    last = serie[-1]['sov'] if (isinstance(serie, list) and serie) else 0
+                except Exception:
+                    last = 0
+                last_values.append((marca, float(last)))
+            return [m for m, _ in sorted(last_values, key=lambda x: x[1], reverse=True)[:max_n]]
+        # Fallback final: intentar sentimiento por marca
+        sent = report_data.get('sentimiento_reputacion', {}) or {}
+        sent_data = sent.get('sentiment_data') or {}
+        if isinstance(sent_data, dict) and sent_data:
+            # ordenar por positivo descendente como proxy
+            scores = []
+            for marca, dist in sent_data.items():
+                pos = 0.0
+                try:
+                    pos = float(dist.get('positivo', 0) or 0)
+                except Exception:
+                    pos = 0.0
+                scores.append((marca, pos))
+            return [m for m, _ in sorted(scores, key=lambda x: x[1], reverse=True)[:max_n]]
+        # Si no hay nada, retornar lista vacía (no se filtrará)
+        return []
+
+    top_brands = select_top_brands(generator.max_brands)
+
+    def filter_dict_by_brands(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(data, dict) or not data:
+            return data
+        if not top_brands:
+            return data
+        return {k: v for k, v in data.items() if k in top_brands}
     
     # SOV Charts (snapshot actual)
     competencia = report_data.get('competencia', {})
     if competencia.get('sov_data'):
-        charts['sov_chart'] = generator.generate_sov_chart(competencia['sov_data'])
-        charts['sov_pie_chart'] = generator.generate_sov_pie_chart(competencia['sov_data'])
+        sov_now_filtered = filter_dict_by_brands(competencia['sov_data'])
+        charts['sov_chart'] = generator.generate_sov_chart(sov_now_filtered)
+        charts['sov_pie_chart'] = generator.generate_sov_pie_chart(sov_now_filtered)
     
     # SOV Trend Chart (evolución temporal)
     if competencia.get('sov_trend_data'):
-        charts['sov_trend_chart'] = generator.generate_sov_trend_chart(competencia['sov_trend_data'])
+        sov_trend = competencia['sov_trend_data']
+        if isinstance(sov_trend, dict) and sov_trend:
+            sov_trend_filtered = {k: v for k, v in sov_trend.items() if not top_brands or k in top_brands}
+        else:
+            sov_trend_filtered = sov_trend
+        charts['sov_trend_chart'] = generator.generate_sov_trend_chart(sov_trend_filtered)
     
     # Sentiment Chart (snapshot actual)
     sentimiento = report_data.get('sentimiento_reputacion', {})
     if sentimiento.get('sentiment_data'):
-        charts['sentiment_chart'] = generator.generate_sentiment_chart(sentimiento['sentiment_data'])
+        sent_data_filtered = filter_dict_by_brands(sentimiento['sentiment_data'])
+        charts['sentiment_chart'] = generator.generate_sentiment_chart(sent_data_filtered)
     
     # Sentiment Trend Chart (evolución temporal)
     if sentimiento.get('sentiment_trend_data'):
-        charts['sentiment_trend_chart'] = generator.generate_sentiment_trend_chart(sentimiento['sentiment_trend_data'])
+        sent_trend = sentimiento['sentiment_trend_data']
+        if isinstance(sent_trend, dict) and sent_trend:
+            sent_trend_filtered = {k: v for k, v in sent_trend.items() if not top_brands or k in top_brands}
+        else:
+            sent_trend_filtered = sent_trend
+        charts['sentiment_trend_chart'] = generator.generate_sentiment_trend_chart(sent_trend_filtered)
     
     # Opportunity Matrix
     opp_riesgos = report_data.get('oportunidades_riesgos', {})
@@ -1229,14 +1291,22 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     # Radar de Atributos por Marca
     atributos = report_data.get('atributos', {})
     if atributos.get('por_marca'):
-        charts['attribute_radar'] = generator.generate_attribute_radar_chart(atributos['por_marca'])
+        attrs_by_brand = atributos['por_marca']
+        if isinstance(attrs_by_brand, dict) and attrs_by_brand:
+            attrs_filtered = filter_dict_by_brands(attrs_by_brand)
+        else:
+            attrs_filtered = attrs_by_brand
+        charts['attribute_radar'] = generator.generate_attribute_radar_chart(attrs_filtered)
     
     # Penetración por Canal
     analisis_canales = report_data.get('analisis_canales', {})
     if analisis_canales.get('presencia_por_marca'):
-        charts['channel_penetration'] = generator.generate_channel_penetration_chart(
-            analisis_canales['presencia_por_marca']
-        )
+        presencia = analisis_canales['presencia_por_marca']
+        if isinstance(presencia, dict) and presencia:
+            presencia_filtered = filter_dict_by_brands(presencia)
+        else:
+            presencia_filtered = presencia
+        charts['channel_penetration'] = generator.generate_channel_penetration_chart(presencia_filtered)
     
     # Liderazgo ESG (requiere combinar datos de múltiples fuentes)
     analisis_esg = report_data.get('analisis_sostenibilidad_packaging', {})
@@ -1245,8 +1315,9 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     if competencia.get('sov_data') and sentimiento.get('sentiment_scores'):
         esg_combined = {}
         
-        # Iterar por marcas que tengan SOV
-        for marca, sov_value in competencia.get('sov_data', {}).items():
+        # Iterar por marcas que tengan SOV (ya filtradas previamente)
+        sov_source = filter_dict_by_brands(competencia.get('sov_data', {}) or {})
+        for marca, sov_value in sov_source.items():
             esg_combined[marca] = {
                 'sov': sov_value,
                 'esg_score': 0,  # Default
@@ -1277,7 +1348,12 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
     pricing_power = report_data.get('pricing_power', {})
     pm_data = pricing_power.get('perceptual_map') if isinstance(pricing_power, dict) else None
     if isinstance(pm_data, list) and len(pm_data) >= 2:
-        charts['perceptual_map'] = generator.generate_perceptual_map(pm_data)
+        if top_brands:
+            pm_filtered = [item for item in pm_data if str(item.get('marca')) in set(top_brands)]
+        else:
+            pm_filtered = pm_data
+        if len(pm_filtered) >= 2:
+            charts['perceptual_map'] = generator.generate_perceptual_map(pm_filtered)
 
     # BCG Matrix (derivar si no se provee explícitamente)
     bcg_metrics = report_data.get('bcg_metrics')
@@ -1302,7 +1378,12 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
         bcg_metrics = derived
 
     if isinstance(bcg_metrics, dict) and len(bcg_metrics) >= 2:
-        charts['bcg_matrix'] = generator.generate_bcg_matrix(bcg_metrics)
+        if top_brands:
+            bcg_filtered = {k: v for k, v in bcg_metrics.items() if k in top_brands}
+        else:
+            bcg_filtered = bcg_metrics
+        if isinstance(bcg_filtered, dict) and len(bcg_filtered) >= 2:
+            charts['bcg_matrix'] = generator.generate_bcg_matrix(bcg_filtered)
     
     return charts
 

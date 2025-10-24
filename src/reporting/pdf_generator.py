@@ -175,6 +175,7 @@ class PDFGenerator:
             'sentimiento_reputacion': contenido.get('sentimiento_reputacion', {}),  # NUEVO narrativo
             'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),  # NUEVO narrativo
             'plan_90_dias': contenido.get('plan_90_dias', {}),  # NUEVO narrativo
+            'buyer_personas': contenido.get('buyer_personas', []) or contenido.get('customer_journey', {}).get('buyer_personas', []),
             # NUEVOS BLOQUES: ROI / Escenarios / Customer Journey / Pricing Power
             'roi': contenido.get('roi', {}),
             'scenarios': contenido.get('scenario_planning', {}),
