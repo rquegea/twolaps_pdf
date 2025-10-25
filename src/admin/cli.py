@@ -517,6 +517,99 @@ def seed_fmcg():
 
 
 @admin.command()
+def seed_fmcg_incremental():
+    """Poblar/actualizar FMCG sin borrar datos previos (incremental)"""
+    from src.admin.seed_fmcg import (
+        _get_or_create_market, _get_or_create_category, _incremental_populate,
+        seed_champagnes, seed_chocolates_premium, seed_bolleria_tortitas,
+        seed_turrones_mazapanes, seed_ginebras, seed_galletas_saludables,
+        seed_galletas_caramelizadas, seed_embutidos_curados, seed_rones_extendido,
+        seed_geles_ducha, _data_puros_premium
+    )
+
+    click.echo("🌱 Seeding FMCG (incremental, sin borrar nada)...")
+    try:
+        with get_session() as session:
+            mercado = _get_or_create_market(session, "FMCG", "Fast Moving Consumer Goods - Productos de gran consumo", "FMCG")
+
+            categorias_def = [
+                ("Champagnes", "Champagnes y vinos espumosos"),
+                ("Puros Premium", "Puros y cigarros premium"),
+                ("Chocolates Premium", "Chocolates gourmet/premium para regalo y disfrute"),
+                ("Bollería y Tortitas", "Bollería industrial envasada y tortitas de arroz/maíz"),
+                ("Turrones y Mazapanes", "Confitería tradicional navideña"),
+                ("Ginebras", "Ginebras estándar y premium"),
+                ("Galletas Saludables", "Galletas con claims de salud: sin azúcar, fibra, integral"),
+                ("Galletas Caramelizadas", "Galletas de café/speculoos y derivados"),
+                ("Embutidos Curados", "Jamón serrano/blanco y embutidos curados"),
+                ("Rones", "Rones y bebidas espirituosas"),
+                ("Geles de Ducha", "Higiene personal - geles clásicos y alternativas"),
+            ]
+
+            # Para mantener una única fuente de verdad, reutilizamos las funciones de seed para obtener datos de marcas/preguntas
+            # sin ejecutar su inserción directa (usaremos incremental). Extraemos datos recreando listas locales.
+
+            # Construimos un diccionario {nombre_categoria: (marcas, preguntas, frecuencia)}
+            # Para ello, llamamos a las funciones de seed originales en un contexto controlado sería complejo.
+            # Solución: replicar parte del contenido reutilizando el mismo módulo (importado) y accediendo a estructuras ya escritas.
+            # Dado que aquí no tenemos acceso directo, invocamos helpers específicos por categoría definidos abajo.
+
+            from src.admin.seed_fmcg import (
+                _data_chocolates_premium, _data_bolleria_tortitas, _data_turrones_mazapanes,
+                _data_ginebras, _data_galletas_caramelizadas, _data_embutidos_curados,
+                _data_rones_extendido, _data_geles_ducha, _data_champagnes, _data_puros_premium
+            )
+
+            # Nota: delegamos en helpers de datos por categoría y aplicamos inserción incremental
+
+            # Implementación sencilla y robusta:
+            for nombre, descripcion in categorias_def:
+                categoria = _get_or_create_category(session, mercado.id, nombre, descripcion)
+                # Llamar a la función específica de la categoría pero en modo incremental
+                if nombre == "Champagnes":
+                    marcas, preguntas = _data_champagnes()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Puros Premium":
+                    marcas, preguntas = _data_puros_premium()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Chocolates Premium":
+                    marcas, preguntas = _data_chocolates_premium()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Bollería y Tortitas":
+                    marcas, preguntas = _data_bolleria_tortitas()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Turrones y Mazapanes":
+                    marcas, preguntas = _data_turrones_mazapanes()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Ginebras":
+                    marcas, preguntas = _data_ginebras()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Galletas Saludables":
+                    # OJO: el usuario quiere foco saludable; mantenemos dataset de galletas saludables
+                    from src.admin.seed_fmcg import _data_galletas_saludables
+                    marcas, preguntas = _data_galletas_saludables()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Galletas Caramelizadas":
+                    marcas, preguntas = _data_galletas_caramelizadas()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Embutidos Curados":
+                    marcas, preguntas = _data_embutidos_curados()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Rones":
+                    marcas, preguntas = _data_rones_extendido()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+                elif nombre == "Geles de Ducha":
+                    marcas, preguntas = _data_geles_ducha()
+                    _incremental_populate(session, categoria, marcas, preguntas, frecuencia="monthly")
+
+            session.commit()
+        click.echo("✓ Seed FMCG incremental completado")
+    except Exception as e:
+        click.echo(f"✗ Error en seed_fmcg_incremental: {e}", err=True)
+        logger.error("Error en seed_fmcg_incremental", exc_info=True)
+
+
+@admin.command()
 def seed_health():
     """Poblar base de datos con datos del mercado Salud"""
     from src.admin.seed_health import seed_health_market

@@ -66,7 +66,8 @@ class SentimentAgent(BaseAgent):
         Returns:
             Dict con análisis de sentimiento
         """
-        year, month = map(int, periodo.split('-'))
+        # Ventana temporal dinámica
+        start, end, _ = self._parse_periodo(periodo)
         
         # 1. Obtener marcas
         marcas = self.session.query(Marca).filter_by(
@@ -83,8 +84,8 @@ class SentimentAgent(BaseAgent):
             Query
         ).filter(
             Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year
+            QueryExecution.timestamp >= start,
+            QueryExecution.timestamp < end
         ).all()
         
         if not executions:

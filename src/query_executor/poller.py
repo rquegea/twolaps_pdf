@@ -4,6 +4,8 @@ Sistema de polling para ejecutar queries automáticamente
 """
 
 import time
+import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
@@ -205,15 +207,16 @@ def execute_category_queries(
     providers: Optional[List[str]] = None
 ) -> Dict:
     """
-    Ejecuta todas las queries activas de una categoría
-    
-    Args:
-        category_path: Ruta de categoría (formato: Mercado/Categoría)
-        providers: Lista de proveedores a usar (None = todos configurados)
-    
-    Returns:
-        Dict con estadísticas de ejecución
+    Ejecuta todas las queries activas de una categoría (concurrencia limitada por settings)
     """
+    def _get_max_concurrency(default: int = 12) -> int:
+        try:
+            with open("config/settings.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            return int((cfg.get("polling") or {}).get("max_concurrent_queries", default))
+        except Exception:
+            return default
+
     with get_session() as session:
         # Parsear categoría
         try:
@@ -254,8 +257,16 @@ def execute_category_queries(
             categoria=category_path,
             num_queries=len(queries)
         )
-        
-        # Ejecutar cada query
+
+        # Construir trabajos (query_id, provider)
+        work_items = []
+        for q in queries:
+            query_providers = providers if providers else (q.proveedores_ia or [])
+            for provider in query_providers:
+                work_items.append((q.id, provider))
+
+        max_workers = _get_max_concurrency()
+        total_cost = 0.0
         stats = {
             'queries_executed': 0,
             'total_executions': 0,
@@ -263,28 +274,38 @@ def execute_category_queries(
             'failed_executions': 0,
             'total_cost': 0.0
         }
-        
-        for query in queries:
-            # Determinar proveedores a usar
-            query_providers = providers if providers else query.proveedores_ia
-            
-            for provider in query_providers:
-                result = execute_query(query, provider, session)
-                
+
+        def _worker(query_id: int, provider: str) -> Dict:
+            with get_session() as s_worker:
+                q_inst = s_worker.query(Query).get(query_id)
+                if not q_inst:
+                    return {'success': False, 'error': f'query_not_found:{query_id}'}
+                return execute_query(q_inst, provider, s_worker)
+
+        # Ejecutar en paralelo
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_worker, qid, prov): (qid, prov) for (qid, prov) in work_items}
+            for fut in as_completed(futures):
+                try:
+                    result = fut.result()
+                except Exception as e:
+                    result = {'success': False, 'error': str(e)}
                 stats['total_executions'] += 1
-                
-                if result['success']:
+                if result.get('success'):
                     stats['successful_executions'] += 1
-                    stats['total_cost'] += result.get('cost_usd', 0.0)
+                    total_cost += float(result.get('cost_usd', 0.0) or 0.0)
                 else:
                     stats['failed_executions'] += 1
-            
-            # Actualizar última ejecución
-            query.ultima_ejecucion = datetime.utcnow()
-            stats['queries_executed'] += 1
-        
+
+        # Marcar última ejecución de las queries de la categoría
+        now_ts = datetime.utcnow()
+        for q in queries:
+            q.ultima_ejecucion = now_ts
         session.commit()
-        
+
+        stats['queries_executed'] = len(queries)
+        stats['total_cost'] = total_cost
+
         logger.info(
             "category_execution_completed",
             categoria=category_path,
@@ -304,6 +325,15 @@ def start_polling(interval: str = 'weekly', run_once: bool = False):
     """
     logger.info("poller_started", interval=interval, run_once=run_once)
     
+    def _get_max_concurrency(default: int = 5) -> int:
+        """Lee max_concurrent_queries desde config/settings.yaml"""
+        try:
+            with open("config/settings.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            return int((cfg.get("polling") or {}).get("max_concurrent_queries", default))
+        except Exception:
+            return default
+    
     while True:
         try:
             with get_session() as session:
@@ -314,42 +344,71 @@ def start_polling(interval: str = 'weekly', run_once: bool = False):
                 if not queries_to_execute:
                     logger.info("no_queries_to_execute")
                 else:
+                    max_workers = _get_max_concurrency()
                     logger.info(
                         "executing_scheduled_queries",
-                        num_queries=len(queries_to_execute)
+                        num_queries=len(queries_to_execute),
+                        max_concurrent=max_workers
                     )
-                    
-                    # Ejecutar queries
+
+                    # Preparar trabajos: (query_id, provider)
+                    work_items = []
+                    executed_query_ids = set()
+                    for q in queries_to_execute:
+                        executed_query_ids.add(q.id)
+                        for provider in (q.proveedores_ia or []):
+                            work_items.append((q.id, provider))
+
                     total_cost = 0.0
                     total_executions = 0
                     successful = 0
                     failed = 0
-                    
-                    for query in queries_to_execute:
-                        # Ejecutar en todos los proveedores configurados
-                        for provider in query.proveedores_ia:
-                            result = execute_query(query, provider, session)
-                            
+
+                    def _worker(query_id: int, provider: str) -> dict:
+                        # Cada hilo abre su propia sesión y carga la query por ID
+                        with get_session() as s_worker:
+                            q_inst = s_worker.query(Query).get(query_id)
+                            if not q_inst:
+                                return {"success": False, "error": f"query_not_found:{query_id}"}
+                            return execute_query(q_inst, provider, s_worker)
+
+                    # Ejecutar en pool
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        future_to_item = {
+                            executor.submit(_worker, qid, prov): (qid, prov)
+                            for (qid, prov) in work_items
+                        }
+
+                        for future in as_completed(future_to_item):
+                            _qid, _prov = future_to_item[future]
+                            try:
+                                result = future.result()
+                            except Exception as e:
+                                result = {"success": False, "error": str(e)}
+
                             total_executions += 1
-                            
-                            if result['success']:
+                            if result.get('success'):
                                 successful += 1
-                                total_cost += result.get('cost_usd', 0.0)
+                                total_cost += float(result.get('cost_usd', 0.0) or 0.0)
                             else:
                                 failed += 1
-                        
-                        # Actualizar última ejecución
-                        query.ultima_ejecucion = datetime.utcnow()
-                    
+
+                    # Actualizar ultima_ejecucion en bloque tras completar proveedores
+                    now_ts = datetime.utcnow()
+                    for qid in executed_query_ids:
+                        q_obj = session.query(Query).get(qid)
+                        if q_obj:
+                            q_obj.ultima_ejecucion = now_ts
                     session.commit()
-                    
+
                     logger.info(
                         "polling_cycle_completed",
                         queries_executed=len(queries_to_execute),
                         total_executions=total_executions,
                         successful=successful,
                         failed=failed,
-                        total_cost=total_cost
+                        total_cost=total_cost,
+                        max_concurrent=max_workers
                     )
                     
                     # Verificar presupuesto
@@ -366,6 +425,6 @@ def start_polling(interval: str = 'weekly', run_once: bool = False):
         
         # Dormir hasta el próximo ciclo (1 hora por defecto)
         sleep_minutes = 60
-        logger.info(f"sleeping_until_next_cycle", minutes=sleep_minutes)
+        logger.info("sleeping_until_next_cycle", minutes=sleep_minutes)
         time.sleep(sleep_minutes * 60)
 

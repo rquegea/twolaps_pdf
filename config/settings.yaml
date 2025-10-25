@@ -11,7 +11,7 @@ polling:
   # Default polling interval if not specified
   default_interval_minutes: 60
   # Max concurrent query executions
-  max_concurrent_queries: 5
+  max_concurrent_queries: 12
   # Retry settings
   max_retries: 3
   retry_backoff_seconds: 5

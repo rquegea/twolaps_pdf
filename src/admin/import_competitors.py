@@ -38,6 +38,28 @@ def _get_or_create_category(session, mercado_id: int, nombre: str) -> Categoria:
     return c
 
 
+def _generate_aliases(name: str) -> List[str]:
+    """Genera aliases simples a partir del nombre (variantes comunes)."""
+    base = name.strip()
+    variants = {base}
+    # Normalizaciones básicas
+    variants.add(base.replace("®", "").replace("\u00ae", ""))
+    variants.add(base.replace("&", "and"))
+    # Dividir por separadores frecuentes para incluir nombres parciales
+    for sep in ["/", "-", "(", ")", ","]:
+        if sep in base:
+            parts = [p.strip() for p in base.replace(")", "").split(sep) if p.strip()]
+            for p in parts:
+                variants.add(p)
+    # Quitar dobles espacios y variantes en minúsculas
+    clean_variants = set()
+    for v in variants:
+        v2 = " ".join(v.split())
+        clean_variants.add(v2)
+        clean_variants.add(v2.lower())
+    return sorted(x for x in clean_variants if x)
+
+
 def _upsert_brands(session, categoria_id: int, marcas: List[str]):
     existentes = {m.nombre.lower(): m for m in session.query(Marca).filter_by(categoria_id=categoria_id).all()}
     count_new = 0
@@ -45,7 +67,10 @@ def _upsert_brands(session, categoria_id: int, marcas: List[str]):
         key = nombre.strip().lower()
         if key in existentes:
             continue
-        m = Marca(categoria_id=categoria_id, nombre=nombre.strip(), tipo="competidor", aliases=[nombre.strip()])
+        aliases = _generate_aliases(nombre.strip())
+        if nombre.strip() not in aliases:
+            aliases.append(nombre.strip())
+        m = Marca(categoria_id=categoria_id, nombre=nombre.strip(), tipo="competidor", aliases=aliases)
         session.add(m)
         count_new += 1
     session.flush()

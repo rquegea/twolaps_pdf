@@ -201,49 +201,105 @@ def generate_batch(categories, all_categories, period):
 @click.option('--provider', '-p', multiple=True, help='Proveedor específico (openai, anthropic, google, perplexity). Por defecto usa los de cada query')
 @click.option('--market', '-m', help='Limitar a un mercado (opcional)')
 def execute_all(provider, market):
-    """Ejecutar AHORA todas las queries activas ignorando el scheduler"""
+    """Ejecutar AHORA todas las queries activas en paralelo (usa max_concurrent_queries)."""
+    import yaml
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from datetime import datetime
     from src.database.connection import get_session
-    from src.database.models import Mercado, Categoria
-    from src.query_executor.poller import execute_category_queries
+    from src.database.models import Mercado, Categoria, Query
+    from src.query_executor.poller import execute_query
+
+    def _get_max_concurrency(default: int = 12) -> int:
+        try:
+            with open("config/settings.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            return int((cfg.get("polling") or {}).get("max_concurrent_queries", default))
+        except Exception:
+            return default
 
     with get_session() as session:
-        mercados = session.query(Mercado).filter_by(activo=True).all()
+        # Construir lista de queries activas (opcionalmente por mercado)
         if market:
-            mercados = [m for m in mercados if m.nombre == market]
+            mercados = session.query(Mercado).filter_by(nombre=market).all()
             if not mercados:
                 click.echo(f"✗ Mercado '{market}' no encontrado", err=True)
                 raise click.Abort()
+            cats = session.query(Categoria).filter(Categoria.mercado_id.in_([m.id for m in mercados]), Categoria.activo == True).all()
+            qlist = session.query(Query).filter(Query.activa == True, Query.categoria_id.in_([c.id for c in cats])).all()
+        else:
+            qlist = session.query(Query).filter_by(activa=True).all()
 
-        total_stats = {
+        if not qlist:
+            click.echo("No hay queries activas")
+            return
+
+        # Preparar trabajos (query_id, provider)
+        work_items = []
+        for q in qlist:
+            provs = list(provider) if provider else (q.proveedores_ia or [])
+            for prov in provs:
+                work_items.append((q.id, prov))
+
+        if not work_items:
+            click.echo("No hay ejecuciones para lanzar (sin proveedores)")
+            return
+
+        max_workers = _get_max_concurrency()
+        click.echo(f"🚀 Lanzando {len(work_items)} ejecuciones con concurrencia={max_workers}")
+
+        stats = {
             'queries_executed': 0,
             'total_executions': 0,
             'successful_executions': 0,
             'failed_executions': 0,
             'total_cost': 0.0
         }
+        total_cost = 0.0
+        executed_query_ids = set()
 
-        for m in mercados:
-            categorias = session.query(Categoria).filter_by(mercado_id=m.id, activo=True).all()
-            for c in categorias:
-                category_path = f"{m.nombre}/{c.nombre}"
-                click.echo(f"🔄 Ejecutando: {category_path}")
+        def _worker(qid: int, prov: str):
+            from src.database.connection import get_session
+            from src.database.models import Query
+            with get_session() as s:
+                qi = s.query(Query).get(qid)
+                if not qi:
+                    return {'success': False, 'error': f'query_not_found:{qid}'}
+                return execute_query(qi, prov, s)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {ex.submit(_worker, qid, prov): (qid, prov) for (qid, prov) in work_items}
+            for fut in as_completed(futures):
+                qid, prov = futures[fut]
+                executed_query_ids.add(qid)
                 try:
-                    stats = execute_category_queries(category_path, providers=list(provider) if provider else None)
-                    total_stats['queries_executed'] += stats['queries_executed']
-                    total_stats['total_executions'] += stats['total_executions']
-                    total_stats['successful_executions'] += stats['successful_executions']
-                    total_stats['failed_executions'] += stats['failed_executions']
-                    total_stats['total_cost'] += stats['total_cost']
+                    result = fut.result()
                 except Exception as e:
-                    click.echo(f"  ✗ Error: {e}")
-                click.echo("")
+                    result = {'success': False, 'error': str(e)}
+
+                stats['total_executions'] += 1
+                if result.get('success'):
+                    stats['successful_executions'] += 1
+                    total_cost += float(result.get('cost_usd', 0.0) or 0.0)
+                else:
+                    stats['failed_executions'] += 1
+
+        # Marcar última ejecución de las queries tocadas
+        now_ts = datetime.utcnow()
+        for qid in executed_query_ids:
+            qobj = session.query(Query).get(qid)
+            if qobj:
+                qobj.ultima_ejecucion = now_ts
+        session.commit()
+
+        stats['queries_executed'] = len(executed_query_ids)
+        stats['total_cost'] = total_cost
 
         click.echo("\n✅ Ejecución global completada")
-        click.echo(f"  Queries ejecutadas: {total_stats['queries_executed']}")
-        click.echo(f"  Respuestas:        {total_stats['total_executions']}")
-        click.echo(f"  Éxitos:            {total_stats['successful_executions']}")
-        click.echo(f"  Fallos:            {total_stats['failed_executions']}")
-        click.echo(f"  Coste total:       ${total_stats['total_cost']:.4f}")
+        click.echo(f"  Queries ejecutadas: {stats['queries_executed']}")
+        click.echo(f"  Respuestas:        {stats['total_executions']}")
+        click.echo(f"  Éxitos:            {stats['successful_executions']}")
+        click.echo(f"  Fallos:            {stats['failed_executions']}")
+        click.echo(f"  Coste total:       ${stats['total_cost']:.4f}")
 
 
 # Registrar grupo de comandos admin

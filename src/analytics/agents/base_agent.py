@@ -198,6 +198,68 @@ class BaseAgent(ABC):
         
         return None
     
+    # =============================
+    # Period Helpers (daily/weekly/monthly)
+    # =============================
+    def _parse_periodo(self, periodo: str):
+        """
+        Convierte un periodo en ventana [start, end) y devuelve la granularidad.
+        Soporta:
+          - YYYY-MM-DD  -> 'daily'
+          - YYYY-Www    -> 'weekly' (ISO semana, lunes-domingo)
+          - YYYY-MM     -> 'monthly'
+        """
+        import re
+        from datetime import datetime, timedelta
+        p = (periodo or "").strip()
+        # Rango arbitrario: YYYY-MM-DD..YYYY-MM-DD
+        if '..' in p:
+            start_s, end_s = p.split('..', 1)
+            start = datetime.strptime(start_s.strip(), '%Y-%m-%d')
+            end = datetime.strptime(end_s.strip(), '%Y-%m-%d') + timedelta(days=1)  # fin exclusivo
+            return start, end, 'range'
+
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', p):  # diario
+            start = datetime.strptime(p, '%Y-%m-%d')
+            end = start + timedelta(days=1)
+            return start, end, 'daily'
+        if re.match(r'^\d{4}-W\d{2}$', p):       # semanal ISO
+            y, w = p.split('-W')
+            start = datetime.fromisocalendar(int(y), int(w), 1)  # lunes
+            end = start + timedelta(days=7)
+            return start, end, 'weekly'
+        if re.match(r'^\d{4}-\d{2}$', p):        # mensual
+            start = datetime.strptime(p, '%Y-%m')
+            y, m = start.year, start.month
+            end = (datetime(y+1, 1, 1) if m == 12 else datetime(y, m+1, 1))
+            return start, end, 'monthly'
+        raise ValueError(f"Formato de periodo no soportado: {periodo}")
+
+    def _get_last_periods_generic(self, periodo: str, n: int = 6):
+        """Devuelve últimos n periodos según granularidad del periodo dado (incluye actual)."""
+        from datetime import timedelta
+        start, _, gran = self._parse_periodo(periodo)
+        periods = []
+        for i in range(n-1, -1, -1):
+            if gran == 'daily':
+                d = start - timedelta(days=i)
+                periods.append(d.strftime('%Y-%m-%d'))
+            elif gran == 'weekly':
+                d = start - timedelta(weeks=i)
+                iso = d.isocalendar()
+                periods.append(f"{iso.year}-W{iso.week:02d}")
+            else:  # monthly
+                y, m = start.year, start.month - i
+                while m <= 0:
+                    y -= 1
+                    m += 12
+                periods.append(f"{y}-{m:02d}")
+        return periods
+
+    def _get_previous_periodo_generic(self, periodo: str) -> str:
+        seq = self._get_last_periods_generic(periodo, n=2)
+        return seq[0] if len(seq) == 2 else None
+    
     def _get_stratified_sample(self, categoria_id: int, periodo: str, samples_per_group: int = 2) -> str:
         """
         Obtiene muestra estratificada de respuestas textuales.
@@ -213,18 +275,16 @@ class BaseAgent(ABC):
             String formateado con las respuestas textuales estratificadas
         """
         from src.database.models import Query, QueryExecution
-        from sqlalchemy import extract
+        start, end, _ = self._parse_periodo(periodo)
         
-        year, month = map(int, periodo.split('-'))
-        
-        # Obtener TODAS las ejecuciones con respuesta_texto
+        # Obtener TODAS las ejecuciones con respuesta_texto en ventana [start, end)
         executions = self.session.query(QueryExecution).join(
             Query
         ).filter(
             Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year,
-            QueryExecution.respuesta_texto.isnot(None)
+            QueryExecution.respuesta_texto.isnot(None),
+            QueryExecution.timestamp >= start,
+            QueryExecution.timestamp < end
         ).all()
         
         if not executions:

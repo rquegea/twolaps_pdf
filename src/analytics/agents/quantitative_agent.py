@@ -5,7 +5,7 @@ Análisis cuantitativo: SOV, menciones, co-ocurrencias
 
 from typing import Dict, Any
 from collections import defaultdict
-from sqlalchemy import func, extract
+from sqlalchemy import func
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import Query, QueryExecution, Marca
 
@@ -27,7 +27,8 @@ class QuantitativeAgent(BaseAgent):
         Returns:
             Dict con SOV, menciones y co-ocurrencias
         """
-        year, month = map(int, periodo.split('-'))
+        # Parsear periodo a ventana temporal [inicio, fin)
+        start, end, _ = self._parse_periodo(periodo)
         
         # 1. Obtener marcas de la categoría
         marcas = self.session.query(Marca).filter_by(
@@ -42,8 +43,8 @@ class QuantitativeAgent(BaseAgent):
             Query
         ).filter(
             Query.categoria_id == categoria_id,
-            extract('month', QueryExecution.timestamp) == month,
-            extract('year', QueryExecution.timestamp) == year
+            QueryExecution.timestamp >= start,
+            QueryExecution.timestamp < end
         ).all()
         
         if not executions:
