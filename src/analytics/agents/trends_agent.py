@@ -180,7 +180,21 @@ class TrendsAgent(BaseAgent):
         campaign_data = self._get_analysis('campaign_analysis', categoria_id, periodo) or {}
         channel_data = self._get_analysis('channel_analysis', categoria_id, periodo) or {}
         qual_now = self._get_analysis('qualitative', categoria_id, periodo) or self._get_analysis('qualitativeextraction', categoria_id, periodo) or {}
+
+        # Fallback mensual si el rango no trae datos de soporte
+        try:
+            period_month = periodo[:7] if '..' in periodo else periodo[:7]
+        except Exception:
+            period_month = None
+        if not campaign_data and period_month:
+            campaign_data = self._get_analysis('campaign_analysis', categoria_id, period_month) or {}
+        if not channel_data and period_month:
+            channel_data = self._get_analysis('channel_analysis', categoria_id, period_month) or {}
         sent_now = qual_now.get('sentimiento_por_marca', {}) or {}
+        if not sent_now and period_month:
+            qual_m = self._get_analysis('qualitative', categoria_id, period_month) \
+                     or self._get_analysis('qualitativeextraction', categoria_id, period_month) or {}
+            sent_now = qual_m.get('sentimiento_por_marca', {}) or {}
 
         def _drivers_para_marca(marca: str) -> list[str]:
             drivers: list[str] = []
@@ -231,6 +245,31 @@ class TrendsAgent(BaseAgent):
             drv = _drivers_para_marca(marca)
             if drv:
                 t['posibles_drivers'] = drv
+            # Estimar driver_confidence
+            try:
+                delta = abs(float(t.get('cambio_puntos', 0) or 0.0))
+                rel = abs(float(t.get('cambio_rel_pct', 0) or 0.0))
+                score = 0.0
+                # Magnitud
+                if delta >= 6.0 or rel >= 20.0:
+                    score += 0.5
+                elif delta >= 3.0 or rel >= 10.0:
+                    score += 0.35
+                # Evidencias externas
+                evid = 0
+                if drv:
+                    for d in drv:
+                        if d.startswith('campañas:'):
+                            evid += 1
+                        if d.startswith('canales:'):
+                            evid += 1
+                        if d.startswith('sentimiento:'):
+                            evid += 1
+                score += min(evid * 0.15, 0.45)
+                conf = 'alta' if score >= 0.75 else ('media' if score >= 0.5 else 'baja')
+                t['driver_confidence'] = conf
+            except Exception:
+                pass
         
         resultado = {
             'periodo': periodo,

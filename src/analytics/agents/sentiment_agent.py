@@ -6,7 +6,8 @@ Análisis de sentimiento usando LLM
 import json
 import yaml
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Type
+from pydantic import BaseModel, Field
 from collections import defaultdict
 from sqlalchemy import extract
 from src.analytics.agents.base_agent import BaseAgent
@@ -91,44 +92,46 @@ class SentimentAgent(BaseAgent):
         if not executions:
             return {'error': 'No hay datos para analizar'}
         
-        # 3. Analizar sentimiento por respuesta (muestra)
-        # Para evitar costes excesivos, analizamos una muestra
+        # 3. Analizar sentimiento por respuesta (muestra) con validación Pydantic
+        class MarcaSentiment(BaseModel):
+            score: float
+            tono: Optional[str] = None
+            intensidad: Optional[str] = None
+            atributos: Dict[str, float] = Field(default_factory=dict)
+            contextos: Optional[list] = None
+            quote: Optional[str] = None
+
+        class SentimentOutput(BaseModel):
+            __root__: Dict[str, MarcaSentiment]
+
         sample_size = min(20, len(executions))
         sampled_executions = executions[:sample_size]
-        
+
         sentiments_by_marca = defaultdict(list)
         atributos_by_marca = defaultdict(lambda: defaultdict(list))
-        
+
         for execution in sampled_executions:
-            # Construir prompt
             prompt = self.task_prompt.format(
                 marcas=', '.join(marca_nombres),
-                texto=execution.respuesta_texto[:1500]  # Limitar texto
+                texto=(execution.respuesta_texto or '')[:1500]
             )
-            
-            try:
-                # Llamar a LLM
-                result = self.client.generate(
-                    prompt=prompt,
-                    temperature=0.3,
-                    max_tokens=1000
-                )
-                
-                # Parsear respuesta JSON
-                sentiment_data = json.loads(result['response_text'])
-                
-                # Agregar resultados
-                for marca, data in sentiment_data.items():
-                    if marca in marca_nombres:
-                        sentiments_by_marca[marca].append(data.get('score', 0))
-                        
-                        # Atributos
-                        for attr, score in data.get('atributos', {}).items():
-                            atributos_by_marca[marca][attr].append(score)
-            
-            except Exception as e:
-                # Si falla el parsing, continuar con siguiente
+            gen = self._generate_with_validation(
+                prompt=prompt,
+                pydantic_model=SentimentOutput,
+                max_retries=2,
+                temperature=0.3,
+            )
+            if not gen.get('success') or not gen.get('parsed'):
                 continue
+            data = gen['parsed'].get('__root__') or {}
+            for marca, ms in data.items():
+                if marca in marca_nombres:
+                    sentiments_by_marca[marca].append(float(ms.get('score', 0)))
+                    for attr, score in (ms.get('atributos') or {}).items():
+                        try:
+                            atributos_by_marca[marca][attr].append(float(score))
+                        except Exception:
+                            pass
         
         # 4. Agregar sentimientos
         sentimiento_agregado = {}

@@ -442,13 +442,17 @@ def preview_agents(category, period, agents, run_missing, rerun):
             click.echo(f"  Líder de mercado: {lider}")
             insights = res.get('insights', [])
             if insights:
-                click.echo("  Insights (primeros 3, con profundidad):")
-                for it in insights[:3]:
-                    ev = len((it.get('evidencia') or []))
-                    kpi = len((it.get('kpis_seguimiento') or []))
-                    conf = it.get('confianza', 'N/A')
-                    ca = 'sí' if it.get('contraargumento') else 'no'
-                    tit = (it.get('titulo','(sin título)') or '')[:90]
+                click.echo("  Insight #1 (JSON completo):")
+                try:
+                    import json
+                    first = insights[0]
+                    click.echo(json.dumps(first, ensure_ascii=False, indent=2)[:4000])
+                except Exception:
+                    ev = len((insights[0].get('evidencia') or []))
+                    kpi = len((insights[0].get('kpis_seguimiento') or []))
+                    conf = insights[0].get('confianza', 'N/A')
+                    ca = 'sí' if insights[0].get('contraargumento') else 'no'
+                    tit = (insights[0].get('titulo','(sin título)') or '')[:90]
                     click.echo(f"   · {tit} | ev:{ev} kpi:{kpi} conf:{conf} contra:{ca}")
             else:
                 ranking = res.get('ranking_sov', [])[:5]
@@ -480,7 +484,9 @@ def preview_agents(category, period, agents, run_missing, rerun):
                     sig = t.get('significancia', '')
                     pico = ' pico' if t.get('pico') else ''
                     drivers = ", ".join(t.get('posibles_drivers', [])[:3]) if t.get('posibles_drivers') else ''
-                    extra = f" | drivers: {drivers}" if drivers else ''
+                    conf = t.get('driver_confidence')
+                    conf_txt = f" conf:{conf}" if conf else ''
+                    extra = f" | drivers: {drivers}{conf_txt}" if drivers or conf else ''
                     click.echo(f"   · {t.get('marca','')} {t.get('direccion','')} {cambios}{tramo} [{sig}{pico}]{extra}")
                 else:
                     # Formato antiguo (tipo/titulo/datos_cuantitativos)

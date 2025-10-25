@@ -3,7 +3,8 @@ RAG Manager
 Sistema de Retrieval-Augmented Generation para contexto histórico
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime, timedelta
 from sqlalchemy import text
 from src.database.models import Embedding, Report, AnalysisResult, QueryExecution
 from src.query_executor.api_clients import OpenAIClient
@@ -87,9 +88,11 @@ class RAGManager:
         categoria_id: int,
         query_text: str,
         top_k: int = 3,
-        periodo_actual: str = None,
-        tipo_filtro: str = None,
-        incluir_periodo_actual: bool = False
+        periodo_actual: Optional[str] = None,
+        tipo_filtro: Optional[str] = None,
+        incluir_periodo_actual: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """
         Busca embeddings similares usando búsqueda vectorial
@@ -109,20 +112,31 @@ class RAGManager:
             # Generar embedding de la query
             query_vector = self.client.generate_embedding(query_text)
             
-            # Construir query SQL con pgvector
-            # Usamos operador <=> para distancia coseno
-            # Condicional para periodo según incluir_periodo_actual
-            periodo_condition = ""
-            if periodo_actual:
-                if incluir_periodo_actual:
-                    periodo_condition = "AND e.periodo = :periodo_actual"
-                else:
-                    periodo_condition = "AND e.periodo != :periodo_actual"
-            
+            # Construcción de condiciones
             tipo_condition = ""
             if tipo_filtro:
                 tipo_condition = "AND e.tipo = :tipo_filtro"
-            
+
+            # Si se provee rango de fechas, filtrar por tiempo preciso
+            fecha_join = ""
+            fecha_condition = ""
+            use_precise_dates = bool(start_date and end_date)
+            if use_precise_dates:
+                if tipo_filtro == 'query_execution':
+                    fecha_join = "JOIN query_executions qe ON qe.id = e.referencia_id AND e.tipo = 'query_execution'"
+                    fecha_condition = "AND qe.timestamp >= :start_date AND qe.timestamp < :end_date"
+                else:
+                    fecha_condition = "AND e.created_at >= :start_date AND e.created_at < :end_date"
+            else:
+                # Compatibilidad: filtrar por clave de periodo cuando no hay fechas precisas
+                periodo_condition = ""
+                if periodo_actual:
+                    if incluir_periodo_actual:
+                        periodo_condition = "AND e.periodo = :periodo_actual"
+                    else:
+                        periodo_condition = "AND e.periodo != :periodo_actual"
+                fecha_condition = periodo_condition
+
             sql = text(f"""
                 SELECT 
                     e.id,
@@ -133,8 +147,9 @@ class RAGManager:
                     e.metadata,
                     (e.vector <=> :query_vector) as distance
                 FROM embeddings e
+                {fecha_join}
                 WHERE e.categoria_id = :categoria_id
-                    {periodo_condition}
+                    {fecha_condition}
                     {tipo_condition}
                 ORDER BY e.vector <=> :query_vector
                 LIMIT :top_k
@@ -146,10 +161,12 @@ class RAGManager:
                 'categoria_id': categoria_id,
                 'top_k': top_k
             }
-            
-            if periodo_actual:
+            if use_precise_dates:
+                params['start_date'] = start_date
+                params['end_date'] = end_date
+            elif periodo_actual:
                 params['periodo_actual'] = periodo_actual
-            
+
             if tipo_filtro:
                 params['tipo_filtro'] = tipo_filtro
             
@@ -205,14 +222,45 @@ class RAGManager:
             Lista de dicts con {texto, execution_id, metadata, similarity}
         """
         try:
-            # Buscar embeddings similares dentro del periodo actual
+            # Parsear periodo a rango de fechas exacto
+            def _parse_period(p: str) -> Tuple[Optional[datetime], Optional[datetime]]:
+                try:
+                    ps = (p or "").strip()
+                    if '..' in ps:
+                        s, e = ps.split('..', 1)
+                        start = datetime.strptime(s.strip(), '%Y-%m-%d')
+                        end = datetime.strptime(e.strip(), '%Y-%m-%d') + timedelta(days=1)
+                        return start, end
+                    if len(ps) == 10 and ps[4] == '-' and ps[7] == '-':
+                        start = datetime.strptime(ps, '%Y-%m-%d')
+                        end = start + timedelta(days=1)
+                        return start, end
+                    if '-W' in ps:
+                        y, w = ps.split('-W')
+                        start = datetime.fromisocalendar(int(y), int(w), 1)
+                        end = start + timedelta(days=7)
+                        return start, end
+                    if len(ps) >= 7 and ps[4] == '-' and ps[5:7].isdigit():
+                        start = datetime.strptime(ps[:7], '%Y-%m')
+                        y, m = start.year, start.month
+                        end = (datetime(y+1, 1, 1) if m == 12 else datetime(y, m+1, 1))
+                        return start, end
+                except Exception:
+                    return None, None
+                return None, None
+
+            start_dt, end_dt = _parse_period(periodo)
+
+            # Buscar embeddings similares dentro del rango o periodo
             similar_embeddings = self.search_similar(
                 categoria_id=categoria_id,
                 query_text=analytical_question,
                 top_k=top_k,
-                periodo_actual=periodo,
+                periodo_actual=periodo[:7] if (not start_dt and periodo) else None,
                 tipo_filtro='query_execution',
-                incluir_periodo_actual=True  # IMPORTANTE: incluir periodo actual
+                incluir_periodo_actual=True,
+                start_date=start_dt,
+                end_date=end_dt
             )
             
             if not similar_embeddings:

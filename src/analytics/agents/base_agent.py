@@ -210,6 +210,7 @@ class BaseAgent(ABC):
           - YYYY-MM-DD  -> 'daily'
           - YYYY-Www    -> 'weekly' (ISO semana, lunes-domingo)
           - YYYY-MM     -> 'monthly'
+          - YYYY-MM-DD..YYYY-MM-DD -> 'range' (end exclusivo al día siguiente 00:00)
         """
         import re
         from datetime import datetime, timedelta
