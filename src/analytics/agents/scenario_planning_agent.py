@@ -7,6 +7,7 @@ import json
 from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.query_executor.api_clients import OpenAIClient
+from src.analytics.schemas import EvidenceItem
 
 
 class ScenarioPlanningAgent(BaseAgent):
@@ -37,11 +38,18 @@ class ScenarioPlanningAgent(BaseAgent):
         try:
             parsed = json.loads(response_text)
         except Exception:
-            parsed = {
-                'best_case': {'probability': 0.25, 'drivers': [], 'description': '', 'impact': '', 'recommended_actions': []},
-                'base_case': {'probability': 0.5, 'drivers': [], 'description': '', 'impact': '', 'recommended_actions': []},
-                'worst_case': {'probability': 0.25, 'drivers': [], 'description': '', 'impact': '', 'recommended_actions': []}
-            }
+            parsed = {}
+
+        # Gating: asegurar 3 escenarios con campos obligatorios
+        defaults = {
+            'probability': 0.33,
+            'drivers': [],
+            'description': '',
+            'impact': '',
+            'recommended_actions': []
+        }
+        for key in ['best_case', 'base_case', 'worst_case']:
+            parsed[key] = {**defaults, **(parsed.get(key) or {})}
 
         parsed['periodo'] = periodo
         parsed['categoria_id'] = categoria_id

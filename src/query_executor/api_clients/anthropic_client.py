@@ -6,6 +6,7 @@ Cliente para Anthropic (Claude)
 import os
 from typing import Dict, Optional, List
 from anthropic import Anthropic, NotFoundError
+from anthropic._exceptions import RateLimitError
 from src.query_executor.api_clients.base import BaseAIClient
 
 
@@ -80,7 +81,13 @@ class AnthropicClient(BaseAIClient):
                             # Si la SDK no soporta response_format, seguimos sin él
                             pass
 
-                    response = self.client.messages.create(**kwargs)
+                    try:
+                        response = self.client.messages.create(**kwargs)
+                    except RateLimitError:
+                        # Fallback inmediato a OpenAI si Anthropic limita por tasa
+                        from src.query_executor.api_clients.openai_client import OpenAIClient
+                        oc = OpenAIClient()
+                        return oc.generate(prompt=prompt, temperature=temperature, max_tokens=min(max_tokens, 1500))
                     return {
                         'response_text': response.content[0].text if getattr(response, 'content', None) else '',
                         'tokens_input': getattr(getattr(response, 'usage', None), 'input_tokens', 0),

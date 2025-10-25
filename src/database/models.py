@@ -449,6 +449,7 @@ class Embedding(Base):
     __table_args__ = (
         Index('idx_embedding_categoria_periodo', 'categoria_id', 'periodo'),
         Index('idx_embedding_tipo_referencia', 'tipo', 'referencia_id'),
+        Index('idx_embedding_created_at', 'created_at'),
     )
     
     def __repr__(self):

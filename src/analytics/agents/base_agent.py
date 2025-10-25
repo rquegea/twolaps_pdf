@@ -366,12 +366,54 @@ class BaseAgent(ABC):
         augmented_prompt = prompt
         last_error: Optional[str] = None
 
+        def _clip_to_balanced_json(text: str) -> str:
+            # Intenta recortar al primer JSON balanceado ({} o []) ignorando braces dentro de comillas simples/dobles
+            if not text:
+                return text
+            s = text.strip()
+            # Detectar inicio { o [
+            start_idx = None
+            for i, ch in enumerate(s):
+                if ch in '{[':
+                    start_idx = i
+                    break
+            if start_idx is None:
+                return text
+            stack = []
+            in_str = False
+            esc = False
+            quote_char = ''
+            for i in range(start_idx, len(s)):
+                ch = s[i]
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif ch == '\\':
+                        esc = True
+                    elif ch == quote_char:
+                        in_str = False
+                else:
+                    if ch == '"' or ch == "'":
+                        in_str = True
+                        quote_char = ch
+                    elif ch in '{[':
+                        stack.append('}' if ch == '{' else ']')
+                    elif ch in '}]':
+                        if not stack or ch != stack[-1]:
+                            continue
+                        stack.pop()
+                        if not stack:
+                            # JSON balanceado hasta i
+                            return s[start_idx:i+1]
+            return s[start_idx:]
+
         for attempt in range(max_retries + 1):
             try:
                 result = client.execute_query(
                     question=augmented_prompt,
                     temperature=temperature,
-                    max_tokens=max_tokens
+                    max_tokens=max_tokens,
+                    json_mode=True
                 )
                 raw_text = result.get("response_text", "") or ""
                 # Saneado: eliminar fences de markdown si el proveedor los añade
@@ -415,11 +457,31 @@ class BaseAgent(ABC):
                     attempt=attempt,
                     error=last_error
                 )
+                # Intento de reparación: recortar al JSON balanceado y revalidar inmediatamente
+                try:
+                    clipped = _clip_to_balanced_json(raw_text)
+                    if clipped and clipped != raw_text:
+                        try:
+                            parsed_obj = pydantic_model.model_validate_json(clipped)  # type: ignore[attr-defined]
+                        except AttributeError:
+                            parsed_obj = pydantic_model.parse_raw(clipped)  # type: ignore[attr-defined]
+                        try:
+                            parsed_dict = parsed_obj.model_dump()  # type: ignore[attr-defined]
+                        except Exception:
+                            parsed_dict = parsed_obj.dict()  # type: ignore[attr-defined]
+                        return {
+                            "parsed": parsed_dict,
+                            "raw_response": clipped,
+                            "success": True,
+                            "error": None,
+                        }
+                except Exception:
+                    pass
                 # Reintentar con instrucción de corrección de formato
                 augmented_prompt = (
                     prompt
-                    + "\n\nERROR: La respuesta anterior no cumplió el formato JSON esperado. "
-                      "DEVUELVE ÚNICAMENTE UN JSON VÁLIDO que cumpla la estructura requerida, sin texto adicional."
+                    + "\n\nDEVUELVE EXCLUSIVAMENTE JSON válido, sin texto adicional, sin comas finales, "
+                      "sin comentarios y RESPETA el esquema exacto. No superes 2 insights."
                 )
                 continue
             except Exception as e:

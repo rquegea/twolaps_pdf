@@ -7,7 +7,7 @@ import json
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, Type
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 from collections import defaultdict
 from sqlalchemy import extract
 from src.analytics.agents.base_agent import BaseAgent
@@ -95,35 +95,55 @@ class SentimentAgent(BaseAgent):
         # 3. Analizar sentimiento por respuesta (muestra) con validación Pydantic
         class MarcaSentiment(BaseModel):
             score: float
-            tono: Optional[str] = None
-            intensidad: Optional[str] = None
             atributos: Dict[str, float] = Field(default_factory=dict)
-            contextos: Optional[list] = None
-            quote: Optional[str] = None
 
-        class SentimentOutput(BaseModel):
-            __root__: Dict[str, MarcaSentiment]
+        class SentimentOutput(RootModel[Dict[str, MarcaSentiment]]):
+            pass
 
-        sample_size = min(20, len(executions))
+        sample_size = min(10, len(executions))
         sampled_executions = executions[:sample_size]
 
         sentiments_by_marca = defaultdict(list)
         atributos_by_marca = defaultdict(lambda: defaultdict(list))
 
+        allowed_attrs = [
+            'calidad', 'precio', 'innovacion', 'servicio', 'reputacion', 'disponibilidad', 'diseño'
+        ]
+
         for execution in sampled_executions:
-            prompt = self.task_prompt.format(
-                marcas=', '.join(marca_nombres),
-                texto=(execution.respuesta_texto or '')[:1500]
+            texto_src = (execution.respuesta_texto or '')[:800]
+            marcas_csv = ', '.join(marca_nombres)
+            attrs_csv = ', '.join(allowed_attrs)
+            prompt = (
+                "Eres un analista de sentimiento. Dado el TEXTO, estima el sentimiento por marca.\n\n"
+                f"MARCAS: {marcas_csv}\n"
+                f"ATRIBUTOS_PERMITIDOS: {attrs_csv}\n\n"
+                "FORMATO JSON ESTRICTO (sin texto extra):\n"
+                "{\n  \"Marca X\": {\"score\": 0.12, \"atributos\": {\"precio\": 0.3}},\n"
+                "  \"Marca Y\": {\"score\": -0.20, \"atributos\": {}}\n}\n\n"
+                "Reglas:\n- score en [-1,1]\n- atributos sólo de ATRIBUTOS_PERMITIDOS con valores en [-1,1]\n"
+                "- Si una marca no aparece, inclúyela igualmente con score 0 y atributos {}.\n\n"
+                f"TEXTO:\n{texto_src}"
             )
             gen = self._generate_with_validation(
                 prompt=prompt,
                 pydantic_model=SentimentOutput,
                 max_retries=2,
                 temperature=0.3,
+                max_tokens=900,
             )
             if not gen.get('success') or not gen.get('parsed'):
                 continue
-            data = gen['parsed'].get('__root__') or {}
+            parsed = gen['parsed']
+            if hasattr(parsed, 'model_dump'):
+                data = parsed.model_dump()
+            elif isinstance(parsed, dict):
+                data = parsed
+            else:
+                try:
+                    data = json.loads(parsed) if isinstance(parsed, str) else {}
+                except Exception:
+                    data = {}
             for marca, ms in data.items():
                 if marca in marca_nombres:
                     sentiments_by_marca[marca].append(float(ms.get('score', 0)))
@@ -154,7 +174,91 @@ class SentimentAgent(BaseAgent):
             for attr, scores in atributos_by_marca.get(marca, {}).items():
                 atributos_agregados[marca][attr] = sum(scores) / len(scores) if scores else 0
         
-        # 6. Resultado
+        # 6. Generar insights con Plantilla Obligatoria usando prompt desde config
+        try:
+            # Construir contexto compacto
+            metricas_compact = {
+                "por_marca": sentimiento_agregado,
+                "atributos_por_marca": atributos_agregados,
+            }
+            import json as _json
+            metricas_json = _json.dumps(metricas_compact, ensure_ascii=False, indent=2)
+            citas_list = []
+            for ex in sampled_executions[:8]:
+                txt = (ex.respuesta_texto or "").replace("\n", " ")[:200]
+                citas_list.append(f"- exec_{ex.id}: \"{txt}\"")
+            citas_txt = "\n".join(citas_list)
+
+            # Cargar prompt desde config (dinámico por tipo de mercado si se desea)
+            self.load_prompts()
+            prompt_insights = (self.task_prompt or "").format(
+                marcas=', '.join(marca_nombres),
+                periodo=periodo,
+                metricas_json=metricas_json,
+                citas=citas_txt
+            )
+
+            # Modelos Pydantic para insights
+            from typing import List, Literal
+
+            class Evidencia(BaseModel):
+                tipo: Literal['KPI','CitaRAG','DatoAgente']
+                detalle: str
+                fuente_id: Optional[str] = None
+                periodo: Optional[str] = None
+
+            class KPIItem(BaseModel):
+                nombre: str
+                valor_objetivo: str
+                fecha_objetivo: str
+
+            class Insight(BaseModel):
+                titulo: str
+                evidencia: List[Evidencia]
+                impacto_negocio: str
+                recomendacion: str
+                prioridad: Literal['alta','media','baja']
+                kpis_seguimiento: List[KPIItem]
+                confianza: Literal['alta','media','baja']
+                contraargumento: Optional[str] = None
+
+            class SentimentInsights(BaseModel):
+                insights: List[Insight]
+
+            def _passes_gating(insights: list) -> bool:
+                if not insights:
+                    return False
+                first = insights[0]
+                evid = first.get('evidencia') or []
+                if len(evid) < 3:
+                    return False
+                has_cita = any((e.get('tipo') == 'CitaRAG') for e in evid if isinstance(e, dict))
+                return has_cita
+
+            def _generate_insights(runtime_prompt: str) -> list:
+                gen = self._generate_with_validation(
+                    prompt=runtime_prompt,
+                    pydantic_model=SentimentInsights,
+                    max_retries=2,
+                    temperature=0.2,
+                    max_tokens=900,
+                )
+                obj = gen.get('parsed') or {}
+                return (obj.get('insights') if isinstance(obj, dict) else []) or []
+
+            insights_list = _generate_insights(prompt_insights)
+            if not _passes_gating(insights_list):
+                # Reforzar prompt para cumplir gating explícitamente
+                prompt_insights_retry = (
+                    prompt_insights
+                    + "\n\nREQUISITOS ESTRICTOS: Devuelve 1-2 insights como máximo, cada uno con ≥3 evidencias y AL MENOS 1 CitaRAG con 'fuente_id'. "
+                      "Sin comas finales ni texto adicional."
+                )
+                insights_list = _generate_insights(prompt_insights_retry)
+        except Exception:
+            insights_list = []
+
+        # 7. Resultado
         resultado = {
             'periodo': periodo,
             'categoria_id': categoria_id,
@@ -162,11 +266,13 @@ class SentimentAgent(BaseAgent):
                 s['score_medio'] for s in sentimiento_agregado.values()
             ) / len(sentimiento_agregado) if sentimiento_agregado else 0,
             'por_marca': sentimiento_agregado,
+            'sentimiento_por_marca': sentimiento_agregado,
             'atributos_por_marca': atributos_agregados,
+            'insights': insights_list,
             'metadata': {
                 'executions_analizadas': sample_size,
                 'total_executions': len(executions),
-                'metodo': 'llm_sampling'
+                'metodo': 'llm_sampling+validated'
             }
         }
         

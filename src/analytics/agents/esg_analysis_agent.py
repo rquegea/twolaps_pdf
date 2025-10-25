@@ -10,6 +10,7 @@ from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.query_executor.api_clients import AnthropicClient
+from src.analytics.schemas import ESGAnalysisOutput
 
 
 class ESGAnalysisAgent(BaseAgent):
@@ -79,37 +80,80 @@ class ESGAnalysisAgent(BaseAgent):
                             for i, frag in enumerate(fragments)]
             context = '\n\n---\n\n'.join(context_texts)
             
-            # Construir prompt
-            prompt = self.task_prompt.format(contexto=context)
-            
-            # Llamar al LLM
-            result = self.client.generate(
+            # Construir prompt (escapando llaves para evitar KeyError por JSON de ejemplo)
+            template = self.task_prompt or ""
+            template = template.replace("{contexto}", "__CTX__")
+            template = template.replace("{", "{{").replace("}", "}}")
+            template = template.replace("__CTX__", "{contexto}")
+            prompt = template.format(contexto=context)
+
+            def _passes_gating(obj: Dict[str, Any]) -> bool:
+                try:
+                    listed_or_none = bool(obj.get('controversias_clave')) or (
+                        isinstance(obj.get('resumen_esg'), str) and 'no se detectaron' in obj.get('resumen_esg', '').lower()
+                    )
+                    has_insight = bool(obj.get('insights') or obj.get('insights_esg'))
+                    return listed_or_none and has_insight
+                except Exception:
+                    return False
+
+            gen = self._generate_with_validation(
                 prompt=prompt,
+                pydantic_model=ESGAnalysisOutput,
+                max_retries=1,
                 temperature=0.3,
-                max_tokens=3000
+                max_tokens=3000,
+                provider="anthropic"
             )
-            
-            # Parsear respuesta
-            response_text = self._clean_json_response(result.get('response_text', ''))
-            parsed_result = json.loads(response_text)
-            
-            # Añadir metadata
-            parsed_result['periodo'] = periodo
-            parsed_result['categoria_id'] = categoria_id
-            parsed_result['metadata'] = {
-                'fragments_analyzed': len(fragments),
-                'metodo': 'rag_vector_search'
-            }
-            
+            parsed = gen.get('parsed') if gen.get('success') else None
+
+            if not parsed or not _passes_gating(parsed):
+                strict_prompt = (
+                    prompt
+                    + "\n\nREQUISITOS ESTRICTOS: Lista 'controversias_clave' si existen o declara explícitamente ausencia. Incluye ≥1 insight (insights o insights_esg). SOLO JSON."
+                )
+                # Reintento 1: mismo proveedor (Anthropic) con prompt estricto
+                gen2 = self._generate_with_validation(
+                    prompt=strict_prompt,
+                    pydantic_model=ESGAnalysisOutput,
+                    max_retries=1,
+                    temperature=0.25,
+                    max_tokens=3000,
+                    provider="anthropic"
+                )
+                parsed = gen2.get('parsed') if gen2.get('success') else parsed
+                # Reintento 2 (fallback de proveedor): OpenAI
+                if not parsed or not _passes_gating(parsed):
+                    gen3 = self._generate_with_validation(
+                        prompt=strict_prompt,
+                        pydantic_model=ESGAnalysisOutput,
+                        max_retries=1,
+                        temperature=0.25,
+                        max_tokens=3000,
+                        provider="openai"
+                    )
+                    parsed = gen3.get('parsed') if gen3.get('success') else parsed
+
+            if not parsed:
+                # Fallback con insight textual mínimo
+                resultado = self._get_empty_result(categoria_id, periodo)
+                resultado['insights_esg'] = [
+                    'Se detecta señal baja en ESG en el periodo actual; reforzar queries y monitoreo de controversias.'
+                ]
+                self.save_results(categoria_id, periodo, resultado)
+                return resultado
+
+            parsed['periodo'] = periodo
+            parsed['categoria_id'] = categoria_id
+            meta = parsed.get('metadata') or {}
+            meta.update({'fragments_analyzed': len(fragments), 'metodo': 'rag_vector_search'})
+            parsed['metadata'] = meta
+
             # Guardar
-            self.save_results(categoria_id, periodo, parsed_result)
-            
-            self.logger.info(
-                "Análisis ESG completado",
-                fragments_used=len(fragments)
-            )
-            
-            return parsed_result
+            self.save_results(categoria_id, periodo, parsed)
+
+            self.logger.info("Análisis ESG completado", fragments_used=len(fragments))
+            return parsed
             
         except Exception as e:
             self.logger.error(

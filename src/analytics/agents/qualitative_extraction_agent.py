@@ -37,7 +37,7 @@ class QualitativeExtractionAgent(BaseAgent):
         # Normalizamos el nombre del agente para que sea 'qualitative'
         self.agent_name = 'qualitative'
         # Número de fragmentos a recuperar por pregunta analítica
-        self.top_k_fragments = 20
+        self.top_k_fragments = 10  # evitar prompts gigantes
     
     def analyze(self, categoria_id: int, periodo: str) -> Dict[str, Any]:
         """
@@ -91,7 +91,13 @@ class QualitativeExtractionAgent(BaseAgent):
                     continue
                 
                 # Construir contexto con fragmentos recuperados
-                context_texts = [f"[Fragmento {i+1}]:\n{frag['texto']}" 
+                def _clean(t: str, max_len: int = 900) -> str:
+                    t = (t or "")
+                    t = t.replace("<think>", "").replace("</think>", "")
+                    t = t.replace("```", "")
+                    return t[:max_len]
+
+                context_texts = [f"[Fragmento {i+1}]:\n{_clean(frag['texto'])}" 
                                 for i, frag in enumerate(fragments)]
                 context = '\n\n---\n\n'.join(context_texts)
                 
@@ -105,7 +111,7 @@ class QualitativeExtractionAgent(BaseAgent):
                 result = self.client.generate(
                     prompt=prompt,
                     temperature=0.3,
-                    max_tokens=3000
+                    max_tokens=1500
                 )
                 
                 # Parsear respuesta

@@ -8,6 +8,7 @@ from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.query_executor.api_clients import OpenAIClient
+from src.analytics.schemas import EvidenceItem, InsightItem
 
 
 class CustomerJourneyAgent(BaseAgent):
@@ -50,6 +51,21 @@ class CustomerJourneyAgent(BaseAgent):
                 "buyer_personas": [],
                 "metadata": {"fragments_analyzed": len(fragments) if fragments else 0}
             }
+
+        # Gating mínimo: todas las etapas presentes o vacío explícito
+        try:
+            stages = parsed.get('stages') or []
+            expected = {'awareness', 'consideration', 'purchase', 'retention', 'advocacy'}
+            names = {s.get('name') for s in stages if isinstance(s, dict) and s.get('name')}
+            if names and not expected.issubset(names):
+                # Si falta alguna etapa, forzar objetos vacíos para mantener esquema explícito
+                existing = {s.get('name'): s for s in stages if isinstance(s, dict)}
+                ordered = []
+                for n in ['awareness', 'consideration', 'purchase', 'retention', 'advocacy']:
+                    ordered.append(existing.get(n) or {"name": n, "pain_points": [], "touchpoints": [], "insights": []})
+                parsed['stages'] = ordered
+        except Exception:
+            pass
 
         parsed['periodo'] = periodo
         parsed['categoria_id'] = categoria_id

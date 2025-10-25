@@ -176,25 +176,11 @@ class TrendsAgent(BaseAgent):
             # Solo snapshot, sin picos
             series_por_marca = {}
 
-        # Posibles drivers desde otros agentes
+        # Posibles drivers desde otros agentes (SOLO del periodo solicitado; sin fallback mensual para evitar ruido)
         campaign_data = self._get_analysis('campaign_analysis', categoria_id, periodo) or {}
         channel_data = self._get_analysis('channel_analysis', categoria_id, periodo) or {}
         qual_now = self._get_analysis('qualitative', categoria_id, periodo) or self._get_analysis('qualitativeextraction', categoria_id, periodo) or {}
-
-        # Fallback mensual si el rango no trae datos de soporte
-        try:
-            period_month = periodo[:7] if '..' in periodo else periodo[:7]
-        except Exception:
-            period_month = None
-        if not campaign_data and period_month:
-            campaign_data = self._get_analysis('campaign_analysis', categoria_id, period_month) or {}
-        if not channel_data and period_month:
-            channel_data = self._get_analysis('channel_analysis', categoria_id, period_month) or {}
         sent_now = qual_now.get('sentimiento_por_marca', {}) or {}
-        if not sent_now and period_month:
-            qual_m = self._get_analysis('qualitative', categoria_id, period_month) \
-                     or self._get_analysis('qualitativeextraction', categoria_id, period_month) or {}
-            sent_now = qual_m.get('sentimiento_por_marca', {}) or {}
 
         def _drivers_para_marca(marca: str) -> list[str]:
             drivers: list[str] = []
@@ -242,6 +228,11 @@ class TrendsAgent(BaseAgent):
                 continue
             serie_vals = series_por_marca.get(marca) or []
             t['pico'] = _detect_peak(serie_vals)
+            # Añadir muestras (nº puntos en serie)
+            try:
+                t['muestras'] = len(sov_trend_data.get(marca, []) or [])
+            except Exception:
+                pass
             drv = _drivers_para_marca(marca)
             if drv:
                 t['posibles_drivers'] = drv
@@ -270,6 +261,20 @@ class TrendsAgent(BaseAgent):
                 t['driver_confidence'] = conf
             except Exception:
                 pass
+
+        # Gating: filtrar tendencias poco significativas y sin drivers
+        filtered_tendencias = []
+        for t in tendencias:
+            try:
+                abs_pp = abs(float(t.get('cambio_puntos', 0) or 0.0))
+                abs_rel = abs(float(t.get('cambio_rel_pct', 0) or 0.0))
+                has_driver = bool(t.get('posibles_drivers'))
+                if (abs_pp >= 2.0 or abs_rel >= 8.0) and has_driver:
+                    filtered_tendencias.append(t)
+            except Exception:
+                # Si no podemos evaluar, omitimos la tendencia
+                continue
+        tendencias = filtered_tendencias
         
         resultado = {
             'periodo': periodo,
@@ -279,7 +284,10 @@ class TrendsAgent(BaseAgent):
             'resumen': self._generate_summary(tendencias),
             # Series temporales para gráficos
             'sov_trend_data': sov_trend_data,
-            'sentiment_trend_data': sentiment_trend_data
+            'sentiment_trend_data': sentiment_trend_data,
+            'metadata': {
+                'serie_fuente': 'intra_range' if ('..' in (periodo or '')) else 'historical',
+            }
         }
         
         self.save_results(categoria_id, periodo, resultado)

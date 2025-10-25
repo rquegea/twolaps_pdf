@@ -8,6 +8,7 @@ from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.query_executor.api_clients import OpenAIClient
+from src.analytics.schemas import ChannelAnalysisOutput
 
 
 class ChannelAnalysisAgent(BaseAgent):
@@ -74,36 +75,61 @@ class ChannelAnalysisAgent(BaseAgent):
             
             # Construir prompt
             prompt = self.task_prompt.format(contexto=context)
-            
-            # Llamar al LLM
-            result = self.client.generate(
+
+            def _passes_gating(obj: Dict[str, Any]) -> bool:
+                try:
+                    # Condición 1: ≥1 retailer o texto explícito de no hay
+                    has_retailer = bool(obj.get('retailers_clave'))
+                    no_data = isinstance(obj.get('estrategia_canal_inferida'), str) and 'no se detectaron' in obj.get('estrategia_canal_inferida', '').lower()
+                    if not (has_retailer or no_data):
+                        return False
+                    # Condición 2: ≥1 insight con evidencias (usamos 'insights' homogéneo)
+                    ins = obj.get('insights') or []
+                    return bool(ins)
+                except Exception:
+                    return False
+
+            gen = self._generate_with_validation(
                 prompt=prompt,
+                pydantic_model=ChannelAnalysisOutput,
+                max_retries=1,
                 temperature=0.3,
                 max_tokens=3000,
-                json_mode=True
+                provider="openai"
             )
-            
-            # Parsear respuesta
-            response_text = self._clean_json_response(result.get('response_text', ''))
-            parsed_result = json.loads(response_text)
-            
-            # Añadir metadata
-            parsed_result['periodo'] = periodo
-            parsed_result['categoria_id'] = categoria_id
-            parsed_result['metadata'] = {
-                'fragments_analyzed': len(fragments),
-                'metodo': 'rag_vector_search'
-            }
-            
+            parsed = gen.get('parsed') if gen.get('success') else None
+
+            if not parsed or not _passes_gating(parsed):
+                strict_prompt = (
+                    prompt
+                    + "\n\nREQUISITOS ESTRICTOS: Incluye 'retailers_clave' (si existen) y al menos 1 'insights' con evidencia. Si no hay datos de canal, explica explícitamente en 'estrategia_canal_inferida'. SOLO JSON."
+                )
+                gen2 = self._generate_with_validation(
+                    prompt=strict_prompt,
+                    pydantic_model=ChannelAnalysisOutput,
+                    max_retries=1,
+                    temperature=0.25,
+                    max_tokens=3000,
+                    provider="openai"
+                )
+                parsed = gen2.get('parsed') if gen2.get('success') else parsed
+
+            if not parsed:
+                resultado = self._get_empty_result(categoria_id, periodo)
+                self.save_results(categoria_id, periodo, resultado)
+                return resultado
+
+            parsed['periodo'] = periodo
+            parsed['categoria_id'] = categoria_id
+            meta = parsed.get('metadata') or {}
+            meta.update({'fragments_analyzed': len(fragments), 'metodo': 'rag_vector_search'})
+            parsed['metadata'] = meta
+
             # Guardar
-            self.save_results(categoria_id, periodo, parsed_result)
-            
-            self.logger.info(
-                "Análisis de canales completado",
-                fragments_used=len(fragments)
-            )
-            
-            return parsed_result
+            self.save_results(categoria_id, periodo, parsed)
+
+            self.logger.info("Análisis de canales completado", fragments_used=len(fragments))
+            return parsed
             
         except Exception as e:
             self.logger.error(

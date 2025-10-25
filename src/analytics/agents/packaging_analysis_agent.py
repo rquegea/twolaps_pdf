@@ -10,6 +10,7 @@ from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.query_executor.api_clients import AnthropicClient
+from src.analytics.schemas import PackagingAnalysisOutput
 
 
 class PackagingAnalysisAgent(BaseAgent):
@@ -79,37 +80,135 @@ class PackagingAnalysisAgent(BaseAgent):
                             for i, frag in enumerate(fragments)]
             context = '\n\n---\n\n'.join(context_texts)
             
-            # Construir prompt
-            prompt = self.task_prompt.format(contexto=context)
-            
-            # Llamar al LLM
-            result = self.client.generate(
+            # Construir prompt (escapar llaves para evitar conflictos con JSON de ejemplo)
+            template = self.task_prompt or ""
+            template = template.replace("{contexto}", "__CTX__")
+            template = template.replace("{", "{{").replace("}", "}}")
+            template = template.replace("__CTX__", "{contexto}")
+            prompt = template.format(contexto=context)
+
+            def _passes_gating(obj: Dict[str, Any]) -> bool:
+                try:
+                    # Aceptamos quejas_packaging string no vacío o insights presentes
+                    has_core = bool(obj.get('quejas_packaging'))
+                    has_insight = bool(obj.get('insights') or obj.get('insights_packaging'))
+                    return has_core and has_insight
+                except Exception:
+                    return False
+
+            gen = self._generate_with_validation(
                 prompt=prompt,
+                pydantic_model=PackagingAnalysisOutput,
+                max_retries=1,
                 temperature=0.3,
-                max_tokens=3000
+                max_tokens=3000,
+                provider="anthropic"
             )
-            
-            # Parsear respuesta
-            response_text = self._clean_json_response(result.get('response_text', ''))
-            parsed_result = json.loads(response_text)
-            
-            # Añadir metadata
-            parsed_result['periodo'] = periodo
-            parsed_result['categoria_id'] = categoria_id
-            parsed_result['metadata'] = {
-                'fragments_analyzed': len(fragments),
-                'metodo': 'rag_vector_search'
-            }
-            
+            parsed = gen.get('parsed') if gen.get('success') else None
+
+            if not parsed or not _passes_gating(parsed):
+                strict_prompt = (
+                    prompt + "\n\nREQUISITOS ESTRICTOS: Incluye 'quejas_packaging' y al menos 1 'insights' (o 'insights_packaging'). SOLO JSON válido."
+                )
+                # Reintento 1: mismo proveedor (Anthropic) con prompt estricto
+                gen2 = self._generate_with_validation(
+                    prompt=strict_prompt,
+                    pydantic_model=PackagingAnalysisOutput,
+                    max_retries=1,
+                    temperature=0.25,
+                    max_tokens=3000,
+                    provider="anthropic"
+                )
+                parsed = gen2.get('parsed') if gen2.get('success') else parsed
+                # Reintento 2 (fallback): OpenAI
+                if not parsed or not _passes_gating(parsed):
+                    gen3 = self._generate_with_validation(
+                        prompt=strict_prompt,
+                        pydantic_model=PackagingAnalysisOutput,
+                        max_retries=1,
+                        temperature=0.25,
+                        max_tokens=3000,
+                        provider="openai"
+                    )
+                    parsed = gen3.get('parsed') if gen3.get('success') else parsed
+
+            # Helper heurístico para garantizar un insight estructurado si el LLM no cumple
+            def _heuristic_result() -> Dict[str, Any]:
+                txt = "\n".join([f.get('texto') or '' for f in fragments]).lower()
+
+                def _any(keys):
+                    return any(k in txt for k in keys)
+
+                quejas = []
+                if _any(['difícil', 'dificil', 'fuga', 'gotea', 'derrama', 'rompe', 'apertura', 'cierra mal', 'tapa']):
+                    quejas.append('Se detectan quejas funcionales (apertura/derrames/cierre) en el periodo')
+
+                attrs = []
+                if _any(['reutilizable', 'hermético', 'hermetico', 'dosificador', 'ergonómico', 'ergonomico']):
+                    attrs.append('Se valora reutilización/cierre hermético/dosificador/ergonomía')
+
+                innov = []
+                if _any(['compostable', 'biodegradable', 'reciclable', 'material reciclado', 'vidrio', 'aluminio']):
+                    innov.append('Se mencionan materiales o soluciones sostenibles (compostable/biodegradable/reciclable)')
+
+                insight_text = 'Baja señal de packaging en el periodo; pistas: '
+                parts = [
+                    'quejas funcionales' if quejas else '',
+                    'atributos valorados (funcionalidad)' if attrs else '',
+                    'innovaciones sostenibles' if innov else ''
+                ]
+                insight_text += '; '.join([p for p in parts if p]) or 'sin patrones claros'
+
+                return {
+                    'quejas_packaging': quejas[0] if quejas else 'No se detectaron quejas significativas sobre packaging.',
+                    'atributos_valorados': attrs,
+                    'innovaciones_detectadas': innov,
+                    'benchmarking_funcional': [],
+                    'insights': [
+                        {
+                            'titulo': 'Packaging: señal baja; activar escucha y pruebas rápidas',
+                            'evidencia': [
+                                {'tipo': 'DatoAgente', 'detalle': f'Fragmentos analizados: {len(fragments)}', 'fuente_id': 'rag', 'periodo': periodo},
+                                {'tipo': 'DatoAgente', 'detalle': f'Quejas detectadas: {len(quejas)}', 'fuente_id': 'heuristica', 'periodo': periodo},
+                                {'tipo': 'DatoAgente', 'detalle': f'Atributos valorados: {len(attrs)}; Innovaciones: {len(innov)}', 'fuente_id': 'heuristica', 'periodo': periodo}
+                            ],
+                            'impacto_negocio': 'Riesgo de fricciones funcionales; oportunidad de diferenciación en UX del envase.',
+                            'recomendacion': 'Activar query específica de packaging + test de uso; plan 30-60-90 días para quick wins (cierre/apertura).',
+                            'prioridad': 'media',
+                            'kpis_seguimiento': [{'nombre': 'Incidencias de packaging', 'valor_objetivo': '-20%', 'fecha_objetivo': '90 días'}],
+                            'confianza': 'baja',
+                            'contraargumento': None
+                        }
+                    ],
+                    'insights_packaging': [insight_text],
+                    'gaps_oportunidades': [],
+                    'tendencias_packaging': [],
+                    'periodo': periodo,
+                    'categoria_id': categoria_id,
+                    'metadata': {
+                        'fragments_analyzed': len(fragments),
+                        'metodo': 'rag_vector_search',
+                        'fallback': 'heuristic_min_v3'
+                    }
+                }
+
+            # Inyectar heurístico si no hay parsed o no pasa gating
+            if not parsed or not _passes_gating(parsed):
+                resultado = _heuristic_result()
+                self.save_results(categoria_id, periodo, resultado)
+                return resultado
+
+            parsed['periodo'] = periodo
+            parsed['categoria_id'] = categoria_id
+            meta = parsed.get('metadata') or {}
+            meta.update({'fragments_analyzed': len(fragments), 'metodo': 'rag_vector_search'})
+            parsed['metadata'] = meta
+
             # Guardar
-            self.save_results(categoria_id, periodo, parsed_result)
-            
-            self.logger.info(
-                "Análisis de packaging completado",
-                fragments_used=len(fragments)
-            )
-            
-            return parsed_result
+            self.save_results(categoria_id, periodo, parsed)
+
+            self.logger.info("Análisis de packaging completado", fragments_used=len(fragments))
+            return parsed
             
         except Exception as e:
             self.logger.error(

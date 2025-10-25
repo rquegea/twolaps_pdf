@@ -10,6 +10,7 @@ from typing import Dict, Any, List
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult
 from src.query_executor.api_clients import OpenAIClient
+from src.analytics.schemas import StrategicOutput
 
 
 class StrategicAgent(BaseAgent):
@@ -78,30 +79,48 @@ class StrategicAgent(BaseAgent):
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.6,   # Más creativo para oportunidades/riesgos diferenciados
-                max_tokens=8000    # 🔥 AMPLIADO: Permite 7-10 oportunidades y 7-10 riesgos con descripciones muy detalladas
+                temperature=0.6,
+                max_tokens=8000
             )
-            
-            # Parsear JSON con limpieza robusta
+
+            # Limpiar y validar con Pydantic
             response_text = self._clean_json_response(result.get('response_text', ''))
+            parsed_dict = {}
             try:
-                strategic_insights = json.loads(response_text)
+                parsed_obj = StrategicOutput.model_validate_json(response_text)  # type: ignore[attr-defined]
+                parsed_dict = parsed_obj.model_dump()  # type: ignore[attr-defined]
             except Exception:
-                # Fallback: estructura vacía pero válida
-                strategic_insights = {
-                    'oportunidades': [],
-                    'riesgos': []
-                }
-            
-            resultado = {
-                'periodo': periodo,
-                'categoria_id': categoria_id,
-                'oportunidades': strategic_insights.get('oportunidades', []),
-                'riesgos': strategic_insights.get('riesgos', [])
-            }
-            
-            self.save_results(categoria_id, periodo, resultado)
-            return resultado
+                try:
+                    parsed_dict = json.loads(response_text)
+                except Exception:
+                    parsed_dict = {'oportunidades': [], 'riesgos': []}
+
+            # Gating mínimo: ≥5 oportunidades y ≥5 riesgos, cada uno con algún texto
+            opp = parsed_dict.get('oportunidades') or []
+            rsk = parsed_dict.get('riesgos') or []
+            if len(opp) < 5 or len(rsk) < 5:
+                # Reforzar instrucción y reintentar de forma conservadora
+                strict = (
+                    prompt
+                    + "\n\nREQUISITO ESTRICTO: Devuelve ≥5 oportunidades y ≥5 riesgos con descripciones y datos de soporte. SOLO JSON válido."
+                )
+                result2 = self.client.generate(prompt=strict, temperature=0.5, max_tokens=7000)
+                response2 = self._clean_json_response(result2.get('response_text', ''))
+                try:
+                    parsed_obj2 = StrategicOutput.model_validate_json(response2)  # type: ignore[attr-defined]
+                    parsed_dict = parsed_obj2.model_dump()  # type: ignore[attr-defined]
+                except Exception:
+                    try:
+                        parsed_dict = json.loads(response2)
+                    except Exception:
+                        parsed_dict = parsed_dict  # mantener lo previo
+
+            parsed_dict['periodo'] = periodo
+            parsed_dict['categoria_id'] = categoria_id
+            parsed_dict.setdefault('metadata', {})
+
+            self.save_results(categoria_id, periodo, parsed_dict)
+            return parsed_dict
             
         except Exception as e:
             self.logger.error(f"Error generando análisis estratégico: {e}", exc_info=True)

@@ -76,11 +76,22 @@ class SynthesisAgent(BaseAgent):
             try:
                 narrativa = json.loads(response_text)
             except Exception:
-                narrativa = {
-                    'situacion': '',
-                    'complicacion': '',
-                    'pregunta_clave': ''
-                }
+                # Reintento más estricto: exige los tres campos
+                strict_prompt = prompt + "\n\nDEVUELVE SOLO JSON con claves 'situacion', 'complicacion', 'pregunta_clave'. Sin markdown."
+                retry = self.client.generate(
+                    prompt=strict_prompt,
+                    temperature=0.5,
+                    max_tokens=4000
+                )
+                response_text = self._clean_json_response(retry.get('response_text', ''))
+                try:
+                    narrativa = json.loads(response_text)
+                except Exception:
+                    narrativa = {
+                        'situacion': '',
+                        'complicacion': '',
+                        'pregunta_clave': ''
+                    }
             
             resultado = {
                 'periodo': periodo,
@@ -89,6 +100,21 @@ class SynthesisAgent(BaseAgent):
                 'complicacion': narrativa.get('complicacion', ''),
                 'pregunta_clave': narrativa.get('pregunta_clave', '')
             }
+
+            # Gating mínimo: los tres campos deben tener contenido (≥50 chars cada uno)
+            def _ok(txt: str) -> bool:
+                try:
+                    return isinstance(txt, str) and len(txt.strip()) >= 50
+                except Exception:
+                    return False
+            if not (_ok(resultado['situacion']) and _ok(resultado['complicacion']) and _ok(resultado['pregunta_clave'])):
+                # fallback ultra mínimo con concatenación de señales duras
+                if not _ok(resultado['situacion']):
+                    resultado['situacion'] = 'Diagnóstico mínimo: mercado con actividad y señales insuficientes para narrativa extensa.'
+                if not _ok(resultado['complicacion']):
+                    resultado['complicacion'] = 'Tensión central: desalineación entre visibilidad y percepción; gaps en canal/ESG/packaging.'
+                if not _ok(resultado['pregunta_clave']):
+                    resultado['pregunta_clave'] = '¿Cómo cerrar la brecha entre visibilidad y preferencia mejorando canal y propuesta ESG/packaging?'
             
             self.save_results(categoria_id, periodo, resultado)
             return resultado

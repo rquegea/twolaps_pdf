@@ -324,6 +324,7 @@ def preview_agents(category, period, agents, run_missing, rerun):
     from src.analytics.agents import (
         QuantitativeAgent,
         QualitativeExtractionAgent,
+        SentimentAgent,
         CompetitiveAgent,
         TrendsAgent,
         CampaignAnalysisAgent,
@@ -335,11 +336,14 @@ def preview_agents(category, period, agents, run_missing, rerun):
         PricingPowerAgent,
         ROIAgent,
         StrategicAgent,
+        SynthesisAgent,
+        ExecutiveAgent,
     )
 
     AGENT_MAP = {
         'quantitative': QuantitativeAgent,
         'qualitative': QualitativeExtractionAgent,  # guardaremos como 'qualitativeextraction'
+        'sentiment': SentimentAgent,
         'competitive': CompetitiveAgent,
         'trends': TrendsAgent,
         'campaign_analysis': CampaignAnalysisAgent,
@@ -351,12 +355,14 @@ def preview_agents(category, period, agents, run_missing, rerun):
         'pricing_power': PricingPowerAgent,
         'roi': ROIAgent,
         'strategic': StrategicAgent,
+        'synthesis': SynthesisAgent,
+        'executive': ExecutiveAgent,
     }
 
     DEFAULT_ORDER = [
         'quantitative', 'competitive', 'trends', 'channel_analysis', 'campaign_analysis',
         'esg_analysis', 'packaging_analysis', 'pricing_power', 'customer_journey',
-        'scenario_planning', 'roi', 'strategic'
+        'scenario_planning', 'roi', 'strategic', 'synthesis', 'executive'
     ]
 
     selected = list(agents) if agents else DEFAULT_ORDER
@@ -446,6 +452,9 @@ def preview_agents(category, period, agents, run_missing, rerun):
                 try:
                     import json
                     first = insights[0]
+                    ev = len((first.get('evidencia') or []))
+                    conf = first.get('confianza', 'N/A')
+                    click.echo(f"   · stats: evidencias={ev} confianza={conf}")
                     click.echo(json.dumps(first, ensure_ascii=False, indent=2)[:4000])
                 except Exception:
                     ev = len((insights[0].get('evidencia') or []))
@@ -487,7 +496,17 @@ def preview_agents(category, period, agents, run_missing, rerun):
                     conf = t.get('driver_confidence')
                     conf_txt = f" conf:{conf}" if conf else ''
                     extra = f" | drivers: {drivers}{conf_txt}" if drivers or conf else ''
-                    click.echo(f"   · {t.get('marca','')} {t.get('direccion','')} {cambios}{tramo} [{sig}{pico}]{extra}")
+                    # Si hay datos de series, muestra base SOV inicio/fin
+                    base = ''
+                    try:
+                        serie = (res.get('sov_trend_data', {}) or {}).get(t.get('marca','')) or []
+                        if serie and len(serie) >= 2:
+                            s0 = float(serie[0].get('sov', 0) or 0)
+                            s1 = float(serie[-1].get('sov', 0) or 0)
+                            base = f" | base: {s0:.1f}%→{s1:.1f}%"
+                    except Exception:
+                        base = ''
+                    click.echo(f"   · {t.get('marca','')} {t.get('direccion','')} {cambios}{tramo} [{sig}{pico}]{extra}{base}")
                 else:
                     # Formato antiguo (tipo/titulo/datos_cuantitativos)
                     dirc = (t.get('datos_cuantitativos', {}) or {}).get('direccion', '')
@@ -515,11 +534,188 @@ def preview_agents(category, period, agents, run_missing, rerun):
                 if shown >= 5:
                     break
 
+        def _print_sentiment(res: dict):
+            click.echo("— Sentiment")
+            if 'error' in res:
+                click.echo(f"  ✗ {res['error']}")
+                return
+            data = res or {}
+            # Soportar claves: 'por_marca' y 'sentimiento_por_marca'
+            sent = {}
+            if isinstance(data, dict):
+                sent = data.get('por_marca') or data.get('sentimiento_por_marca') or {}
+            if not sent:
+                click.echo("  (sin datos de sentimiento)")
+                return
+            shown = 0
+            for marca, val in (sent.items() if isinstance(sent, dict) else []):
+                try:
+                    score = float(val.get('score_medio') or val.get('score') or 0) if isinstance(val, dict) else float(val)
+                except Exception:
+                    score = 0.0
+                click.echo(f"   · {marca}: {score:.2f}")
+                shown += 1
+                if shown >= 5:
+                    break
+            # Mostrar primer insight completo si existe
+            ins = (res or {}).get('insights') or []
+            if ins:
+                import json
+                first = ins[0]
+                evid = len((first.get('evidencia') or []))
+                conf = first.get('confianza')
+                click.echo(f"  Insight #1: evidencias={evid} confianza={conf}")
+                click.echo(json.dumps(first, ensure_ascii=False, indent=2)[:4000])
+
+        def _print_campaign(res: dict):
+            click.echo("— CampaignAnalysis")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            click.echo(f"  Marca más activa: {res.get('marca_mas_activa','N/A')}")
+            insights = res.get('insights') or []
+            if insights:
+                first = insights[0]
+                try:
+                    ev = len((first.get('evidencia') or []))
+                    conf = first.get('confianza', 'N/A')
+                    click.echo("  Insight #1:")
+                    click.echo(f"   · stats: evidencias={ev} confianza={conf}")
+                except Exception:
+                    pass
+
+        def _print_channel(res: dict):
+            click.echo("— ChannelAnalysis")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            retailers = (res.get('retailers_clave') or [])
+            if retailers:
+                click.echo("  Retailers top: " + ", ".join(retailers[:5]))
+            # soporte dual: insights (estructurados) o insights_canal (texto)
+            insights = res.get('insights') or []
+            if insights:
+                try:
+                    first = insights[0]
+                    conf = first.get('confianza', 'N/A')
+                    evid = len((first.get('evidencia') or []))
+                    click.echo(f"  Insight #1: evidencias={evid} confianza={conf}")
+                except Exception:
+                    pass
+            else:
+                ic = res.get('insights_canal') or []
+                if ic:
+                    click.echo(f"  Insight #1: {str(ic[0])[:140]}")
+
+        def _print_esg(res: dict):
+            click.echo("— ESGAnalysis")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            controversies = len((res.get('controversias_clave') or []))
+            click.echo(f"  Controversias clave: {controversies}")
+            iesg = res.get('insights_esg') or []
+            if iesg:
+                t = str(iesg[0])
+                # Limpiar prefijos redundantes tipo "Insight 1:" si vienen del modelo
+                if t.lower().startswith('insight 1:'):
+                    t = t.split(':', 1)[1].strip()
+                click.echo(f"  Insight #1: {t[:140]}")
+
+        def _print_packaging(res: dict):
+            click.echo("— PackagingAnalysis")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            q = res.get('quejas_packaging') or ''
+            click.echo(f"  Quejas resumen: {q[:120]}")
+            # Mostrar insight estructurado si existe
+            ins = res.get('insights') or []
+            if ins:
+                first = ins[0]
+                evid = len((first.get('evidencia') or []))
+                conf = first.get('confianza', 'N/A')
+                click.echo(f"  Insight #1: evidencias={evid} confianza={conf}")
+            else:
+                # Fallback textual
+                ip = res.get('insights_packaging') or []
+                if ip:
+                    click.echo(f"  Insight #1: {str(ip[0])[:140]}")
+
+        def _print_pricing(res: dict):
+            click.echo("— PricingPower")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            pm = res.get('perceptual_map') or []
+            click.echo(f"  Puntos mapa: {len(pm)}")
+            if isinstance(pm, list) and pm:
+                click.echo("  Top 3 marcas en mapa:")
+                for x in pm[:3]:
+                    try:
+                        click.echo(f"   · {x.get('marca','N/A')} (P:{x.get('precio',0)} Q:{x.get('calidad',0)} SOV:{x.get('sov',0)})")
+                    except Exception:
+                        continue
+
+        def _print_strategic(res: dict):
+            click.echo("— Strategic")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            opp = res.get('oportunidades') or []
+            rsk = res.get('riesgos') or []
+            click.echo(f"  Oportunidades: {len(opp)} | Riesgos: {len(rsk)}")
+            # Mostrar top 1 de cada si existen
+            if opp:
+                t = str((opp[0] or {}).get('titulo', ''))[:120]
+                click.echo("  Top Oportunidad: " + t)
+            if rsk:
+                t = str((rsk[0] or {}).get('titulo', ''))[:120]
+                click.echo("  Top Riesgo: " + t)
+
+        def _print_synthesis(res: dict):
+            click.echo("— Synthesis")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            s = str(res.get('situacion', '') or '')
+            c = str(res.get('complicacion', '') or '')
+            q = str(res.get('pregunta_clave', '') or '')
+            click.echo("  Situación: " + (s[:120] if s else "(vacía)"))
+            click.echo("  Complicación: " + (c[:120] if c else "(vacía)"))
+            click.echo("  Pregunta: " + (q[:120] if q else "(vacía)"))
+
+        def _print_executive(res: dict):
+            click.echo("— Executive")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            # Puede venir como {'report_id':..., 'informe': {...}}
+            report = res.get('informe') if isinstance(res.get('informe'), dict) else res
+            rexe = (report.get('resumen_ejecutivo') or {}) if isinstance(report, dict) else {}
+            hall = len((rexe.get('hallazgos_clave') or []))
+            ans = (rexe.get('answer_first') or {})
+            plan = (report.get('plan_90_dias') or {})
+            ini = len((plan.get('iniciativas') or []))
+            click.echo(f"  Hallazgos: {hall} | Iniciativas: {ini}")
+            if ans:
+                the_answer = str(ans.get('the_answer') or '')[:120]
+                click.echo("  Answer-first: " + (the_answer or "(vacío)"))
+
         PRINTERS = {
             'quantitative': _print_quantitative,
             'competitive': _print_competitive,
             'trends': _print_trends,
             'qualitative': _print_qualitative,
+            'sentiment': _print_sentiment,
+            'campaign_analysis': _print_campaign,
+            'channel_analysis': _print_channel,
+            'esg_analysis': _print_esg,
+            'packaging_analysis': _print_packaging,
+            'pricing_power': _print_pricing,
+            'strategic': _print_strategic,
+            'synthesis': _print_synthesis,
+            'executive': _print_executive,
         }
 
         for key in selected:

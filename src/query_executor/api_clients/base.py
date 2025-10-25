@@ -31,7 +31,8 @@ class BaseAIClient(ABC):
         self,
         prompt: str,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False
     ) -> Dict:
         """
         Genera una respuesta usando el modelo
@@ -55,7 +56,8 @@ class BaseAIClient(ABC):
         self,
         question: str,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False
     ) -> Dict:
         """
         Ejecuta una query/pregunta y mide métricas
@@ -74,7 +76,8 @@ class BaseAIClient(ABC):
             result = self.generate(
                 prompt=question,
                 temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
+                json_mode=json_mode
             )
             
             latency_ms = int((time.time() - start_time) * 1000)

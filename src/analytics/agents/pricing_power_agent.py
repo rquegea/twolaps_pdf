@@ -8,6 +8,7 @@ from typing import Dict, Any
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.query_executor.api_clients import OpenAIClient
+from src.analytics.schemas import PricingPowerOutput
 
 
 class PricingPowerAgent(BaseAgent):
@@ -40,12 +41,45 @@ class PricingPowerAgent(BaseAgent):
         context = '\n\n---\n\n'.join([f["texto"] for f in fragments]) if fragments else ""
         prompt = self.task_prompt.format(contexto=context)
 
-        result = self.client.generate(prompt=prompt, temperature=0.2, max_tokens=2500, json_mode=True)
-        response_text = self._clean_json_response(result.get('response_text', ''))
+        gen = self._generate_with_validation(
+            prompt=prompt,
+            pydantic_model=PricingPowerOutput,
+            max_retries=1,
+            temperature=0.2,
+            max_tokens=2500,
+            provider="openai"
+        )
+        parsed = gen.get('parsed') if gen.get('success') else {"brand_pricing_metrics": [], "perceptual_map": []}
+
+        # Si no hay puntos del mapa, intentar inferir algunos proxies desde quantitative/sentiment
         try:
-            parsed = json.loads(response_text)
+            if not parsed.get('perceptual_map'):
+                quant = self._get_analysis('quantitative', categoria_id, periodo)
+                # Fallback: si no hay SOV en el rango, usar periodo previo (mensual)
+                if not (quant or {}).get('sov_percent'):
+                    prev_month = self._get_previous_periodo_generic(periodo)
+                    if prev_month:
+                        quant_prev = self._get_analysis('quantitative', categoria_id, prev_month)
+                        if quant_prev:
+                            quant = quant_prev
+                sent = self._get_analysis('qualitative', categoria_id, periodo) or self._get_analysis('qualitativeextraction', categoria_id, periodo)
+                sov = (quant or {}).get('sov_percent') or {}
+                sent_by = (sent or {}).get('sentimiento_por_marca') or {}
+                items = []
+                for marca, share in list(sorted(sov.items(), key=lambda x: x[1], reverse=True))[:5]:
+                    s = sent_by.get(marca) or {}
+                    score = 0.0
+                    try:
+                        score = float(s.get('score_medio') or s.get('score') or 0.0)
+                    except Exception:
+                        score = 0.0
+                    precio = min(max(50 + (share - (sum(sov.values())/max(len(sov),1))) * 0.8, 0), 100)
+                    calidad = min(max(50 + score * 40, 0), 100)
+                    items.append({"marca": marca, "precio": float(precio), "calidad": float(calidad), "sov": float(share)})
+                if items:
+                    parsed['perceptual_map'] = items
         except Exception:
-            parsed = {"brand_pricing_metrics": [], "perceptual_map": []}
+            pass
 
         parsed['periodo'] = periodo
         parsed['categoria_id'] = categoria_id
@@ -53,6 +87,19 @@ class PricingPowerAgent(BaseAgent):
 
         self.save_results(categoria_id, periodo, parsed)
         return parsed
+
+    def _get_analysis(self, agent_name: str, categoria_id: int, periodo: str) -> Dict[str, Any]:
+        """Helper para obtener análisis previo"""
+        try:
+            from src.database.models import AnalysisResult
+            result = self.session.query(AnalysisResult).filter_by(
+                categoria_id=categoria_id,
+                periodo=periodo,
+                agente=agent_name
+            ).first()
+            return result.resultado if result else {}
+        except Exception:
+            return {}
 
     def _clean_json_response(self, response_text: str) -> str:
         response_text = response_text.strip()

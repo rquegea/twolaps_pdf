@@ -10,6 +10,7 @@ from src.database.models import Mercado, Categoria
 from src.analytics.agents import (
     QuantitativeAgent,
     QualitativeExtractionAgent,
+    SentimentAgent,
     CompetitiveAgent,
     TrendsAgent,
     StrategicAgent,
@@ -40,15 +41,16 @@ class AnalysisOrchestrator:
         self.agent_order = [
             ('quantitative', QuantitativeAgent),
             ('qualitative', QualitativeExtractionAgent),
+            ('sentiment', SentimentAgent),
             ('competitive', CompetitiveAgent),
             ('trends', TrendsAgent),
             ('customer_journey', CustomerJourneyAgent),          # NUEVO: Customer Journey
             ('scenario_planning', ScenarioPlanningAgent),        # NUEVO: Escenarios
-            ('campaign_analysis', CampaignAnalysisAgent),      # NUEVO: Análisis de campañas
-            ('channel_analysis', ChannelAnalysisAgent),        # NUEVO: Análisis de canales
-            ('esg_analysis', ESGAnalysisAgent),                # NUEVO: Análisis ESG
-            ('packaging_analysis', PackagingAnalysisAgent),    # NUEVO: Análisis packaging
-            ('pricing_power', PricingPowerAgent),              # NUEVO: Pricing & mapa perceptual
+            ('campaign_analysis', CampaignAnalysisAgent),        # NUEVO: Análisis de campañas
+            ('channel_analysis', ChannelAnalysisAgent),          # NUEVO: Análisis de canales
+            ('esg_analysis', ESGAnalysisAgent),                  # NUEVO: Análisis ESG
+            ('packaging_analysis', PackagingAnalysisAgent),      # NUEVO: Análisis packaging
+            ('pricing_power', PricingPowerAgent),                # NUEVO: Pricing & mapa perceptual
             ('roi', ROIAgent),                                 # NUEVO: ROI campañas/canales
             ('strategic', StrategicAgent),
             ('transversal', TransversalAgent),

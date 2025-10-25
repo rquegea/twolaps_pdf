@@ -242,71 +242,48 @@ qualitative_extraction_agent:
 
 sentiment_agent:
   task: |
-    Eres un analista experto en sentiment analysis y análisis de percepción de marca, experto en branding y marketing y estrategia de marketing, sabes sobre posicionamiento de marca y tienes un conocmiento de mercado de mas 50 años de experiencia 
-    Analiza el sentimiento sobre las marcas en el siguiente texto con máxima profundidad y enfoque en el mercado. Extiendete en el análisis para que sea lo mas completo posible. Necesitamos que mínimo haya dos paginas donde se expliquen bien los datos y los insights.
-    
-    MARCAS A ANALIZAR: {marcas}
-    
-    TEXTO:
-    {texto}
-    
-    INSTRUCCIONES AVANZADAS:
-    1. Para cada marca mencionada, determina el sentimiento (-1 negativo, 0 neutral, +1 positivo)
-       - Considera el contexto completo, no solo palabras clave aisladas
-       - Detecta ironía, sarcasmo o sentimientos ambivalentes
-       - Evalúa si el sentimiento es genuino o superficial
-       - Evalúa si el sentimiento es consistente o contradictorio dentro del texto
-       - Da una explicación de por qué es consistente o contradictorio.
-       - Da una explicación de por qué es positivo o negativo.
-       - Redacta de manera detallada la explicación con minimo 3 parrafos.
+    Eres un analista senior de reputación y CX. Con los datos agregados y citas, genera INSIGHTS de sentimiento conforme a la Plantilla de Insight Obligatoria (quality_standard).
 
-    2. Identifica atributos mencionados de forma genérica (ej: precio, calidad, innovación, servicio, confiabilidad)
-       - Busca menciones explícitas E implícitas
-       - Detecta comparaciones indirectas con competidores
-       - Identifica fortalezas y debilidades específicas
-       - Redacta de manera detallada la explicación con minimo 3 parrafos.
-    
-    3. Detecta el contexto de uso o mención (ej: profesional, personal, comparativo, recomendación)
-       - Determina la intención del hablante
-       - Identifica si es experiencia de primera mano o información de segunda/tercera mano
-       - Detecta el nivel de expertise del que opina (novato vs. experto)
-    
-    4. Evalúa el tono general y la intensidad emocional
-       - Pasión/entusiasmo alto vs. mención neutra/pasiva
-       - Lealtad de marca vs. consideración ocasional
-       - Promotor vs. detractor activo
-    
-    5. ANÁLISIS ADICIONAL:
-       - ¿Hay menciones de cambios de marca (switching)?
-       - ¿Se compara con competidores directos?
-       - ¿Qué elementos son determinantes en la percepción?
-       - ¿El sentimiento es consistente o contradictorio dentro del texto?
-    
-    DEVUELVE JSON:
+    Contexto:
+    - Marcas: {marcas}
+    - Periodo: {periodo}
+    - Métricas agregadas (JSON):
+    {metricas_json}
+
+    Citas (máx 8, recortadas):
+    {citas}
+
+    Requisitos del análisis (debes cubrir):
+    - Score de sentimiento por marca y su interpretación (tono, intensidad)
+    - Drivers del sentimiento (positivos/negativos) por temas clave: precio, calidad, ESG, servicio, disponibilidad, diseño
+    - Riesgos reputacionales detectados (si los hay)
+    - ≥3 evidencias por insight (mezcla KPI/DatoAgente/CitaRAG con identificador si aplica)
+
+    Devuelve EXCLUSIVAMENTE un JSON con esta estructura EXACTA:
     {{
-      "marca": {{
-        "score": float,  # -1 a 1 (usa decimales para matices: 0.75, -0.3, etc.)
-        "tono": "positivo|neutral|negativo",
-        "intensidad": "alta|media|baja",  # qué tan fuerte es el sentimiento
-        "atributos": {{"precio": score, "calidad": score, "innovación": score, ...}},
-        "contextos": ["profesional", "personal", "comparativo", "recomendación", ...],
-        "menciones_competencia": ["Marca X mencionada como alternativa", ...],
-        "switching_signals": true/false,  # ¿hay señales de cambio de marca?
-        "loyalty_level": "alto|medio|bajo",  # nivel de lealtad percibido
-        "quote": "fragmento más relevante y revelador del texto",
-        "insights_cualitativos": "1-2 líneas con insight profundo sobre la percepción"
-      }}
+      "insights": [
+        {{
+          "titulo": "string conciso y accionable",
+          "evidencia": [
+            {{ "tipo": "KPI", "detalle": "Sentimiento Moët & Chandon: 0.65", "fuente_id": null, "periodo": "{periodo}" }},
+            {{ "tipo": "KPI", "detalle": "Calidad (atributo): +0.35", "fuente_id": null, "periodo": "{periodo}" }},
+            {{ "tipo": "CitaRAG", "detalle": "\"...calidad excepcional...\"", "fuente_id": "exec_123", "periodo": "{periodo}" }}
+          ],
+          "impacto_negocio": "string",
+          "recomendacion": "string (acción concreta)",
+          "prioridad": "alta|media|baja",
+          "kpis_seguimiento": [
+            {{ "nombre": "Aumentar score sentimiento Moët", "valor_objetivo": "+0.10", "fecha_objetivo": "90 días" }}
+          ],
+          "confianza": "alta|media|baja",
+          "contraargumento": "string|null"
+        }}
+      ]
     }}
-    
-    IMPORTANTE: Sé extenso, matizado y evita generalizaciones. Cada score debe reflejar el análisis contextual completo explicandolo con detalle .
 
-    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Extensión: mínimo 3 párrafos por marca y por bloque analítico, 6-9 líneas cada uno.
-    - Evidencia: incluye ≥5 KPIs específicos cuando aplique y ≥2 citas textuales por marca.
-    - Triangulación FMCG: conecta sentimiento con Campañas, Canales y Atributos cuando sea relevante.
-    - Capas: consistencia/contradicción interna, causalidad de drivers, comparación competitiva.
-    - Salida JSON: no cambies el esquema; usa valores vacíos si falta evidencia.
-    - Guardrails: SOLO JSON válido sin markdown; citas entrecomilladas con contexto.
+    Guardrails:
+    - SOLO JSON válido (sin markdown), sin texto fuera del JSON.
+    - Usa datos del contexto (métricas/citas) para fundamentar las evidencias.
 
 attributes_agent:
   task: |
@@ -382,7 +359,7 @@ attributes_agent:
 competitive_agent:
   task: |
     Analiza el posicionamiento competitivo integrando SOV, Sentimiento, Atributos y señales de Marketing/Canal. GENERA INSIGHTS ESTRICTAMENTE con la Plantilla de Insight Obligatoria del quality_standard.
-
+    
     DATOS DE SOV: {sov_data}
     DATOS DE SENTIMIENTO: {sentiment_data}
     ATRIBUTOS (si hay): {attributes_data}
@@ -1337,6 +1314,22 @@ campaign_analysis_agent:
         "Canal 1 (ej: TV - Marca X con campaña Y)",
         "Canal 2 (ej: Instagram - Marca Z con influencer A)"
       ],
+      "insights": [
+        {
+          "titulo": "Título accionable y específico",
+          "evidencia": [
+            { "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null },
+            { "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null },
+            { "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null }
+          ],
+          "impacto_negocio": "string",
+          "recomendacion": "acción concreta",
+          "prioridad": "alta|media|baja",
+          "kpis_seguimiento": [ { "nombre": "...", "valor_objetivo": "...", "fecha_objetivo": "..." } ],
+          "confianza": "alta|media|baja",
+          "contraargumento": null
+        }
+      ],
       "insights_recepcion": [
         "Insight 1 sobre cómo se reciben las campañas (ej: 'La campaña X de Marca Y es percibida como auténtica y genera conversación positiva')",
         "Insight 2 (ej: 'Las campañas de Marca Z se critican por ser genéricas y poco memorables')"
@@ -1358,6 +1351,9 @@ campaign_analysis_agent:
     }}
     
     IMPORTANTE: 
+    - Incluye al menos 1 elemento en "insights" con ≥3 evidencias (mezcla KPI/CitaRAG/DatoAgente) y campo "confianza"
+    - Refuerza "campanas_especificas": devuelve ≥2 elementos si hay señal con campos: marca, nombre_campana, canales, mensaje_central, influencers/celebridades
+    - En evidencias, si usas CitaRAG, el campo "fuente_id" debe ser string (ej: "exec_123")
     - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
     - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
 
@@ -1415,6 +1411,22 @@ channel_analysis_agent:
         "Retailer 2"
       ],
       "marca_mejor_distribuida": "Marca con mejor presencia omnicanal y disponibilidad",
+      "insights": [
+        {{
+          "titulo": "Oportunidad en e-commerce premium",
+          "evidencia": [
+            {{ "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null }},
+            {{ "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null }},
+            {{ "tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null }}
+          ],
+          "impacto_negocio": "string",
+          "recomendacion": "acción concreta",
+          "prioridad": "alta|media|baja",
+          "kpis_seguimiento": [ {{ "nombre": "...", "valor_objetivo": "...", "fecha_objetivo": "..." }} ],
+          "confianza": "alta|media|baja",
+          "contraargumento": null
+        }}
+      ],
       "insights_canal": [
         "Insight 1 (ej: 'Hay una clara preferencia por compra online en categoría premium, pero stock limitado')",
         "Insight 2 (ej: 'Marca Z domina canal moderno pero está ausente en conveniencia')"
@@ -1435,6 +1447,7 @@ channel_analysis_agent:
     }}
     
     IMPORTANTE: 
+    - Incluye al menos 1 elemento en "insights" con ≥3 evidencias (mezcla KPI/CitaRAG/DatoAgente) y campo "confianza"
     - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
     - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
 
@@ -1516,6 +1529,9 @@ esg_analysis_agent:
     }}
     
     IMPORTANTE: 
+    - Refuerza "benchmarking_marcas": incluye ≥2 marcas con fortalezas/debilidades/certificaciones si hay señal
+    - Añade ≥2 entradas en "tendencias_esg" si hay señal
+    - En "insights_esg" o "insights" usa ≥3 evidencias cuando estructures insight y añade "confianza"
     - DEVUELVE ÚNICAMENTE EL JSON VÁLIDO, SIN MARKDOWN NI TEXTO ADICIONAL
     - Si no hay datos, usa "N/A" o listas vacías, pero mantén la estructura JSON
 

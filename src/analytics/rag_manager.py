@@ -186,14 +186,24 @@ class RAGManager:
                     'metadata': row.metadata
                 })
             
-            logger.info(
-                "similarity_search_completed",
-                categoria_id=categoria_id,
-                tipo_filtro=tipo_filtro,
-                periodo_actual=periodo_actual,
-                incluir_periodo_actual=incluir_periodo_actual,
-                results_found=len(similar_items)
-            )
+            if start_date and end_date:
+                logger.info(
+                    "similarity_search_completed",
+                    categoria_id=categoria_id,
+                    tipo_filtro=tipo_filtro,
+                    rango_start=start_date.isoformat(),
+                    rango_end=end_date.isoformat(),
+                    results_found=len(similar_items)
+                )
+            else:
+                logger.info(
+                    "similarity_search_completed",
+                    categoria_id=categoria_id,
+                    tipo_filtro=tipo_filtro,
+                    periodo_actual=periodo_actual,
+                    incluir_periodo_actual=incluir_periodo_actual,
+                    results_found=len(similar_items)
+                )
             
             return similar_items
         

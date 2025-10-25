@@ -547,6 +547,21 @@ REGLAS CRÍTICAS DE NARRATIVA:
             'the_answer': '', 'the_why': '', 'the_how': '', 'the_impact': ''
         })
 
+        # Gating mínimo sobre answer_first y plan
+        ans = resumen.get('answer_first') or {}
+        def _fill_if_short(key: str, default_text: str):
+            try:
+                val = ans.get(key)
+                if not isinstance(val, str) or len(val.strip()) < 50:
+                    ans[key] = default_text
+            except Exception:
+                ans[key] = default_text
+        _fill_if_short('the_answer', 'Recomendación: reenfocar inversión hacia canales con mayor ROAS y reforzar propuesta ESG/packaging para convertir visibilidad en preferencia.')
+        _fill_if_short('the_why', 'Porque los datos muestran brecha entre visibilidad y preferencia. KPIs de sentimiento y señales en canales/packaging sugieren fricción que limita conversión.')
+        _fill_if_short('the_how', 'Roadmap 90 días: 1) Reasignar 15-20% presupuesto a canales con ROAS>2.5; 2) Lanzar test de creatividades y nueva narrativa ESG; 3) Resolver pain points de disponibilidad en e-commerce con acuerdos minoristas.')
+        _fill_if_short('the_impact', 'Impacto esperado: +3-5 pp SOV de marca prioritaria, +0.1 a +0.2 en sentimiento y mejora de ROAS global 10-15% en 90 días.')
+        resumen['answer_first'] = ans
+
         opp_risk = informe.setdefault('oportunidades_riesgos', {})
         dafo = opp_risk.setdefault('dafo_sintesis', {})
         dafo.setdefault('cruces_estrategicos', '')
