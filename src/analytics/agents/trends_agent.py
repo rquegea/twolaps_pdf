@@ -78,6 +78,30 @@ class TrendsAgent(BaseAgent):
             # No bloquear el flujo por errores en la serie intra-semana
             pass
         
+        # Soporte adicional para periodos de tipo rango (YYYY-MM-DD..YYYY-MM-DD):
+        # construir serie diaria SOV y snapshot de sentimiento
+        try:
+            _, _, gran2 = self._parse_periodo(periodo)
+            if gran2 == 'range':
+                intra_range = self._build_intra_range_sov_series(categoria_id, periodo)
+                if isinstance(intra_range, dict) and any(len(v) >= 2 for v in intra_range.values()):
+                    sov_trend_data = intra_range
+                # Si no hay serie de sentimiento, usar snapshot del periodo actual
+                if not sentiment_trend_data:
+                    s_now = self._get_analysis('qualitative', categoria_id, periodo) or \
+                            self._get_analysis('qualitativeextraction', categoria_id, periodo) or {}
+                    sent_now = s_now.get('sentimiento_por_marca', {}) or {}
+                    for marca, data in sent_now.items():
+                        score = None
+                        if isinstance(data, dict):
+                            score = data.get('score_medio') or data.get('score')
+                        elif isinstance(data, (int, float)):
+                            score = float(data)
+                        if score is not None:
+                            sentiment_trend_data.setdefault(marca, []).append({'periodo': periodo, 'score': float(score)})
+        except Exception:
+            pass
+
         if previous_quantitative:
             # Comparar SOV
             current_sov = current_quantitative.get('sov_percent', {})
@@ -124,6 +148,60 @@ class TrendsAgent(BaseAgent):
     
     # Delegamos en BaseAgent los helpers genéricos de periodos
     
+    def _build_intra_range_sov_series(self, categoria_id: int, periodo: str) -> Dict[str, List[Dict[str, Any]]]:
+        """Construye serie diaria de SOV dentro de un rango de fechas (YYYY-MM-DD..YYYY-MM-DD)."""
+        start, end, gran = self._parse_periodo(periodo)
+        if gran != 'range':
+            return {}
+
+        # Marcas configuradas en la categoría y sus aliases
+        marcas = self.session.query(Marca).filter_by(categoria_id=categoria_id).all()
+        alias_map = {m.nombre: [a.lower() for a in (m.aliases or [])] for m in marcas}
+        if not alias_map:
+            return {}
+
+        # Obtener todas las ejecuciones con texto en la ventana del rango
+        executions = self.session.query(QueryExecution).join(Query). \
+            filter(
+                Query.categoria_id == categoria_id,
+                QueryExecution.respuesta_texto.isnot(None),
+                QueryExecution.timestamp >= start,
+                QueryExecution.timestamp < end
+            ).all()
+
+        if not executions:
+            return {}
+
+        # Contar menciones por marca por día
+        by_day: Dict[str, Dict[str, int]] = {}
+        for e in executions:
+            d = e.timestamp.date().isoformat()
+            text = (e.respuesta_texto or "").lower()
+            day_counts = by_day.setdefault(d, dict.fromkeys(alias_map.keys(), 0))
+            for marca, aliases in alias_map.items():
+                if any(alias in text for alias in aliases):
+                    day_counts[marca] += 1
+
+        # Generar lista de días completos del rango [start, end)
+        days = []
+        cur = start
+        while cur < end:
+            days.append(cur.date().isoformat())
+            cur += timedelta(days=1)
+
+        # Convertir a SOV (%) por día
+        series: Dict[str, List[Dict[str, Any]]] = {m: [] for m in alias_map.keys()}
+        for d in days:
+            counts = by_day.get(d, dict.fromkeys(alias_map.keys(), 0))
+            total = sum(counts.values())
+            for marca in alias_map.keys():
+                val = (counts.get(marca, 0) / total * 100) if total else 0.0
+                series[marca].append({'periodo': d, 'sov': float(val)})
+
+        # Eliminar marcas sin valores
+        series = {m: vals for m, vals in series.items() if any(p['sov'] > 0 for p in vals)}
+        return series
+
     def _build_intra_week_sov_series(self, categoria_id: int, periodo: str) -> Dict[str, List[Dict[str, Any]]]:
         """Construye serie diaria de SOV dentro de una semana concreta.
         Devuelve {marca: [{periodo: 'YYYY-MM-DD', sov: %}, ...]}.

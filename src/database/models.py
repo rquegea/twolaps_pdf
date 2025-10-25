@@ -334,7 +334,7 @@ class AnalysisResult(Base):
         index=True
     )
     periodo: Mapped[str] = mapped_column(
-        String(20), 
+        String(32), 
         nullable=False,
         index=True
     )  # YYYY-MM format (2025-10)
@@ -377,7 +377,7 @@ class Report(Base):
         index=True
     )
     periodo: Mapped[str] = mapped_column(
-        String(20), 
+        String(32), 
         nullable=False,
         index=True
     )  # YYYY-MM
@@ -426,7 +426,7 @@ class Embedding(Base):
         index=True
     )
     periodo: Mapped[str] = mapped_column(
-        String(20), 
+        String(32), 
         nullable=False,
         index=True
     )
