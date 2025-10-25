@@ -381,159 +381,44 @@ attributes_agent:
 
 competitive_agent:
   task: |
-    Analiza el posicionamiento competitivo relativo entre marcas integrando KPIs, atributos, estrategias de marketing y canales.
-    
+    Analiza el posicionamiento competitivo integrando SOV, Sentimiento, Atributos y señales de Marketing/Canal. GENERA INSIGHTS ESTRICTAMENTE con la Plantilla de Insight Obligatoria del quality_standard.
+
     DATOS DE SOV: {sov_data}
     DATOS DE SENTIMIENTO: {sentiment_data}
-    MENCIONES POR MARCA: {menciones}
-    DATOS CUALITATIVOS: {qualitative_data}
-    
-    ANÁLISIS REQUERIDO (EXPANDIDO):
-    
-    1. POSICIONAMIENTO GENERAL:
-       - ¿Qué marca domina el mercado? (SOV + sentimiento combinados)
-       - Orden de preferencia y cuota de conversación
-       - Correlación entre visibilidad (SOV) y percepción (sentimiento)
-    
-    2. BENCHMARKING DE ATRIBUTOS:
-       - Comparativa por atributo clave: calidad, precio, innovación, confiabilidad, experiencia
-       - ¿Qué marca lidera en qué atributo?
-       - Tabla comparativa de fortalezas por marca
-    
-    3. **ANÁLISIS DE ESTRATEGIAS DE MARKETING** (NUEVO):
-       Basado en los datos cualitativos de campañas:
-       - ¿Qué marca tiene mayor actividad de marketing aparente?
-       - ¿Qué marca comunica mejor su propuesta de valor?
-       - ¿Estrategia de comunicación: agresiva, conservadora, innovadora?
-       - ¿Uso de influencers/celebridades por marca?
-       - ¿Correlación entre actividad de marketing y SOV?
-    
-    4. **ANÁLISIS DE ESTRATEGIAS DE CANAL** (NUEVO):
-       Basado en los datos cualitativos de distribución:
-       - ¿Qué marca tiene mejor presencia omnicanal?
-       - ¿Estrategia de distribución: intensiva, selectiva, exclusiva?
-       - ¿Ventajas competitivas en accesibilidad/disponibilidad?
-       - ¿Experiencia de compra diferenciada por canal?
-    
-    5. FORTALEZAS POR MARCA:
-       - Atributos positivos destacados
-       - Ventajas competitivas claras
-       - Fortalezas en marketing y canal (nuevo)
-    
-    6. DEBILIDADES Y GAPS:
-       - Criticidades o ausencias en percepción
-       - Atributos débiles vs competencia
-       - Gaps en comunicación (no comunica atributos que debería)
-       - Gaps en distribución (canales desatendidos)
-    
-    7. PERFILES COMPETITIVOS DETALLADOS (CRÍTICO - EXPANDIR):
-       Para las Top 5 marcas principales, genera perfil exhaustivo con 1-2 párrafos descriptivos:
-       - Posicionamiento percibido: ¿Cómo se posiciona en la mente del consumidor?
-       - Fortalezas clave: Ventajas competitivas sostenibles (con evidencia de datos)
-       - Debilidades clave: Vulnerabilidades explotables (con evidencia)
-       - Estrategia de marketing inferida: Nivel de actividad, canales prioritarios, mensaje central, efectividad percibida
-       - Estrategia de canal inferida: Tipo de distribución (intensiva/selectiva/exclusiva), presencia omnicanal, gaps
-       - Oportunidades de ataque: ¿Dónde se puede ganar terreno vs esta marca?
-       - Vulnerabilidades: ¿Dónde es más débil y por qué?
-       - ANÁLISIS COMPARATIVO POR EJE: No solo SOV/sentimiento, sino también comparar en innovación percibida, estrategias de marketing, accesibilidad de canal, percepción ESG
-    
-    8. ANÁLISIS DE MOATS (VENTAJAS COMPETITIVAS SOSTENIBLES) - REFORZADO:
-       8.1 Barreras de Entrada (evidencias y señales): inversión inicial, economías de escala, acceso a distribución, IP
-            - Para cada marca, indica señales o fuentes (citas o patrones) y nivel_confianza: alto|medio|bajo
-       8.2 Switching Costs: coste de cambiar (monetario, temporal, psicológico), lock-in por suscripción/lealtad, hábitos
-            - Señales/fuentes y nivel_confianza por marca
-       8.3 Network Effects: directos/indirectos, ecosistema complementario
-            - Señales/fuentes y nivel_confianza por marca
-       8.4 Brand Equity (cuantificación proxy):
-            - reconocimiento: alto|medio|bajo (o % top-of-mind si hay),
-            - lealtad: alto|medio|bajo (o proxy repeat purchase si hay),
-            - premium_power: alto|medio|bajo (capacidad de cobrar >X% respecto al promedio)
-            - Para cada proxy, incluye breve justificación (fuentes/señales) y nivel_confianza
+    ATRIBUTOS (si hay): {attributes_data}
+    CONTEXTO CUALITATIVO (campañas/canales): {qualitative_data}
 
-    9. COMPARACIONES DIRECTAS:
-       - Lider vs Retador: ventajas/desventajas
-       - Marcas premium vs Marcas valor
-       - Tradicionales vs Emergentes
-    
-    DEVUELVE JSON ESTRUCTURADO:
-    {{
-      "lider_mercado": "Marca X",
-      "ranking_sov": ["Marca X", "Marca Y", "Marca Z"],
-      "benchmarking_atributos": {{
-        "calidad": {{"lider": "Marca X", "comentario": "Percibida como premium"}},
-        "precio": {{"lider": "Marca Y", "comentario": "Mejor relación calidad-precio"}},
-        "innovacion": {{"lider": "Marca Z", "comentario": "Más innovadora en formatos"}}
-      }},
-      "estrategias_marketing": {{
-        "Marca X": {{
-          "actividad_aparente": "alta|media|baja",
-          "calidad_comunicacion": "excelente|buena|regular|deficiente",
-          "canales_principales": ["TV", "Digital"],
-          "uso_influencers": true/false,
-          "mensaje_clave": "Liderazgo en calidad",
-          "efectividad_percibida": "alta|media|baja"
-        }}
-      }},
-      "estrategias_canal": {{
-        "Marca X": {{
-          "tipo_distribucion": "intensiva|selectiva|exclusiva",
-          "presencia_omnicanal": "fuerte|moderada|débil",
-          "ventaja_accesibilidad": "Disponible en todos los canales",
-          "experiencia_diferenciada": "E-commerce propio con experiencia premium"
-        }}
-      }},
-      "perfiles_competidores": [
-        {{
-          "marca": "Marca X",
-          "posicionamiento": "Líder premium",
-          "fortalezas": ["Calidad percibida", "Reconocimiento de marca", "Presencia omnicanal"],
-          "debilidades": ["Precio alto", "Poca innovación percibida"],
-          "estrategia_marketing": "Comunicación emocional centrada en herencia y calidad",
-          "estrategia_canal": "Distribución intensiva con foco en retail tradicional",
-          "oportunidades_ataque": ["Innovar en formatos", "Mejorar comunicación digital"],
-          "vulnerabilidades": ["Sensibilidad al precio en crisis", "Competencia de marcas blancas"]
-        }}
-      ],
-      "gaps_competitivos": [
-        "Marca X no comunica sostenibilidad a pesar de ser líder",
-        "Marca Y tiene presencia débil en e-commerce",
-        "Ninguna marca capitaliza tendencia de personalización"
-      ],
-      "moats": [
-        {{
-          "marca": "Marca X",
-          "barreras_entrada": ["escala_produccion", "distribucion_exclusiva"],
-          "switching_costs": ["programa_lealtad"],
-          "network_effects": ["ecosistema_complementario"],
-          "brand_equity": {{
-            "reconocimiento": "alto",
-            "lealtad": "medio",
-            "premium_power": "alto",
-            "justificacion": "Señales/fuentes resumidas"
-          }},
-          "fuentes_senales": ["cita o patrón 1", "cita o patrón 2"],
-          "nivel_confianza": "medio"
-        }}
-      ],
-      "insights_clave": [
-        "El líder domina en SOV pero no en sentimiento, oportunidad para retadores",
-        "Estrategias de canal diferenciadas son fuente de ventaja competitiva",
-        "Marketing efectivo correlaciona con mayor SOV pero no siempre con mejor sentimiento"
-      ]
-    }}
-    
-    IMPORTANTE:
-    - Integra TODAS las dimensiones: KPIs, atributos, marketing y canales
-    - Los perfiles competitivos deben ser holísticos y accionables
-    - Identifica correlaciones entre variables (ej: actividad marketing vs SOV)
-    - Prioriza insights que revelen ventajas competitivas o vulnerabilidades
+    CHECKLIST (DEBE CUBRIR):
+    1) Posicionamiento relativo Top-5 (SOV + Sentimiento + Atributos clave)
+    2) Análisis inicial BCG y Mapa Perceptual (proxies si no hay datos completos)
+    3) Fortalezas y Debilidades explícitas de 3–5 marcas principales
+    4) Gaps y oportunidades competitivas (ej: alto sentimiento con bajo SOV)
 
-    REGLAS DE PROFUNDIDAD (OBLIGATORIAS):
-    - Evidencia: cada conclusión debe citar ≥1 KPI y ≥1 evidencia cualitativa.
-    - Triangulación: integra al menos 2 de Campañas/Canales/ESG/Packaging por hallazgo clave.
-    - Capas: identifica contradicciones holísticas y gaps de distribución y comunicación.
-    - Salida JSON: respeta el esquema actual; si falta dato, usa valores vacíos.
-    - Guardrails JSON: SOLO devuelve un objeto JSON válido (sin markdown ni texto extra). Si no hay datos para un campo, devuelve arrays/objetos vacíos manteniendo el esquema. NUNCA devuelvas strings donde se esperan números/lógicos.
+    SALIDA OBLIGATORIA (JSON ÚNICO):
+    - Debe incluir un array "insights" donde CADA elemento cumpla la plantilla:
+      {
+        "titulo": "...",
+        "evidencia": [ {"tipo": "KPI|CitaRAG|DatoAgente", "detalle": "...", "fuente_id": null, "periodo": null }, ... ],
+        "impacto_negocio": "...",
+        "recomendacion": "...",
+        "prioridad": "alta|media|baja",
+        "kpis_seguimiento": [ {"nombre": "...", "valor_objetivo": "...", "fecha_objetivo": "..."} ],
+        "confianza": "alta|media|baja",
+        "contraargumento": "..."
+      }
+      - REGLA: cada insight debe tener ≥3 evidencias (mezcla KPI/Cita/DatoAgente)
+
+    - Además de "insights", incluye (opcionales) para gráficos y narrativa:
+      - "lider_mercado": string
+      - "ranking_sov": [string]
+      - "benchmarking_atributos": {"calidad": {"lider": "...", "comentario": "..."}, ...}
+      - "perfiles_competidores": [ {"marca": "...", "analisis_profundo": "..."} ]
+
+    GUARDRAILS:
+    - Cumple la plantilla exacta por insight; si faltan datos, deja campos vacíos pero respeta el esquema
+    - Cita KPIs dentro de "evidencia" cuando corresponda; usa identificadores de fragmentos si existen
+    - Devuelve SOLO JSON válido (sin markdown ni texto adicional)
+    - Priorización clara: marca cada recomendación con prioridad y KPI de seguimiento
 
 strategic_agent:
   task: |

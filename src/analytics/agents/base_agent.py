@@ -5,6 +5,8 @@ Clase base abstracta para todos los agentes de análisis
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+from typing import Optional, Type
+from pydantic import BaseModel, ValidationError
 from pathlib import Path
 import yaml
 from datetime import datetime
@@ -322,4 +324,112 @@ class BaseAgent(ABC):
             )
         
         return "\n".join(formatted)
+
+    # =============================
+    # LLM Generation + Validation
+    # =============================
+    def _generate_with_validation(
+        self,
+        prompt: str,
+        pydantic_model: Type[BaseModel],
+        max_retries: int = 2,
+        temperature: float = 0.3,
+        max_tokens: Optional[int] = None,
+        provider: str = "openai",
+        llm_model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Genera texto con LLM y valida contra un modelo Pydantic. Devuelve dict con claves:
+          - parsed: dict (si éxito)
+          - raw_response: str
+          - success: bool
+          - error: str|None
+        """
+        try:
+            # Carga perezosa para evitar dependencias circulares
+            from src.query_executor.poller import get_client
+        except Exception as e:
+            self.logger.error("No se pudo cargar cliente de LLM", error=str(e))
+            return {"parsed": None, "raw_response": "", "success": False, "error": str(e)}
+
+        client = None
+        try:
+            client = get_client(provider)
+            # Si se especifica un modelo concreto y el cliente lo soporta
+            if llm_model and hasattr(client, "model"):
+                client.model = llm_model
+        except Exception as e:
+            self.logger.error("No se pudo inicializar cliente LLM", error=str(e))
+            return {"parsed": None, "raw_response": "", "success": False, "error": str(e)}
+
+        augmented_prompt = prompt
+        last_error: Optional[str] = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                result = client.execute_query(
+                    question=augmented_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+                raw_text = result.get("response_text", "") or ""
+                # Saneado: eliminar fences de markdown si el proveedor los añade
+                rt = raw_text.strip()
+                if rt.startswith("```"):
+                    # Quitar primera línea con ``` o ```json
+                    first_nl = rt.find('\n')
+                    if first_nl != -1:
+                        rt = rt[first_nl+1:]
+                    # Quitar cierre ``` al final
+                    if rt.endswith("```"):
+                        rt = rt[:-3]
+                raw_text = rt.strip()
+
+                # Validación con Pydantic (compatibilidad v1/v2)
+                parsed_obj = None
+                try:
+                    # Pydantic v2
+                    parsed_obj = pydantic_model.model_validate_json(raw_text)  # type: ignore[attr-defined]
+                except AttributeError:
+                    # Pydantic v1
+                    parsed_obj = pydantic_model.parse_raw(raw_text)  # type: ignore[attr-defined]
+
+                # Serializar a dict (v1/v2)
+                try:
+                    parsed_dict = parsed_obj.model_dump()  # type: ignore[attr-defined]
+                except Exception:
+                    parsed_dict = parsed_obj.dict()  # type: ignore[attr-defined]
+
+                return {
+                    "parsed": parsed_dict,
+                    "raw_response": raw_text,
+                    "success": True,
+                    "error": None,
+                }
+
+            except (ValidationError, ValueError) as ve:
+                last_error = str(ve)
+                self.logger.warning(
+                    "validation_failed",
+                    attempt=attempt,
+                    error=last_error
+                )
+                # Reintentar con instrucción de corrección de formato
+                augmented_prompt = (
+                    prompt
+                    + "\n\nERROR: La respuesta anterior no cumplió el formato JSON esperado. "
+                      "DEVUELVE ÚNICAMENTE UN JSON VÁLIDO que cumpla la estructura requerida, sin texto adicional."
+                )
+                continue
+            except Exception as e:
+                last_error = str(e)
+                self.logger.error("error_llm_generate", error=last_error)
+                break
+
+        return {
+            "parsed": None,
+            "raw_response": "",
+            "success": False,
+            "error": last_error or "unknown_error",
+        }
 

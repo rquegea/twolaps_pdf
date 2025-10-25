@@ -3,9 +3,36 @@ Competitive Agent
 Análisis de posicionamiento competitivo
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
 from src.analytics.agents.base_agent import BaseAgent
 from src.database.models import AnalysisResult
+
+
+class EvidenceItem(BaseModel):
+    tipo: str
+    detalle: str
+    fuente_id: Optional[str] = None
+    periodo: Optional[str] = None
+
+
+class InsightItem(BaseModel):
+    titulo: str
+    evidencia: List[EvidenceItem] = Field(default_factory=list)
+    impacto_negocio: str
+    recomendacion: str
+    prioridad: str
+    kpis_seguimiento: List[Dict[str, str]] = Field(default_factory=list)
+    confianza: str
+    contraargumento: Optional[str] = None
+
+
+class CompetitiveOutputModel(BaseModel):
+    insights: List[InsightItem] = Field(default_factory=list)
+    lider_mercado: Optional[str] = None
+    ranking_sov: Optional[List[str]] = None
+    benchmarking_atributos: Optional[Dict[str, Dict[str, str]]] = None
+    perfiles_competidores: Optional[List[Dict[str, Any]]] = None
 
 
 class CompetitiveAgent(BaseAgent):
@@ -25,6 +52,9 @@ class CompetitiveAgent(BaseAgent):
         Returns:
             Dict con análisis competitivo
         """
+        # Cargar prompt
+        self.load_prompts_dynamic(categoria_id, 'competitive_agent')
+
         # Obtener análisis previos
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
@@ -77,25 +107,53 @@ class CompetitiveAgent(BaseAgent):
             }
             moats.append(moat_entry)
 
-        resultado = {
-            'periodo': periodo,
-            'categoria_id': categoria_id,
-            'lider_mercado': lider,
-            'sov_lider': sov.get(lider, 0) if lider else 0,
-            'gaps_competitivos': gaps,
-            'comparativa': {
-                marca: {
-                    'sov': sov.get(marca, 0),
-                    'sentimiento': sentimientos.get(marca, {}).get('score_medio', 0),
-                    'posicion': 'lider' if marca == lider else 'seguidor'
-                }
-                for marca in sov.keys()
-            },
-            'moats': moats
+        # Construir inputs para prompt
+        sov_data = sov
+        sentiment_data = {m: sentimientos.get(m, {}) for m in sov.keys()}
+        attributes_data = qualitative.get('atributos_por_marca') or {}
+        qualitative_data = {
+            'marketing_campanas': qualitative.get('marketing_campanas') or {},
+            'canales_distribucion': qualitative.get('canales_distribucion') or {},
         }
-        
-        self.save_results(categoria_id, periodo, resultado)
-        return resultado
+
+        # Proteger placeholders reales y escapar llaves literales del template
+        template = self.task_prompt or ""
+        keys = ["sov_data", "sentiment_data", "attributes_data", "qualitative_data"]
+        for k in keys:
+            template = template.replace("{" + k + "}", f"__{k.upper()}__")
+        template = template.replace("{", "{{").replace("}", "}}")
+        for k in keys:
+            template = template.replace(f"__{k.upper()}__", "{" + k + "}")
+
+        prompt = template.format(
+            sov_data=sov_data,
+            sentiment_data=sentiment_data,
+            attributes_data=attributes_data,
+            qualitative_data=qualitative_data,
+        )
+
+        gen = self._generate_with_validation(
+            prompt=prompt,
+            pydantic_model=CompetitiveOutputModel,
+            max_retries=2,
+            temperature=0.3,
+        )
+
+        if not gen.get('success') or not gen.get('parsed'):
+            # Devolver fallback estructurado mínimo con gaps y comparativa para no bloquear
+            fallback = {
+                'insights': [],
+                'lider_mercado': lider,
+                'ranking_sov': [m for m, _ in sorted(sov.items(), key=lambda x: x[1], reverse=True)],
+                'perfiles_competidores': [],
+            }
+            self.save_results(categoria_id, periodo, fallback)
+            return fallback
+
+        parsed = gen['parsed']
+        # Guardar y devolver
+        self.save_results(categoria_id, periodo, parsed)
+        return parsed
     
     def _get_analysis(self, agent_name: str, categoria_id: int, periodo: str) -> Dict:
         """Helper para obtener análisis previo"""

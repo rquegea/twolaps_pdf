@@ -306,6 +306,228 @@ def execute_all(provider, market):
 cli.add_command(admin)
 
 
+# =============================
+# Preview de agentes en terminal
+# =============================
+@cli.command()
+@click.option('--category', '-c', required=True, help='Categoría (formato: Mercado/Categoría)')
+@click.option('--period', '-p', required=True, help='Periodo (YYYY-MM, YYYY-Www o rango YYYY-MM-DD..YYYY-MM-DD)')
+@click.option('--agents', '-a', multiple=True, help='Agentes a previsualizar (ej: quantitative, qualitative, competitive, trends, channel_analysis, esg_analysis, packaging_analysis, pricing_power, customer_journey, scenario_planning, roi, strategic)')
+@click.option('--run-missing', is_flag=True, help='Ejecuta el agente si no hay resultado previo')
+@click.option('--rerun', is_flag=True, help='Fuerza re-ejecución del agente (ignora resultados previos)')
+def preview_agents(category, period, agents, run_missing, rerun):
+    """Previsualiza en terminal la salida por agente sin generar el PDF."""
+    import json
+    from src.database.connection import get_session
+    from src.database.models import Mercado, Categoria, AnalysisResult
+    # Import lazy de agentes para evitar coste cuando solo se lee
+    from src.analytics.agents import (
+        QuantitativeAgent,
+        QualitativeExtractionAgent,
+        CompetitiveAgent,
+        TrendsAgent,
+        CampaignAnalysisAgent,
+        ChannelAnalysisAgent,
+        ESGAnalysisAgent,
+        PackagingAnalysisAgent,
+        CustomerJourneyAgent,
+        ScenarioPlanningAgent,
+        PricingPowerAgent,
+        ROIAgent,
+        StrategicAgent,
+    )
+
+    AGENT_MAP = {
+        'quantitative': QuantitativeAgent,
+        'qualitative': QualitativeExtractionAgent,  # guardaremos como 'qualitativeextraction'
+        'competitive': CompetitiveAgent,
+        'trends': TrendsAgent,
+        'campaign_analysis': CampaignAnalysisAgent,
+        'channel_analysis': ChannelAnalysisAgent,
+        'esg_analysis': ESGAnalysisAgent,
+        'packaging_analysis': PackagingAnalysisAgent,
+        'customer_journey': CustomerJourneyAgent,
+        'scenario_planning': ScenarioPlanningAgent,
+        'pricing_power': PricingPowerAgent,
+        'roi': ROIAgent,
+        'strategic': StrategicAgent,
+    }
+
+    DEFAULT_ORDER = [
+        'quantitative', 'competitive', 'trends', 'channel_analysis', 'campaign_analysis',
+        'esg_analysis', 'packaging_analysis', 'pricing_power', 'customer_journey',
+        'scenario_planning', 'roi', 'strategic'
+    ]
+
+    selected = list(agents) if agents else DEFAULT_ORDER
+
+    # Resolver categoría
+    try:
+        market_name, cat_name = category.split('/')
+    except ValueError:
+        click.echo("✗ Formato de categoría inválido. Usa Mercado/Categoría", err=True)
+        raise click.Abort()
+
+    with get_session() as session:
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            raise click.Abort()
+        categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=cat_name).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            raise click.Abort()
+
+        click.echo(f"👀 Preview de agentes | {category} | {period}\n")
+
+        def _load_result(agent_key: str):
+            keys = [agent_key]
+            # compat: qualitative puede estar como 'qualitative' o 'qualitativeextraction'
+            if agent_key == 'qualitative':
+                keys = ['qualitative', 'qualitativeextraction']
+            for k in keys:
+                r = session.query(AnalysisResult).filter_by(
+                    categoria_id=categoria.id,
+                    periodo=period,
+                    agente=k
+                ).first()
+                if r:
+                    return r.resultado
+            return None
+
+        def _run_agent(agent_key: str):
+            AgentClass = AGENT_MAP.get(agent_key)
+            if not AgentClass:
+                return {'error': f'agente_desconocido:{agent_key}'}
+            agent = AgentClass(session)
+            return agent.analyze(categoria.id, period)
+
+        def _ensure_result(agent_key: str):
+            if rerun:
+                return _run_agent(agent_key)
+            existing = _load_result(agent_key)
+            if existing:
+                return existing
+            if run_missing:
+                return _run_agent(agent_key)
+            return {'info': 'no_data', 'detail': 'No hay resultado previo. Usa --run-missing o --rerun para ejecutarlo.'}
+
+        def _print_quantitative(res: dict):
+            click.echo("— Quantitative")
+            if 'error' in res:
+                click.echo(f"  ✗ {res['error']}")
+                return
+            ranking = res.get('ranking', [])[:5]
+            out = res.get('outliers', {}) or {}
+            click.echo("  Top 5 (SOV %):")
+            for r in ranking:
+                click.echo(f"   · {r['marca']}: {r.get('sov', 0):.1f}% ({r.get('menciones', 0)} menciones)")
+            if out:
+                highs = ', '.join([f"{x['marca']} ({x['sov']:.1f}%)" for x in out.get('sov_altos', [])])
+                lows = ', '.join([f"{x['marca']} ({x['sov']:.1f}%)" for x in out.get('sov_bajos', [])])
+                changes = ', '.join([f"{x['marca']} ({x['cambio_puntos']:+.1f} pp)" for x in out.get('cambios_bruscos', [])[:5]])
+                if highs:
+                    click.echo(f"  Outliers altos: {highs}")
+                if lows:
+                    click.echo(f"  Outliers bajos: {lows}")
+                if changes:
+                    click.echo(f"  Cambios bruscos: {changes}")
+
+        def _print_competitive(res: dict):
+            click.echo("— Competitive")
+            if 'error' in res:
+                click.echo(f"  ✗ {res['error']}")
+                return
+            lider = res.get('lider_mercado') or 'N/A'
+            click.echo(f"  Líder de mercado: {lider}")
+            insights = res.get('insights', [])
+            if insights:
+                click.echo("  Insights (primeros 3, con profundidad):")
+                for it in insights[:3]:
+                    ev = len((it.get('evidencia') or []))
+                    kpi = len((it.get('kpis_seguimiento') or []))
+                    conf = it.get('confianza', 'N/A')
+                    ca = 'sí' if it.get('contraargumento') else 'no'
+                    tit = (it.get('titulo','(sin título)') or '')[:90]
+                    click.echo(f"   · {tit} | ev:{ev} kpi:{kpi} conf:{conf} contra:{ca}")
+            else:
+                ranking = res.get('ranking_sov', [])[:5]
+                if ranking:
+                    click.echo("  Ranking SOV: " + ", ".join(ranking))
+
+        def _print_trends(res: dict):
+            click.echo("— Trends")
+            if 'error' in res:
+                click.echo(f"  ✗ {res['error']}")
+                return
+            resumen = res.get('resumen') or ''
+            if not resumen and res.get('tendencias'):
+                up = sum(1 for t in res['tendencias'] if t.get('direccion') == '↑')
+                down = sum(1 for t in res['tendencias'] if t.get('direccion') == '↓')
+                resumen = f"{up} marcas en crecimiento, {down} en decrecimiento"
+            click.echo(f"  Resumen: {resumen or '(sin resumen)'}")
+
+            tlist = res.get('tendencias', [])[:5]
+            for t in tlist:
+                # Formato nuevo (intra-rango o comparación simple con campos de cambio)
+                if 'marca' in t:
+                    cambios = f"{t.get('cambio_puntos', 0):+,.2f} pp"
+                    if t.get('cambio_rel_pct') is not None:
+                        cambios += f" ({t.get('cambio_rel_pct', 0):+,.1f}%)"
+                    pi = t.get('periodo_inicio') or ''
+                    pf = t.get('periodo_fin') or ''
+                    tramo = f" {pi}→{pf}" if (pi or pf) else ""
+                    sig = t.get('significancia', '')
+                    pico = ' pico' if t.get('pico') else ''
+                    drivers = ", ".join(t.get('posibles_drivers', [])[:3]) if t.get('posibles_drivers') else ''
+                    extra = f" | drivers: {drivers}" if drivers else ''
+                    click.echo(f"   · {t.get('marca','')} {t.get('direccion','')} {cambios}{tramo} [{sig}{pico}]{extra}")
+                else:
+                    # Formato antiguo (tipo/titulo/datos_cuantitativos)
+                    dirc = (t.get('datos_cuantitativos', {}) or {}).get('direccion', '')
+                    click.echo(f"   · [{t.get('tipo','')}] {t.get('titulo','')} ({dirc})")
+
+        def _print_qualitative(res: dict):
+            click.echo("— Qualitative")
+            if 'error' in res:
+                click.echo(f"  ✗ {res['error']}")
+                return
+            sent = res.get('sentimiento_por_marca', {}) or {}
+            if not sent:
+                click.echo("  (sin sentimiento_por_marca)")
+                return
+            # Mostrar hasta 5 marcas con su score
+            shown = 0
+            for marca, data in sent.items():
+                score = 0.0
+                if isinstance(data, dict):
+                    score = float(data.get('score_medio') or data.get('score') or 0)
+                elif isinstance(data, (int, float)):
+                    score = float(data)
+                click.echo(f"   · {marca}: {score:.2f}")
+                shown += 1
+                if shown >= 5:
+                    break
+
+        PRINTERS = {
+            'quantitative': _print_quantitative,
+            'competitive': _print_competitive,
+            'trends': _print_trends,
+            'qualitative': _print_qualitative,
+        }
+
+        for key in selected:
+            click.echo("")
+            res = _ensure_result(key)
+            printer = PRINTERS.get(key)
+            if printer:
+                printer(res)
+            else:
+                # Para agentes sin impresor específico, volcar un resumen corto JSON
+                txt = json.dumps(res if isinstance(res, dict) else {'result': res}, ensure_ascii=False)[:2000]
+                click.echo(f"— {key}")
+                click.echo(f"  {txt}")
+
 if __name__ == "__main__":
     cli()
 

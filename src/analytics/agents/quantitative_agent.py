@@ -110,7 +110,48 @@ class QuantitativeAgent(BaseAgent):
             reverse=True
         )
         
-        # 7. Preparar resultado
+        # 7. Outliers (alto/bajo SOV y cambios bruscos vs periodo anterior si existe)
+        outliers = {
+            'sov_altos': [],
+            'sov_bajos': [],
+            'cambios_bruscos': []
+        }
+        try:
+            values = list(sov.values())
+            if values:
+                mean_val = sum(values) / len(values)
+                # Umbrales simples: ±1.5x de la media
+                high_thr = mean_val * 1.5
+                low_thr = mean_val * 0.5
+                for marca, val in sov.items():
+                    if val >= high_thr:
+                        outliers['sov_altos'].append({'marca': marca, 'sov': val, 'umbral': high_thr})
+                    elif val <= low_thr:
+                        outliers['sov_bajos'].append({'marca': marca, 'sov': val, 'umbral': low_thr})
+        except Exception:
+            pass
+
+        # Cambios bruscos: comparar con periodo anterior
+        try:
+            prev_period = self._get_previous_periodo_generic(periodo)
+            if prev_period:
+                prev_quant = self._get_analysis('quantitative', categoria_id, prev_period) or {}
+                prev_sov = prev_quant.get('sov_percent', {}) or {}
+                for marca, curr in sov.items():
+                    prev = float(prev_sov.get(marca, 0) or 0)
+                    delta = curr - prev
+                    if abs(delta) >= 5.0:  # cambio significativo en puntos
+                        outliers['cambios_bruscos'].append({
+                            'marca': marca,
+                            'sov_actual': curr,
+                            'sov_anterior': prev,
+                            'cambio_puntos': delta,
+                            'periodo_anterior': prev_period
+                        })
+        except Exception:
+            pass
+
+        # 8. Preparar resultado
         resultado = {
             'periodo': periodo,
             'categoria_id': categoria_id,
@@ -124,6 +165,7 @@ class QuantitativeAgent(BaseAgent):
                 for marca, count in ranking
             ],
             'co_ocurrencias': dict(co_ocurrencias),
+            'outliers': outliers,
             'metadata': {
                 'queries_analizadas': len(set(e.query_id for e in executions)),
                 'proveedores': list(set(e.proveedor_ia for e in executions)),

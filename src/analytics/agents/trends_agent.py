@@ -86,6 +86,28 @@ class TrendsAgent(BaseAgent):
                 intra_range = self._build_intra_range_sov_series(categoria_id, periodo)
                 if isinstance(intra_range, dict) and any(len(v) >= 2 for v in intra_range.values()):
                     sov_trend_data = intra_range
+                    # NUEVO: tendencias intra-rango (primer día vs último día)
+                    try:
+                        for marca, serie in intra_range.items():
+                            if not serie or len(serie) < 2:
+                                continue
+                            start_val = float(serie[0].get('sov', 0) or 0.0)
+                            end_val = float(serie[-1].get('sov', 0) or 0.0)
+                            delta = end_val - start_val
+                            rel = ((delta / start_val) * 100.0) if start_val > 0 else 0.0
+                            if abs(delta) >= 2.0 or abs(rel) >= 8.0:
+                                tendencias.append({
+                                    'marca': marca,
+                                    'metrica': 'SOV',
+                                    'cambio_puntos': round(delta, 2),
+                                    'cambio_rel_pct': round(rel, 1),
+                                    'periodo_inicio': serie[0].get('periodo'),
+                                    'periodo_fin': serie[-1].get('periodo'),
+                                    'direccion': '↑' if delta > 0 else '↓',
+                                    'significancia': 'alta' if abs(delta) >= 4.0 or abs(rel) >= 16.0 else 'media'
+                                })
+                    except Exception:
+                        pass
                 # Si no hay serie de sentimiento, usar snapshot del periodo actual
                 if not sentiment_trend_data:
                     s_now = self._get_analysis('qualitative', categoria_id, periodo) or \
@@ -108,19 +130,107 @@ class TrendsAgent(BaseAgent):
             previous_sov = previous_quantitative.get('sov_percent', {})
             
             for marca in current_sov.keys():
-                current_val = current_sov.get(marca, 0)
-                previous_val = previous_sov.get(marca, 0)
-                
+                current_val = float(current_sov.get(marca, 0) or 0)
+                previous_val = float(previous_sov.get(marca, 0) or 0)
+
                 cambio = current_val - previous_val
-                
-                if abs(cambio) > 5:  # Cambio significativo
+                rel = 0.0
+                if previous_val > 0:
+                    rel = (cambio / previous_val) * 100.0
+
+                # Más sensible: 3 pp absolutos o 10% relativo
+                if abs(cambio) >= 3.0 or abs(rel) >= 10.0:
                     tendencias.append({
                         'marca': marca,
                         'metrica': 'SOV',
-                        'cambio_puntos': cambio,
+                        'cambio_puntos': round(cambio, 2),
+                        'cambio_rel_pct': round(rel, 1),
                         'direccion': '↑' if cambio > 0 else '↓',
-                        'significancia': 'alta' if abs(cambio) > 10 else 'media'
+                        'significancia': 'alta' if abs(cambio) >= 6.0 or abs(rel) >= 20.0 else 'media'
                     })
+
+        # ===== Enriquecer con detección de picos (último valor vs historial) y posibles drivers =====
+        def _detect_peak(serie_vals: list[float]) -> bool:
+            try:
+                if not serie_vals or len(serie_vals) < 3:
+                    return False
+                last = float(serie_vals[-1])
+                base = [float(v) for v in serie_vals[:-1] if v is not None]
+                if not base:
+                    return False
+                base_mean = sum(base) / len(base)
+                # Pico si supera en >= 30% al promedio previo o en >= 4 pp absolutos
+                return (last - base_mean) >= 4.0 or (base_mean > 0 and (last - base_mean) / base_mean >= 0.30)
+            except Exception:
+                return False
+
+        # Mapear series por marca para picos (prefiere multi-periodo; si no, intra-range)
+        series_por_marca: dict[str, list[float]] = {}
+        if sov_trend_data:
+            for marca, puntos in sov_trend_data.items():
+                try:
+                    series_por_marca[marca] = [float(p.get('sov', 0) or 0.0) for p in puntos]
+                except Exception:
+                    pass
+        elif 'sov_percent' in current_quantitative:
+            # Solo snapshot, sin picos
+            series_por_marca = {}
+
+        # Posibles drivers desde otros agentes
+        campaign_data = self._get_analysis('campaign_analysis', categoria_id, periodo) or {}
+        channel_data = self._get_analysis('channel_analysis', categoria_id, periodo) or {}
+        qual_now = self._get_analysis('qualitative', categoria_id, periodo) or self._get_analysis('qualitativeextraction', categoria_id, periodo) or {}
+        sent_now = qual_now.get('sentimiento_por_marca', {}) or {}
+
+        def _drivers_para_marca(marca: str) -> list[str]:
+            drivers: list[str] = []
+            # Campañas
+            try:
+                camps = campaign_data.get('campanas_especificas') or []
+                hit_camps = [c for c in camps if isinstance(c, dict) and c.get('marca') == marca]
+                if hit_camps:
+                    nombres = [c.get('nombre_campana') or c.get('mensaje_central') for c in hit_camps if c]
+                    if nombres:
+                        drivers.append(f"campañas: {', '.join([str(n) for n in nombres if n])[:80]}")
+                elif campaign_data.get('marca_mas_activa') and marca in str(campaign_data.get('marca_mas_activa')):
+                    drivers.append("campañas: marca destacada en actividad")
+            except Exception:
+                pass
+            # Canales
+            try:
+                disp = channel_data.get('disponibilidad_por_marca') or []
+                hits = [d for d in disp if isinstance(d, dict) and d.get('marca') == marca]
+                if hits:
+                    canales = hits[0].get('canales_presencia') or []
+                    drivers.append(f"canales: presencia en {', '.join(canales)[:50]}")
+                elif channel_data.get('marca_mejor_distribuida') and marca in str(channel_data.get('marca_mejor_distribuida')):
+                    drivers.append("canales: mejor distribución")
+            except Exception:
+                pass
+            # Sentimiento
+            try:
+                s = sent_now.get(marca)
+                score = None
+                if isinstance(s, dict):
+                    score = s.get('score_medio') or s.get('score')
+                elif isinstance(s, (int, float)):
+                    score = float(s)
+                if score is not None:
+                    drivers.append(f"sentimiento: {float(score):+0.2f}")
+            except Exception:
+                pass
+            return drivers
+
+        # Enriquecer elementos existentes y marcar picos
+        for t in tendencias:
+            marca = t.get('marca')
+            if not marca:
+                continue
+            serie_vals = series_por_marca.get(marca) or []
+            t['pico'] = _detect_peak(serie_vals)
+            drv = _drivers_para_marca(marca)
+            if drv:
+                t['posibles_drivers'] = drv
         
         resultado = {
             'periodo': periodo,
