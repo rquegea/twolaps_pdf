@@ -18,7 +18,7 @@ from src.analytics.agents.transversal_agent import TransversalAgent
 from src.analytics.agents.customer_journey_agent import CustomerJourneyAgent
 from src.analytics.agents.scenario_planning_agent import ScenarioPlanningAgent
 from src.analytics.agents.pricing_power_agent import PricingPowerAgent
-from src.analytics.agents.roi_agent import ROIAgent
+# ROI eliminado a petición del usuario
 
 __all__ = [
     'BaseAgent',
@@ -37,7 +37,6 @@ __all__ = [
     'TransversalAgent',
     'CustomerJourneyAgent',
     'ScenarioPlanningAgent',
-    'PricingPowerAgent',
-    'ROIAgent'
+    'PricingPowerAgent'
 ]
 

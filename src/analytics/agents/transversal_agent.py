@@ -23,7 +23,7 @@ class TransversalAgent(BaseAgent):
         # Cargar prompt por mercado si definimos variantes en YAML (opcional, fallback a un prompt fijo)
         self.load_prompts_dynamic(categoria_id, default_key='transversal_agent')
 
-        # Reunir resultados clave
+        # Reunir resultados clave (con alias para qualitativeextraction)
         agent_keys = [
             'quantitative', 'qualitative', 'competitive', 'trends',
             'campaign_analysis', 'channel_analysis', 'esg_analysis', 'packaging_analysis',
@@ -31,11 +31,18 @@ class TransversalAgent(BaseAgent):
         ]
         resultados = {}
         for ak in agent_keys:
-            row = self.session.query(AnalysisResult).filter_by(
-                categoria_id=categoria_id,
-                periodo=periodo,
-                agente=ak
-            ).first()
+            keys = [ak]
+            if ak == 'qualitative':
+                keys = ['qualitative', 'qualitativeextraction']
+            row = None
+            for k in keys:
+                row = self.session.query(AnalysisResult).filter_by(
+                    categoria_id=categoria_id,
+                    periodo=periodo,
+                    agente=k
+                ).first()
+                if row:
+                    break
             resultados[ak] = row.resultado if row else {}
 
         # Construir prompt mínimo si no hay YAML específico
@@ -48,17 +55,22 @@ class TransversalAgent(BaseAgent):
                 '{"temas_comunes": [], "contradicciones": [], "insights_nuevos": []}'
             )
 
-        prompt = self.task_prompt.format(
-            quantitative=json.dumps(resultados.get('quantitative', {}), indent=2),
-            qualitative=json.dumps(resultados.get('qualitative', {}), indent=2),
-            competitive=json.dumps(resultados.get('competitive', {}), indent=2),
-            trends=json.dumps(resultados.get('trends', {}), indent=2),
-            campaign=json.dumps(resultados.get('campaign_analysis', {}), indent=2),
-            channel=json.dumps(resultados.get('channel_analysis', {}), indent=2),
-            esg=json.dumps(resultados.get('esg_analysis', {}), indent=2),
-            packaging=json.dumps(resultados.get('packaging_analysis', {}), indent=2),
-            strategic=json.dumps(resultados.get('strategic', {}), indent=2)
-        )
+        # Construir prompt seguro: escapar llaves del template excepto placeholders
+        context_dict = {
+            'quantitative': json.dumps(resultados.get('quantitative', {}), indent=2, ensure_ascii=False),
+            'qualitative': json.dumps(resultados.get('qualitative', {}), indent=2, ensure_ascii=False),
+            'competitive': json.dumps(resultados.get('competitive', {}), indent=2, ensure_ascii=False),
+            'trends': json.dumps(resultados.get('trends', {}), indent=2, ensure_ascii=False),
+            'campaign': json.dumps(resultados.get('campaign_analysis', {}), indent=2, ensure_ascii=False),
+            'channel': json.dumps(resultados.get('channel_analysis', {}), indent=2, ensure_ascii=False),
+            'esg': json.dumps(resultados.get('esg_analysis', {}), indent=2, ensure_ascii=False),
+            'packaging': json.dumps(resultados.get('packaging_analysis', {}), indent=2, ensure_ascii=False),
+            'strategic': json.dumps(resultados.get('strategic', {}), indent=2, ensure_ascii=False)
+        }
+        safe_template = self.task_prompt.replace('{', '{{').replace('}', '}}')
+        for key in context_dict.keys():
+            safe_template = safe_template.replace('{{' + key + '}}', '{' + key + '}')
+        prompt = safe_template.format(**context_dict)
 
         # Estructura por defecto SIEMPRE disponible
         default_data = {

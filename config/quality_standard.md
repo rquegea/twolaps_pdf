@@ -19,7 +19,7 @@ Fecha: 2025-10-25
 14. Sostenibilidad y ESG
 15. Packaging y Diseño
 16. Escenarios Futuros (12-24 meses)
-17. ROI de Marketing
+17. Eficiencia de Marketing (sin cálculos ROI/ROAS): priorizar evidencia de efectividad observada y conversión
 18. Plan de Acción 90 Días
 19. Anexos (Metodología, Métricas de Calidad)
 

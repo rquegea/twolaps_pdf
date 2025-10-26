@@ -580,6 +580,12 @@
     <div class="seccion">
         <h1 class="seccion-titulo">Customer Journey & Buyer Personas</h1>
 
+        {% if customer_journey and customer_journey.narrativa %}
+        <div class="narrativa-journey">
+            <p class="narrative-text">{{ customer_journey.narrativa|safe|replace('\n\n', '</p><p class=\"narrative-text\">')|replace('\n', '<br>') }}</p>
+        </div>
+        {% endif %}
+
         {% if customer_journey %}
             <h2>Customer Journey Map</h2>
             {% if charts.customer_journey_map_image %}
@@ -846,25 +852,7 @@
     </div>
     {% endif %}
 
-    <!-- ROI DE MARKETING -->
-    {% if roi and roi.resumen %}
-    <div class="seccion">
-        <h1 class="seccion-titulo">ROI de Marketing</h1>
-        <p><strong>Resumen:</strong> ROAS {{ roi.resumen.roas|round(2) }}, ROI {{ roi.resumen.roi_pct|round(1) }}%, CPA {% if roi.resumen.cpa %}{{ roi.resumen.cpa|round(2) }}{% else %}N/A{% endif %}, Payback {{ roi.resumen.payback_meses }} meses</p>
-        {% if roi.por_canal %}
-        <ul>
-            {% for canal in roi.por_canal %}
-            <li>
-                <strong>{{ canal.canal }}:</strong> gasto {{ canal.gasto }}, revenue {{ canal.revenue_atr }}, ROAS {{ canal.roas|round(2) }}, ROI {{ canal.roi_pct|round(1) }}%, {% if canal.cpa %}CPA {{ canal.cpa|round(2) }}, {% endif %}payback {{ canal.payback_meses }}m
-            </li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% if roi.supuestos %}
-        <p><em>Supuestos:</em> {{ roi.supuestos }}</p>
-        {% endif %}
-    </div>
-    {% endif %}
+    {# Sección ROI eliminada a petición del usuario #}
     <!-- PLAN DE ACCIÓN 90 DÍAS - NARRATIVO -->
     <div class="seccion">
         <h1 class="seccion-titulo">Plan de Acción 90 Días</h1>

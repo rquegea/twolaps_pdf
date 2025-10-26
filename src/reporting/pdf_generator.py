@@ -71,10 +71,10 @@ class PDFGenerator:
                 periodo=report.periodo
             )
             
-            # Enriquecer contenido con resultados de agentes adicionales (pricing_power, customer_journey, scenarios, roi)
+            # Enriquecer contenido con resultados de agentes adicionales (pricing_power, customer_journey, scenarios)
             try:
                 from src.database.models import AnalysisResult
-                extra_agents = ['pricing_power', 'customer_journey', 'scenario_planning', 'roi']
+                extra_agents = ['pricing_power', 'customer_journey', 'scenario_planning']
                 contenido = report.contenido or {}
                 for agent in extra_agents:
                     if agent not in contenido:
@@ -176,8 +176,7 @@ class PDFGenerator:
             'oportunidades_riesgos': contenido.get('oportunidades_riesgos', {}),  # NUEVO narrativo
             'plan_90_dias': contenido.get('plan_90_dias', {}),  # NUEVO narrativo
             'buyer_personas': contenido.get('buyer_personas', []) or contenido.get('customer_journey', {}).get('buyer_personas', []),
-            # NUEVOS BLOQUES: ROI / Escenarios / Customer Journey / Pricing Power
-            'roi': contenido.get('roi', {}),
+            # NUEVOS BLOQUES: Escenarios / Customer Journey / Pricing Power
             'scenarios': contenido.get('scenario_planning', {}),
             'customer_journey': contenido.get('customer_journey', {}),
             'pricing_power': contenido.get('pricing_power', {}),

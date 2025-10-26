@@ -23,8 +23,7 @@ from src.analytics.agents import (
     TransversalAgent,
     CustomerJourneyAgent,
     ScenarioPlanningAgent,
-    PricingPowerAgent,
-    ROIAgent
+    PricingPowerAgent
 )
 from src.utils.logger import setup_logger, log_agent_analysis
 
@@ -51,7 +50,6 @@ class AnalysisOrchestrator:
             ('esg_analysis', ESGAnalysisAgent),                  # NUEVO: Análisis ESG
             ('packaging_analysis', PackagingAnalysisAgent),      # NUEVO: Análisis packaging
             ('pricing_power', PricingPowerAgent),                # NUEVO: Pricing & mapa perceptual
-            ('roi', ROIAgent),                                 # NUEVO: ROI campañas/canales
             ('strategic', StrategicAgent),
             ('transversal', TransversalAgent),
             ('synthesis', SynthesisAgent),

@@ -58,29 +58,87 @@ class StrategicAgent(BaseAgent):
         if not quantitative or not qualitative:
             return {'error': 'Faltan análisis previos'}
         
-        # NUEVO: Obtener muestra estratificada de respuestas textuales
-        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=2)
+        # NUEVO: Obtener muestra estratificada de respuestas textuales (LIMITADA para evitar 429/TPM)
+        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=1)
+        # Limitar tamaño total del bloque de texto para reducir tokens
+        if isinstance(raw_responses, str) and len(raw_responses) > 8000:
+            raw_responses = raw_responses[:8000]
         
-        # Construir prompt con datos estructurados Y respuestas textuales
+        # Construir inputs compactos para reducir tokens
+        def _top_n_dict(d: Dict[str, Any], n: int = 10) -> Dict[str, Any]:
+            if not isinstance(d, dict):
+                return {}
+            try:
+                # Si son porcentajes por marca, ordenar por valor desc
+                items = list(d.items())
+                items.sort(key=lambda kv: (kv[1] if isinstance(kv[1], (int, float)) else 0), reverse=True)
+                return {k: v for k, v in items[:n]}
+            except Exception:
+                return dict(list(d.items())[:n])
+
+        def _trim_list(lst: Any, n: int = 5) -> Any:
+            return (lst or [])[:n] if isinstance(lst, list) else []
+
+        sov_compact = _top_n_dict(quantitative.get('sov_percent', {}), n=10)
+        sentiment_compact = {}
+        if isinstance(qualitative.get('sentimiento_por_marca'), dict):
+            # Reducir a top 10 por score_medio si existe
+            items = []
+            for marca, data in qualitative['sentimiento_por_marca'].items():
+                score = 0.0
+                if isinstance(data, dict):
+                    val = data.get('score_medio') or data.get('score')
+                    try:
+                        score = float(val)
+                    except Exception:
+                        score = 0.0
+                items.append((marca, data, score))
+            items.sort(key=lambda x: x[2], reverse=True)
+            sentiment_compact = {m: d for m, d, _ in items[:10]}
+
+        competitive_compact = {}
+        if isinstance(competitive, dict):
+            competitive_compact['lider_mercado'] = competitive.get('lider_mercado')
+            if isinstance(competitive.get('insights'), list):
+                competitive_compact['insights'] = _trim_list(competitive.get('insights'), n=3)
+
+        trends_compact = _trim_list((trends or {}).get('tendencias', []), n=5)
+
+        def _compact_agent_data(data: Any, insight_key: str = 'insights', n: int = 3) -> Dict[str, Any]:
+            if not isinstance(data, dict):
+                return {}
+            compact = {}
+            meta = data.get('metadata') or {}
+            if meta:
+                compact['metadata'] = meta
+            if isinstance(data.get(insight_key), list):
+                compact[insight_key] = _trim_list(data.get(insight_key), n)
+            return compact or (data if len(json.dumps(data)) < 2000 else {})
+
+        campaign_compact = _compact_agent_data(campaign, 'insights', 3)
+        channel_compact = _compact_agent_data(channel, 'insights', 3)
+        esg_compact = _compact_agent_data(esg, 'insights', 3)
+        packaging_compact = _compact_agent_data(packaging, 'insights', 3)
+
+        # Construir prompt con datos estructurados COMPACTOS y respuestas textuales
         prompt = self.task_prompt.format(
-            sov_data=json.dumps(quantitative.get('sov_percent', {}), indent=2),
-            sentiment_data=json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2),
-            competitive_data=json.dumps(competitive, indent=2),
-            trends_data=json.dumps(trends.get('tendencias', []), indent=2),
+            sov_data=json.dumps(sov_compact, separators=(',', ':')),
+            sentiment_data=json.dumps(sentiment_compact, separators=(',', ':')),
+            competitive_data=json.dumps(competitive_compact, separators=(',', ':')),
+            trends_data=json.dumps(trends_compact, separators=(',', ':')),
             raw_responses_sample=raw_responses,
-            # Campos FMCG adicionales requeridos por el prompt YAML
-            campaign_analysis_data=json.dumps(campaign, indent=2),
-            channel_analysis_data=json.dumps(channel, indent=2),
-            esg_analysis_data=json.dumps(esg, indent=2),
-            packaging_analysis_data=json.dumps(packaging, indent=2)
+            campaign_analysis_data=json.dumps(campaign_compact, separators=(',', ':')),
+            channel_analysis_data=json.dumps(channel_compact, separators=(',', ':')),
+            esg_analysis_data=json.dumps(esg_compact, separators=(',', ':')),
+            packaging_analysis_data=json.dumps(packaging_compact, separators=(',', ':'))
         )
         
         # Llamar a LLM
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.6,
-                max_tokens=8000
+                temperature=0.45,
+                max_tokens=5000
             )
 
             # Limpiar y validar con Pydantic

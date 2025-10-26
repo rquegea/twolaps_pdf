@@ -802,6 +802,73 @@ executive_agent:
     - Guardrails: SOLO JSON válido; referencias claras a gráficos cuando aplique.
 
 # =====================
+# Executive Section Prompts (MBB por sección)
+# =====================
+
+executive_section_prompts:
+  resumen_ejecutivo: |
+    Eres un Partner MBB. Acabas de analizar [JSONs de Strategic, Quantitative, Trends, Sentiment, ROI].
+    Redacta el Resumen Ejecutivo. Sigue ESTRICTAMENTE la estructura "Answer First" (`the_answer`, `the_why`, `the_how`, `the_impact`).
+
+    1. `the_answer` (La Respuesta): ¿Cuál es la recomendación estratégica ÚNICA MÁS IMPORTANTE? Sé específico y cuantifica presupuesto/acción.
+    2. `the_why` (El Porqué): Usa 2-3 argumentos basados en datos: cambios en `QuantitativeAgent.sov_percent`, señales de efectividad de Campañas/Canales, deriva de sentimiento `SentimentAgent`, y aceleración/desaceleración en `TrendsAgent`.
+    3. `the_how` (El Cómo): Define la palanca principal y la lógica de ejecución (plan de choque 90 días conectado con canales/creatividades/operaciones).
+    4. `the_impact` (El Impacto): Cuantifica resultado esperado (SOV, CAC, ROMI/ROI, ingresos incrementales, payback). Incluye horizonte temporal.
+
+  panorama_mercado: |
+    Analiza [JSON de MarketContextAgent, QuantitativeAgent]. No listes PESTEL; entrega el "So What?".
+    Responde si el mercado es atractivo o una "trampa de valor".
+    1. Diagnóstico: crecimiento (`MarketContext.panorama_general.crecimiento_estimado`), madurez y concentración (`Quantitative.concentration.hhi`).
+    2. Implicación Estratégica: qué fuerzas (Porter/PESTEL) erosionan margen realmente y por qué.
+    3. Recomendación: pockets de crecimiento y factores críticos de éxito a dominar.
+
+  analisis_competitivo: |
+    Analiza [JSONs de Competitive, Quantitative, Sentiment, PricingPower]. Explica la dinámica competitiva.
+    1. Quién gana y por qué: `lider_mercado`, compara `sov_percent` vs `sentiment.score_medio` para solidez vs vulnerabilidad.
+    2. Challenger peligroso: mejor balance SOV/Sentimiento y `price_premium_pct`.
+    3. So What?: amenaza principal y ventana temporal (en meses) para cierre de brecha.
+
+  analisis_campanas: |
+    Analiza [JSONs de CampaignAnalysisAgent, ChannelAnalysisAgent]. Conecta actividad con resultados.
+    1. Eficiencia: campañas y canales vinculados a efectividad observada (conversión, recepción, consistencia con drivers).
+    2. So What?: mayor desperdicio detectado, incoherencias de mensaje vs percepción.
+    3. Recomendación: parar/empezar/continuar con reasignaciones cuantificadas.
+
+  analisis_canales: |
+    Analiza [JSONs de ChannelAnalysisAgent, QualitativeExtractionAgent]. Evalúa Go-to-Market.
+    1. Diagnóstico: presencia y disponibilidad vs preferencia de compra y ROI por canal.
+    2. So What?: cuantifica pérdidas por gaps e-commerce (stockouts, ausencia en retailers clave).
+    3. Recomendación: priorización de canal y foco operativo.
+
+  analisis_sostenibilidad_packaging: |
+    Analiza [JSONs de ESGAnalysisAgent, PackagingAnalysisAgent] como gestor de riesgo/oportunidad.
+    1. Riesgos: controversias ESG y quejas de packaging con correlación a sentimiento.
+    2. Oportunidades: sostenibilidad como driver real y atributos monetizables de packaging.
+    3. So What?: rol de ESG/packaging para sostener prima de precio.
+
+  consumidor: |
+    Analiza [JSONs de QualitativeExtraction, Sentiment, CustomerJourney]. Convierte VoC en acciones.
+    1. Diagnóstico: qué valora el cliente vs dónde fallamos (drivers vs atributos por marca).
+    2. So What?: contradicción central producto vs experiencia.
+    3. Recomendación: amplificar palanca de drivers y eliminar barrera operativa.
+
+  customer_journey: |
+    Analiza [JSONs de CustomerJourneyAgent, QualitativeExtraction].
+    - Mapea pain points por etapa y touchpoints dominantes; alinea con plan 90d.
+
+  sentimiento_reputacion: |
+    Analiza [JSONs de SentimentAgent, TrendsAgent, Campaign/Channel].
+    - Explica el porqué de los scores con evidencia mixta y correlación con SOV/actividad.
+
+  oportunidades_riesgos: |
+    Analiza [JSONs de StrategicAgent, ScenarioPlanningAgent]. Priorización tipo matriz impacto/esfuerzo y probabilidad/severidad.
+    - Tesis de cruces DAFO y robustez por escenario (best/base/worst).
+
+  plan_90_dias: |
+    Genera roadmap SMART a partir de todas las recomendaciones previas.
+    - Mes 1 quick wins (alto impacto/bajo esfuerzo), Mes 2 fundamentos, Mes 3 estratégico; KPIs y responsables.
+
+# =====================
 # NUEVOS AGENTES
 # =====================
 
@@ -877,23 +944,7 @@ pricing_power_agent:
     - Si falta evidencia, devuelve arrays vacíos manteniendo el esquema.
     - Asegúrate de que precio/calidad/sov sean números (0-100), no strings.
 
-roi_agent:
-  task: |
-    Eres un analista financiero de marketing. Calcula ROI/ROAS/CPA y payback a partir de inputs de gasto por campaña/canal, revenue atribuido y margen. Si faltan datos, aplica supuestos explícitos.
-
-    INPUTS:
-    {inputs_financieros}
-
-    DEVUELVE JSON:
-    {
-      "resumen": {"roas": 0.0, "roi_pct": 0.0, "cpa": 0.0, "payback_meses": 0},
-      "por_canal": [{"canal": "X", "gasto": 0.0, "revenue_atr": 0.0, "roi_pct": 0.0}],
-      "supuestos": ["..."]
-    }
-    IMPORTANTE:
-    - SOLO un objeto JSON válido, sin markdown ni texto adicional.
-    - Si falta algún campo, usa valores por defecto seguros (0 o null) manteniendo el esquema.
-    - Asegúrate de que roas/roi_pct/cpa/payback_meses sean numéricos.
+ 
 
 campaign_agent:
   task: |
@@ -1256,6 +1307,34 @@ trends_agent:
     - Distingue entre ruido estadístico y cambios significativos
     - Las proyecciones deben ser conservadoras y fundamentadas
 
+# =====================
+# TRANSVERSAL
+# =====================
+
+transversal_agent:
+  task: |
+    Eres un analista transversal. Con los resultados de múltiples agentes, sintetiza:
+    - temas_comunes: patrones consistentes entre Sentimiento, Competencia, Tendencias y FMCG (campañas/canales/ESG/packaging)
+    - contradicciones: desalineaciones entre Cuantitativo y Cualitativo (ej: alto SOV vs sentimiento bajo; campañas fuertes pero disponibilidad débil)
+    - insights_nuevos: hallazgos no cubiertos explícitamente por otros agentes
+
+    CONTEXTO:
+    QUANTITATIVE={quantitative}
+    QUALITATIVE={qualitative}
+    COMPETITIVE={competitive}
+    TRENDS={trends}
+    CAMPAIGN={campaign}
+    CHANNEL={channel}
+    ESG={esg}
+    PACKAGING={packaging}
+    STRATEGIC={strategic}
+
+    DEVUELVE SOLO JSON VÁLIDO con esta estructura exacta:
+    {
+      "temas_comunes": ["..."],
+      "contradicciones": ["..."],
+      "insights_nuevos": ["..."]
+    }
 # ====================================================================================================
 # AGENTES ESPECIALIZADOS FMCG - Análisis de dimensiones específicas del mercado FMCG
 # ====================================================================================================

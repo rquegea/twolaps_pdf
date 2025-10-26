@@ -312,7 +312,7 @@ cli.add_command(admin)
 @cli.command()
 @click.option('--category', '-c', required=True, help='Categoría (formato: Mercado/Categoría)')
 @click.option('--period', '-p', required=True, help='Periodo (YYYY-MM, YYYY-Www o rango YYYY-MM-DD..YYYY-MM-DD)')
-@click.option('--agents', '-a', multiple=True, help='Agentes a previsualizar (ej: quantitative, qualitative, competitive, trends, channel_analysis, esg_analysis, packaging_analysis, pricing_power, customer_journey, scenario_planning, roi, strategic)')
+@click.option('--agents', '-a', multiple=True, help='Agentes a previsualizar (ej: quantitative, qualitative, competitive, trends, channel_analysis, esg_analysis, packaging_analysis, pricing_power, customer_journey, scenario_planning, strategic)')
 @click.option('--run-missing', is_flag=True, help='Ejecuta el agente si no hay resultado previo')
 @click.option('--rerun', is_flag=True, help='Fuerza re-ejecución del agente (ignora resultados previos)')
 def preview_agents(category, period, agents, run_missing, rerun):
@@ -334,10 +334,11 @@ def preview_agents(category, period, agents, run_missing, rerun):
         CustomerJourneyAgent,
         ScenarioPlanningAgent,
         PricingPowerAgent,
-        ROIAgent,
+        
         StrategicAgent,
         SynthesisAgent,
         ExecutiveAgent,
+        TransversalAgent,
     )
 
     AGENT_MAP = {
@@ -353,8 +354,10 @@ def preview_agents(category, period, agents, run_missing, rerun):
         'customer_journey': CustomerJourneyAgent,
         'scenario_planning': ScenarioPlanningAgent,
         'pricing_power': PricingPowerAgent,
-        'roi': ROIAgent,
+        # ROI eliminado a petición del usuario; mantener clave para compat si hubiera datos previos
+        
         'strategic': StrategicAgent,
+        'transversal': TransversalAgent,
         'synthesis': SynthesisAgent,
         'executive': ExecutiveAgent,
     }
@@ -362,7 +365,7 @@ def preview_agents(category, period, agents, run_missing, rerun):
     DEFAULT_ORDER = [
         'quantitative', 'competitive', 'trends', 'channel_analysis', 'campaign_analysis',
         'esg_analysis', 'packaging_analysis', 'pricing_power', 'customer_journey',
-        'scenario_planning', 'roi', 'strategic', 'synthesis', 'executive'
+        'scenario_planning', 'strategic', 'transversal', 'synthesis', 'executive'
     ]
 
     selected = list(agents) if agents else DEFAULT_ORDER
@@ -714,6 +717,7 @@ def preview_agents(category, period, agents, run_missing, rerun):
             'packaging_analysis': _print_packaging,
             'pricing_power': _print_pricing,
             'strategic': _print_strategic,
+            'transversal': _print_transversal,
             'synthesis': _print_synthesis,
             'executive': _print_executive,
         }

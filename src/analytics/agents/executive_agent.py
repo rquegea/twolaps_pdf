@@ -25,6 +25,19 @@ class ExecutiveAgent(BaseAgent):
         super().__init__(session, version)
         self.client = OpenAIClient()
         # task/system prompts se cargarán dinámicamente al analizar
+        self.section_prompts = {}
+    
+    def _load_section_prompts(self):
+        """Carga prompts específicos por sección desde agent_prompts.yaml"""
+        try:
+            prompt_path = Path("config/prompts/agent_prompts.yaml")
+            if prompt_path.exists():
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    prompts_yaml = yaml.safe_load(f) or {}
+                    self.section_prompts = prompts_yaml.get('executive_section_prompts', {}) or {}
+        except Exception:
+            # No bloquear si no existen
+            self.section_prompts = {}
     
     def load_prompts(self):
         """Compat: método legado no usado."""
@@ -52,6 +65,8 @@ class ExecutiveAgent(BaseAgent):
         # Obtener todos los análisis previos
         # Cargar prompts según tipo de mercado
         self.load_prompts_dynamic(categoria_id, default_key='executive_agent')
+        # Cargar prompts seccionales MBB
+        self._load_section_prompts()
         quantitative = self._get_analysis('quantitative', categoria_id, periodo)
         qualitative = self._get_analysis('qualitative', categoria_id, periodo)
         if not qualitative:
@@ -66,10 +81,12 @@ class ExecutiveAgent(BaseAgent):
         channel = self._get_analysis('channel_analysis', categoria_id, periodo)
         esg = self._get_analysis('esg_analysis', categoria_id, periodo)
         packaging = self._get_analysis('packaging_analysis', categoria_id, periodo)
-        # NUEVO: ROI / Escenarios / Journey
-        roi = self._get_analysis('roi', categoria_id, periodo)
+        # NUEVO: Escenarios / Journey
         scenarios = self._get_analysis('scenario_planning', categoria_id, periodo)
         journey = self._get_analysis('customer_journey', categoria_id, periodo)
+        # Opcional: Pricing Power y Contexto de Mercado (si existen)
+        pricing_power = self._get_analysis('pricing_power', categoria_id, periodo)
+        market_context = self._get_analysis('market_context', categoria_id, periodo)
         
         # Degradación para primer ciclo: si faltan algunos análisis, generamos un informe mínimo
         missing = []
@@ -96,7 +113,7 @@ class ExecutiveAgent(BaseAgent):
         )
         
         # NUEVO: Obtener muestra estratificada de respuestas textuales
-        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=2)
+        raw_responses = self._get_stratified_sample(categoria_id, periodo, samples_per_group=4)
         
         # Construir prompt completo con todos los KPIs Y respuestas textuales
         prompt = self._build_prompt(
@@ -114,16 +131,17 @@ class ExecutiveAgent(BaseAgent):
             channel,
             esg,
             packaging,
-            roi,
             scenarios,
-            journey
+            journey,
+            pricing_power,
+            market_context
         )
         
         # Generar informe con LLM (tokens aumentados para informe extenso de nivel consultora)
         try:
             result = self.client.generate(
                 prompt=prompt,
-                temperature=0.7,   # Mayor creatividad para narrativas fluidas tipo McKinsey
+                temperature=0.45,  # Menor aleatoriedad para mayor precisión y consistencia en cifras
                 max_tokens=16000,  # 🔥 Límite máximo (16K permite informes de 35-50 páginas con densidad máxima)
                 json_mode=True
             )
@@ -283,7 +301,7 @@ class ExecutiveAgent(BaseAgent):
         quantitative: Dict,
         qualitative: Dict,
         competitive: Dict,
-        trends: Dict,  # pylint: disable=unused-argument
+        trends: Dict,  # ahora utilizado para inyectar series de tendencia
         strategic: Dict,
         synthesis: Dict,
         historical_context: str,
@@ -292,14 +310,34 @@ class ExecutiveAgent(BaseAgent):
         channel: Dict,
         esg: Dict,
         packaging: Dict,
-        roi: Dict,
         scenarios: Dict,
-        journey: Dict
+        journey: Dict,
+        pricing_power: Dict,
+        market_context: Dict
     ) -> str:
         """Construye el prompt completo con todos los datos (EXPANDIDO para FMCG Premium)"""
         
+        # Bloque de instrucciones MBB por sección (inyectado si existe)
+        se = self.section_prompts or {}
+        se_block = "\n\n".join([
+            "========================================\nINSTRUCCIONES MBB POR SECCIÓN:\n========================================",
+            ("RESUMEN EJECUTIVO:\n" + (se.get('resumen_ejecutivo', '') or '').strip()),
+            ("PANORAMA DE MERCADO:\n" + (se.get('panorama_mercado', '') or '').strip()),
+            ("ANÁLISIS COMPETITIVO:\n" + (se.get('analisis_competitivo', '') or '').strip()),
+            ("ANÁLISIS DE CAMPAÑAS:\n" + (se.get('analisis_campanas', '') or '').strip()),
+            ("ANÁLISIS DE CANALES:\n" + (se.get('analisis_canales', '') or '').strip()),
+            ("SOSTENIBILIDAD Y PACKAGING:\n" + (se.get('analisis_sostenibilidad_packaging', '') or '').strip()),
+            ("CONSUMIDOR (VoC):\n" + (se.get('consumidor', '') or '').strip()),
+            ("CUSTOMER JOURNEY:\n" + (se.get('customer_journey', '') or '').strip()),
+            ("SENTIMIENTO Y REPUTACIÓN:\n" + (se.get('sentimiento_reputacion', '') or '').strip()),
+            ("OPORTUNIDADES Y RIESGOS:\n" + (se.get('oportunidades_riesgos', '') or '').strip()),
+            ("PLAN 90 DÍAS:\n" + (se.get('plan_90_dias', '') or '').strip()),
+        ])
+
         prompt = f"""
 {self.system_prompt}
+
+{self.task_prompt}
 
 ===========================================
 MISIÓN: GENERAR INFORME NARRATIVO TIPO McKINSEY
@@ -308,12 +346,26 @@ MISIÓN: GENERAR INFORME NARRATIVO TIPO McKINSEY
 ⚠️ NO GENERES UN "DUMP" DE DATOS. CUENTA UNA HISTORIA ESTRATÉGICA. ⚠️
 
 REGLAS NARRATIVAS CRÍTICAS:
-1. Cada sección debe DESARROLLARSE en 3-7 párrafos fluidos y conectados
-2. NO uses listas de bullets como respuesta principal (úsalas solo para respaldar narrativas)
-3. USA transiciones narrativas: "Esto explica...", "Sin embargo...", "A pesar de...", "Lo que revela..."
-4. CITA datos específicos DENTRO de las narrativas (no como apéndices)
-5. CONECTA insights entre secciones para construir un argumento coherente
-6. Escribe como si estuvieras presentando en vivo a un CEO
+1. PIRÁMIDE DE MINTO (ANSWER FIRST): Arranca cada sección con la conclusión clara (recomendación/diagnóstico) y después los 2-4 argumentos que la sustentan, cada uno con datos.
+2. MECE: Estructura los argumentos de forma mutuamente excluyente y colectivamente exhaustiva.
+3. Cada sección debe DESARROLLARSE en 3-7 párrafos fluidos y conectados.
+4. NO uses listas de bullets como respuesta principal (úsalas solo para respaldar narrativas).
+5. USA transiciones narrativas: "Esto explica...", "Sin embargo...", "A pesar de...", "Lo que revela...".
+6. CITA datos específicos DENTRO de las narrativas (no como apéndices) con unidad, periodo y comparación.
+7. CONECTA insights entre secciones para construir un argumento coherente.
+8. Escribe como si estuvieras presentando en vivo a un CEO.
+9. VOZ ACTIVA Y PRESCRIPTIVA: Da órdenes y recomendaciones directas ("Recomendamos reasignar...", "Pausar...", "Lanzar...").
+10. LENGUAJE DE NEGOCIO: Conecta KPIs de marketing con impacto financiero (CAC, CLV, ROMI/ROI, EBITDA, cuota de mercado, payback).
+11. SO WHAT: Cada dato debe incluir su implicación de negocio explícita (impacto, riesgo o oportunidad y decisión).
+
+{se_block}
+
+GUÍA DE PRECISIÓN DE DATOS (OBLIGATORIA):
+- Cita cifras con unidad y periodo: "SOV 54% (W43 2025)".
+- Compara siempre: "vs 28% competidor; +6 pp vs periodo anterior".
+- Usa redondeo coherente (1 decimal) y marca dirección: ↑/↓/↗/↘.
+- Reporta deltas como "+X pp" o "+Y%" e indica la ventana temporal.
+- Traza la fuente dentro del texto: KPI cuantitativo, tendencia histórica o cita textual.
 
 CATEGORÍA: {categoria}
 PERIODO: {periodo}
@@ -337,6 +389,8 @@ DATOS CUANTITATIVOS (KPIs):
 - SOV: {json.dumps(quantitative.get('sov_percent', {}), indent=2)}
 - Sentimiento: {json.dumps(qualitative.get('sentimiento_por_marca', {}), indent=2)}
 - Líder mercado: {competitive.get('lider_mercado', 'N/A')}
+- Tendencia SOV: {json.dumps((trends or {}).get('sov_trend_data', {}), indent=2)}
+- Tendencia Sentimiento: {json.dumps((trends or {}).get('sentiment_trend_data', {}), indent=2)}
 
 ========================================
 ANÁLISIS FMCG DETALLADO:
@@ -354,14 +408,17 @@ ANÁLISIS ESG Y SOSTENIBILIDAD:
 ANÁLISIS DE PACKAGING Y DISEÑO:
 {json.dumps(packaging, indent=2) if packaging else 'No disponible'}
 
-ROI DE MARKETING (por canal):
-{json.dumps(roi, indent=2) if roi else 'No disponible'}
-
 ESCENARIOS (12-24 meses):
 {json.dumps(scenarios, indent=2) if scenarios else 'No disponible'}
 
 CUSTOMER JOURNEY:
 {json.dumps(journey, indent=2) if journey else 'No disponible'}
+
+PRICING POWER (Precio vs Calidad percibida; tamaño=SOV):
+{json.dumps(pricing_power, indent=2) if pricing_power else 'No disponible'}
+
+CONTEXTO DE MERCADO (PESTEL/Porter/Drivers):
+{json.dumps(market_context, indent=2) if market_context else 'No disponible'}
 
 ========================================
 ANÁLISIS ESTRATÉGICO (DAFO, OPORTUNIDADES, RIESGOS):
@@ -432,6 +489,10 @@ Cada uno debe tener 3-7 párrafos sustanciales desarrollando el argumento.
   "consumidor": {{
     "narrativa_voz_cliente": "DESARROLLA EN 4-5 PÁRRAFOS: Integra citas textuales directas del raw_responses para dar vida a la voz del consumidor. Desarrolla drivers de elección con ejemplos específicos de POR QUÉ eligen cada marca, explica barreras de compra con evidencia cualitativa, describe ocasiones de consumo principales y cómo impactan la decisión, identifica tensiones o contradicciones. HAZ QUE EL CONSUMIDOR COBRE VIDA con sus propias palabras entrecomilladas."
   }},
+
+  "customer_journey": {{
+    "narrativa": "DESARROLLA EN 2-3 PÁRRAFOS: Explica el recorrido típico detectado (awareness→advocacy), pain points transversales por etapa, touchpoints dominantes (online/offline) y cómo esto se conecta con la Complicación y el plan de 90 días. Incluye 1-2 citas textuales si es posible y menciona brevemente 1-2 buyer personas relevantes."
+  }},
   
   "sentimiento_reputacion": {{
     "narrativa": "DESARROLLA EN 3-4 PÁRRAFOS: Presenta scores de sentimiento por marca con contexto (no solo números), EXPLICA el 'por qué' detrás de cada score con insights cualitativos del texto crudo, analiza correlaciones entre sentimiento/SOV/marketing, identifica cambios vs periodos anteriores si hay contexto histórico. Menciona 'Como muestra el Gráfico de Sentimiento...'"
@@ -452,11 +513,11 @@ Cada uno debe tener 3-7 párrafos sustanciales desarrollando el argumento.
   }},
   
   "plan_90_dias": {{
-    "narrativa_estrategia": "DESARROLLA EN 2-3 PÁRRAFOS: Explica la lógica del plan de acción completo: por qué estas iniciativas, en este orden, para resolver la complicación identificada. Integra hallazgos de ROI para priorizar canales con mejor ROAS/ROI y acciones de optimización (realloc budget, creatividades, landing).",
+    "narrativa_estrategia": "DESARROLLA EN 2-3 PÁRRAFOS: Explica la lógica del plan de acción completo: por qué estas iniciativas, en este orden, para resolver la complicación identificada. Prioriza canales y tácticas según evidencia de efectividad observada en Campañas/Canales (menos fricción, mejor recepción, mayor conversión) y aprendizajes de Pricing/VoC.",
     "iniciativas": [
       {{
         "titulo": "Iniciativa 1",
-        "descripcion": "QUÉ hacer exactamente (2-3 líneas detalladas, NO bullets). Incluye optimizaciones de marketing basadas en ROI (p.ej., +15% presupuesto en canal con ROAS>2.5, pausar campañas con ROI<0, test A/B creatividades).",
+        "descripcion": "QUÉ hacer exactamente (2-3 líneas detalladas, NO bullets). Incluye optimizaciones de marketing basadas en evidencia (p.ej., reasignar presupuesto hacia canales con mayor conversión observada, pausar campañas con recepción negativa, test A/B de creatividades).",
         "por_que": "POR QUÉ hacerlo - vinculado explícitamente a la complicación y datos específicos (2-3 líneas)",
         "como": "CÓMO ejecutarlo con pasos concretos o tácticas (2-3 líneas)",
         "kpi_medicion": "Métrica específica para medir éxito",
@@ -514,6 +575,9 @@ REGLAS CRÍTICAS DE NARRATIVA:
 8. **PROFUNDIDAD**: Cada campo narrativo debe tener 3-7 párrafos sustanciales (4-8 líneas cada uno)
 9. **El plan de 90 días debe RESOLVER la complicación identificada**
 10. **RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO, SIN TEXTO ADICIONAL NI MARKDOWN, SIN BLOQUES DE CÓDIGO**
+11. **PRECISIÓN CUANTITATIVA**: Cada párrafo debe incluir al menos 1 cifra con unidad y 1 comparación explícita (competidor o periodo).
+12. **MAGNITUD Y DIRECCIÓN**: Reporta deltas como "+X pp" o "+Y%" e indica dirección (↑/↓/↗/↘).
+13. **TRAZABILIDAD**: Referencia la fuente de cada cifra (KPI, tendencia o cita textual) dentro del propio párrafo.
 """
         
         return prompt
@@ -556,10 +620,10 @@ REGLAS CRÍTICAS DE NARRATIVA:
                     ans[key] = default_text
             except Exception:
                 ans[key] = default_text
-        _fill_if_short('the_answer', 'Recomendación: reenfocar inversión hacia canales con mayor ROAS y reforzar propuesta ESG/packaging para convertir visibilidad en preferencia.')
+        _fill_if_short('the_answer', 'Recomendación: reenfocar inversión hacia canales con mejor desempeño observado y reforzar propuesta ESG/packaging para convertir visibilidad en preferencia.')
         _fill_if_short('the_why', 'Porque los datos muestran brecha entre visibilidad y preferencia. KPIs de sentimiento y señales en canales/packaging sugieren fricción que limita conversión.')
-        _fill_if_short('the_how', 'Roadmap 90 días: 1) Reasignar 15-20% presupuesto a canales con ROAS>2.5; 2) Lanzar test de creatividades y nueva narrativa ESG; 3) Resolver pain points de disponibilidad en e-commerce con acuerdos minoristas.')
-        _fill_if_short('the_impact', 'Impacto esperado: +3-5 pp SOV de marca prioritaria, +0.1 a +0.2 en sentimiento y mejora de ROAS global 10-15% en 90 días.')
+        _fill_if_short('the_how', 'Roadmap 90 días: 1) Reasignar 15-20% presupuesto a canales con mejor conversión observada; 2) Lanzar test de creatividades y nueva narrativa ESG; 3) Resolver pain points de disponibilidad en e-commerce con acuerdos minoristas.')
+        _fill_if_short('the_impact', 'Impacto esperado: +3-5 pp SOV de marca prioritaria, +0.1 a +0.2 en sentimiento y mejora de eficiencia de medios 10-15% en 90 días.')
         resumen['answer_first'] = ans
 
         opp_risk = informe.setdefault('oportunidades_riesgos', {})
