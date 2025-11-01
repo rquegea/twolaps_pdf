@@ -524,8 +524,7 @@ def preview_agents(category, period, agents, run_missing, rerun):
             if not sent:
                 click.echo("  (sin sentimiento_por_marca)")
                 return
-            # Mostrar hasta 5 marcas con su score
-            shown = 0
+            # Mostrar todas las marcas con su score (sin límite)
             for marca, data in sent.items():
                 score = 0.0
                 if isinstance(data, dict):
@@ -533,9 +532,6 @@ def preview_agents(category, period, agents, run_missing, rerun):
                 elif isinstance(data, (int, float)):
                     score = float(data)
                 click.echo(f"   · {marca}: {score:.2f}")
-                shown += 1
-                if shown >= 5:
-                    break
 
         def _print_sentiment(res: dict):
             click.echo("— Sentiment")
@@ -550,16 +546,12 @@ def preview_agents(category, period, agents, run_missing, rerun):
             if not sent:
                 click.echo("  (sin datos de sentimiento)")
                 return
-            shown = 0
             for marca, val in (sent.items() if isinstance(sent, dict) else []):
                 try:
                     score = float(val.get('score_medio') or val.get('score') or 0) if isinstance(val, dict) else float(val)
                 except Exception:
                     score = 0.0
                 click.echo(f"   · {marca}: {score:.2f}")
-                shown += 1
-                if shown >= 5:
-                    break
             # Mostrar primer insight completo si existe
             ins = (res or {}).get('insights') or []
             if ins:
@@ -675,6 +667,16 @@ def preview_agents(category, period, agents, run_missing, rerun):
             if rsk:
                 t = str((rsk[0] or {}).get('titulo', ''))[:120]
                 click.echo("  Top Riesgo: " + t)
+
+        def _print_transversal(res: dict):
+            click.echo("— Transversal")
+            if not isinstance(res, dict):
+                click.echo("  (sin datos)")
+                return
+            temas = res.get('temas_comunes') or []
+            contrad = res.get('contradicciones') or []
+            nuevos = res.get('insights_nuevos') or []
+            click.echo(f"  Temas comunes: {len(temas)} | Contradicciones: {len(contrad)} | Insights nuevos: {len(nuevos)}")
 
         def _print_synthesis(res: dict):
             click.echo("— Synthesis")

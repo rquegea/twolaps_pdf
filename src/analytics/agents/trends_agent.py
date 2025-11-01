@@ -179,8 +179,50 @@ class TrendsAgent(BaseAgent):
         # Posibles drivers desde otros agentes (SOLO del periodo solicitado; sin fallback mensual para evitar ruido)
         campaign_data = self._get_analysis('campaign_analysis', categoria_id, periodo) or {}
         channel_data = self._get_analysis('channel_analysis', categoria_id, periodo) or {}
+        esg_data = self._get_analysis('esg_analysis', categoria_id, periodo) or {}
+        packaging_data = self._get_analysis('packaging_analysis', categoria_id, periodo) or {}
         qual_now = self._get_analysis('qualitative', categoria_id, periodo) or self._get_analysis('qualitativeextraction', categoria_id, periodo) or {}
         sent_now = qual_now.get('sentimiento_por_marca', {}) or {}
+        attrs_now = qual_now.get('atributos_por_marca', {}) or {}
+
+        # Helper: inferir drivers por texto de QueryExecution en la ventana del periodo
+        def _infer_drivers_from_texts(marca: str) -> list[str]:
+            drivers: list[str] = []
+            try:
+                start, end, _ = self._parse_periodo(periodo)
+                # Obtener ejecuciones con texto en ventana
+                executions = self.session.query(QueryExecution).join(Query). \
+                    filter(
+                        Query.categoria_id == categoria_id,
+                        QueryExecution.respuesta_texto.isnot(None),
+                        QueryExecution.timestamp >= start,
+                        QueryExecution.timestamp < end
+                    ).all()
+                if not executions:
+                    return drivers
+                text_blob = "\n".join([(e.respuesta_texto or "").lower() for e in executions])
+                # Solo considerar fragmentos donde aparece la marca o alias exacto
+                # (heurística rápida: si el corpus no contiene la marca, seguimos igualmente)
+
+                # Diccionario genérico de keywords por driver (válido para cualquier mercado)
+                kw = {
+                    'precio/promos': ['precio', 'tarifa', 'promoci', 'descuento', 'oferta', 'subida', 'bajada'],
+                    'campañas/marketing': ['campaña', 'anuncio', 'spot', 'creativo', 'influencer', 'patrocinio'],
+                    'canales/disponibilidad': ['disponibilidad', 'stock', 'agotado', 'retailer', 'tienda', 'web', 'online', 'marketplace'],
+                    'servicio/soporte': ['soporte', 'servicio', 'avería', 'incidencia', 'reclamaci', 'atención'],
+                    'producto/calidad': ['calidad', 'rendimiento', 'defecto', 'sabor', 'diseño', 'experiencia'],
+                    'sostenibilidad/esg': ['esg', 'sostenibil', 'controversia', 'medioambient', 'recicl', 'denuncia'],
+                    'portabilidad/procesos': ['portabilidad', 'alta', 'baja', 'cambio', 'trámite'],
+                    'facturación/cobros': ['factura', 'facturación', 'cobro', 'cargo', 'tarificación'],
+                    'app/procesos': ['app', 'aplicación', 'login', 'e-sim', 'esim', 'proceso', 'registro']
+                }
+                for driver_name, words in kw.items():
+                    hits = sum(word in text_blob for word in words)
+                    if hits >= 3:  # umbral simple para evitar ruido
+                        drivers.append(driver_name)
+            except Exception:
+                return drivers
+            return drivers
 
         def _drivers_para_marca(marca: str) -> list[str]:
             drivers: list[str] = []
@@ -207,6 +249,23 @@ class TrendsAgent(BaseAgent):
                     drivers.append("canales: mejor distribución")
             except Exception:
                 pass
+            # ESG / controversias
+            try:
+                controversias = esg_data.get('controversias_clave') or []
+                if isinstance(controversias, list):
+                    has = any((isinstance(c, dict) and (c.get('marca') == marca or marca in str(c))) or (isinstance(c, str) and marca in c) for c in controversias)
+                    if has:
+                        drivers.append('esg/controversias')
+            except Exception:
+                pass
+            # Packaging (si aplica en ese mercado)
+            try:
+                quejas = packaging_data.get('quejas_packaging') or []
+                if isinstance(quejas, list) and quejas:
+                    if any(marca in str(q) for q in quejas):
+                        drivers.append('packaging/experiencia')
+            except Exception:
+                pass
             # Sentimiento
             try:
                 s = sent_now.get(marca)
@@ -219,6 +278,22 @@ class TrendsAgent(BaseAgent):
                     drivers.append(f"sentimiento: {float(score):+0.2f}")
             except Exception:
                 pass
+            # Atributos cualitativos prominentes
+            try:
+                attrs = attrs_now.get(marca) or {}
+                if isinstance(attrs, dict) and attrs:
+                    # Seleccionar top 2 atributos por valor absoluto
+                    top_items = sorted(((k, float(v or 0)) for k, v in attrs.items() if isinstance(v, (int, float))), key=lambda x: abs(x[1]), reverse=True)[:2]
+                    if top_items:
+                        txt = ', '.join([f"{k}:{v:+.2f}" for k, v in top_items])
+                        drivers.append(f"atributos: {txt}")
+            except Exception:
+                pass
+            # Texto libre de ejecuciones (genérico para cualquier mercado)
+            text_drivers = _infer_drivers_from_texts(marca)
+            for d in text_drivers:
+                if d not in drivers:
+                    drivers.append(d)
             return drivers
 
         # Enriquecer elementos existentes y marcar picos

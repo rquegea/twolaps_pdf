@@ -6,13 +6,14 @@ Recupera fragmentos relevantes mediante búsqueda vectorial en lugar de procesar
 
 import json
 import yaml
+import re
 from pathlib import Path
 from typing import Dict, Any, List
 from sqlalchemy import extract
 from src.analytics.agents.base_agent import BaseAgent
 from src.analytics.rag_manager import RAGManager
 from src.database.models import Query, QueryExecution, Marca
-from src.query_executor.api_clients import AnthropicClient
+from src.query_executor.api_clients import AnthropicClient, OpenAIClient
 
 
 class QualitativeExtractionAgent(BaseAgent):
@@ -107,17 +108,48 @@ class QualitativeExtractionAgent(BaseAgent):
                     contexto=context
                 )
                 
-                # Llamar al LLM
+                # Llamar al LLM (Anthropic por defecto)
                 result = self.client.generate(
                     prompt=prompt,
                     temperature=0.3,
-                    max_tokens=1500
+                    max_tokens=4000  # Aumentado de 1500 para soportar muchas marcas
                 )
-                
-                # Parsear respuesta
+
+                # Parsear respuesta con tolerancia y reparación si es necesario
                 response_text = self._clean_json_response(result.get('response_text', ''))
-                parsed_result = json.loads(response_text)
-                
+                try:
+                    parsed_result = self._parse_json_lenient(response_text)
+                    if not isinstance(parsed_result, dict):
+                        raise ValueError("parsed_result_not_dict")
+                except Exception as parse_err:
+                    # Intentar reparación con LLM (OpenAI) sobre el JSON bruto
+                    self.logger.warning(
+                        "qualitative_parse_failed_try_repair",
+                        error=str(parse_err),
+                    )
+                    repaired = self._repair_json_with_llm(response_text)
+                    if repaired is None:
+                        # Fallback duro: re-ejecutar el análisis con OpenAI para obtener JSON válido
+                        try:
+                            oai = OpenAIClient()
+                            oai_result = oai.generate(
+                                prompt=(
+                                    "Devuelve SOLO JSON válido y estricto, sin markdown ni comentarios.\n" +
+                                    prompt
+                                ),
+                                temperature=0.2,
+                                max_tokens=4000,  # Aumentado de 1200 para soportar muchas marcas
+                            )
+                            oai_text = self._clean_json_response(oai_result.get('response_text', ''))
+                            parsed_result = self._parse_json_lenient(oai_text)
+                            if not isinstance(parsed_result, dict):
+                                raise ValueError("openai_parsed_result_not_dict")
+                        except Exception as oai_err:
+                            # Propagar para que el bloque externo registre el error de la sub-pregunta
+                            raise RuntimeError(f"fallback_openai_failed: {oai_err}")
+                    else:
+                        parsed_result = repaired
+
                 all_results[question_key] = parsed_result
                 
                 self.logger.info(
@@ -149,6 +181,57 @@ class QualitativeExtractionAgent(BaseAgent):
         self.save_results(categoria_id, periodo, resultado_final)
         
         return resultado_final
+
+    def _parse_json_lenient(self, text: str) -> Any:
+        """Intento robusto de parseo: JSON estricto -> quitar comas colgantes -> YAML como último recurso."""
+        if text is None:
+            raise ValueError("empty_text")
+        t = text.strip()
+        # Intento 1: JSON estricto
+        try:
+            return json.loads(t)
+        except Exception:
+            pass
+        # Intento 2: eliminar comas colgantes antes de } o ]
+        try:
+            no_trailing_commas = re.sub(r",\s*([}\]])", r"\1", t)
+            return json.loads(no_trailing_commas)
+        except Exception:
+            pass
+        # Intento 3: YAML (acepta JSON válido y variantes menores)
+        try:
+            y = yaml.safe_load(t)
+            return y if y is not None else {}
+        except Exception:
+            pass
+        # Intento 4: limpiar caracteres invisibles y reintentar JSON
+        try:
+            cleaned = re.sub(r"[\u0000-\u001F\u007F]", "", t)
+            return json.loads(cleaned)
+        except Exception as e:
+            raise e
+
+    def _repair_json_with_llm(self, raw_text: str) -> Any:
+        """
+        Pide a OpenAI que repare la cadena a JSON válido, devolviendo dict o None si no pudo.
+        """
+        try:
+            if not raw_text or not isinstance(raw_text, str):
+                return None
+            oai = OpenAIClient()
+            prompt = (
+                "Corrige el siguiente contenido a JSON válido estricto. "
+                "- No añadas texto extra ni markdown.\n"
+                "- Conserva las claves y estructura pedidas en el prompt original.\n"
+                "Contenido a reparar entre <<<JSON>>> y <<<END>>>:\n"
+                "<<<JSON>>>\n" + raw_text + "\n<<<END>>>\n"
+                "Devuelve SOLO el JSON válido."
+            )
+            result = oai.generate(prompt=prompt, temperature=0.0, max_tokens=2500)  # Aumentado de 1200
+            fixed = self._clean_json_response(result.get('response_text', ''))
+            return self._parse_json_lenient(fixed)
+        except Exception:
+            return None
     
     def _define_analytical_questions(self, marca_nombres: List[str]) -> Dict[str, Dict]:
         """

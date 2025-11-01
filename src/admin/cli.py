@@ -735,3 +735,89 @@ def reject_candidate(category, name):
         bc.estado = 'rejected'
         session.commit()
         click.echo("✓ Candidato rechazado")
+
+
+# =============================
+# Telco Deep-dive helpers
+# =============================
+
+def _telco_deepdive_questions() -> list:
+    """Lista de preguntas deep-dive para Telefonía Móvil (Pepephone vs low cost)."""
+    return [
+        # Incidencias de red / calidad de servicio
+        "¿Se han reportado caídas o degradación de red móvil/fibra/5G asociadas a Pepephone, Digi o Lowi en los últimos 7 días? Detalla fecha, zona, síntoma y magnitud; incluye citas.",
+        "¿Qué problemas de cobertura/velocidad/latencia se mencionan esta semana para Pepephone frente a Digi y Lowi? ¿Dónde y con qué frecuencia?",
+        # Facturación y precios
+        "¿Qué quejas sobre facturación, subidas de precio, cargos inesperados o 'precio final' afectan a Pepephone (y competidores low cost) esta semana? Clasifica por tipo e impacto; incluye citas.",
+        "¿Ha habido cambios de tarifa o promociones relevantes en Pepephone/Digi/Lowi esta semana y cómo afectan al sentimiento?",
+        # Portabilidad
+        "Experiencia de portabilidad hacia/desde Pepephone en los últimos 7 días: tiempos, rechazos, causas y comparación con Digi/Lowi; evidencias.",
+        # Atención al cliente
+        "Tiempos de espera, resolución al primer contacto y tono percibido en soporte (teléfono/chat/app/redes) para Pepephone vs Digi/Lowi esta semana; ejemplos concretos.",
+        # App/eSIM/procesos
+        "Feedback sobre la app de gestión, alta/baja y eSIM (errores, fricciones, mejoras) esta semana para Pepephone; compara con Digi/Lowi.",
+        # Viralidad/campañas/eventos
+        "¿Qué hilos virales, reseñas de alto alcance o campañas/mensajes han podido disparar el sentimiento (positivo/negativo) de Pepephone esta semana? Indica fechas y aporta citas.",
+        # Medios/foros/comparadores
+        "Resumen semanal en comparadores/medios/foros (Selectra, Comparaiso, Xataka, Reddit, Forocoches): puntos a favor/en contra de Pepephone vs Digi/Lowi con citas.",
+        # Valor percibido (precio vs servicio)
+        "¿Cómo justifican los usuarios su elección entre Pepephone y Digi/Lowi esta semana? Pondera precio, calidad de red, servicio, transparencia de facturación y portabilidad; incluye citas.",
+        # Instalación/soporte técnico en hogar (fibra)
+        "Experiencias de instalación/averías de fibra y soporte técnico en el hogar para Pepephone esta semana; tiempos, profesionalidad y resolución; compara con Digi/Lowi.",
+        # Meta-explicación de picos
+        "Explica los picos de sentimiento de Pepephone en los últimos 7 días: ¿qué eventos (incidencias, precios, portabilidad, campañas, cobertura) los causaron? Prioriza por impacto y evidencia.",
+        # Riesgos y quick wins
+        "Top riesgos reputacionales y quick wins de Pepephone detectados esta semana (3–5), con evidencia (citas) y recomendación accionable.",
+        # Benchmark low cost
+        "Comparativa semanal low cost: Pepephone vs Digi vs Lowi en sentimiento y drivers (precio, red, servicio, facturación, portabilidad). ¿Quién lidera cada driver y por qué?",
+    ]
+
+
+@admin.command()
+@click.option('--category', '-c', default='Digital/Telefonía Móvil', show_default=True,
+              help='Categoría destino (Mercado/Categoría)')
+@click.option('--frequency', '-f', default='daily', show_default=True,
+              type=click.Choice(['daily', 'weekly', 'biweekly', 'monthly', 'quarterly']))
+@click.option('--providers', '-p', default='openai,anthropic,google,perplexity', show_default=True,
+              help='Proveedores (coma)')
+def add_telco_deepdive_queries(category, frequency, providers):
+    """Añadir (sin duplicar) queries deep-dive Telco para explicar picos de sentimiento."""
+    with get_session() as session:
+        try:
+            market_name, cat_name = category.split('/')
+        except ValueError:
+            click.echo("✗ Formato de categoría inválido. Usa: Mercado/Categoría", err=True)
+            return
+
+        mercado = session.query(Mercado).filter_by(nombre=market_name).first()
+        if not mercado:
+            click.echo(f"✗ Mercado '{market_name}' no encontrado", err=True)
+            return
+        categoria = session.query(Categoria).filter_by(mercado_id=mercado.id, nombre=cat_name).first()
+        if not categoria:
+            click.echo(f"✗ Categoría '{category}' no encontrada", err=True)
+            return
+
+        existing_questions = set(
+            q.pregunta.strip() for q in session.query(Query).filter_by(categoria_id=categoria.id).all()
+        )
+
+        providers_list = [p.strip() for p in providers.split(',') if p.strip()]
+        added = 0
+        for qtext in _telco_deepdive_questions():
+            if qtext.strip() in existing_questions:
+                continue
+            q = Query(
+                categoria_id=categoria.id,
+                pregunta=qtext,
+                activa=True,
+                frecuencia=frequency,
+                proveedores_ia=providers_list,
+                metadata={}
+            )
+            session.add(q)
+            added += 1
+        session.commit()
+
+        click.echo(f"✓ Deep-dive queries añadidas: {added}")
+        logger.info("telco_deepdive_queries_added", categoria=category, added=added)

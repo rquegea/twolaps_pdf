@@ -25,10 +25,10 @@ class ChartGenerator:
     
     def __init__(self):
         self.dpi = 100
-        self.fig_width = 10
+        self.fig_width = 14  # aumentado para acomodar más marcas
         self.fig_height = 6
-        # Máximo de marcas a visualizar en gráficos
-        self.max_brands = 7
+        # Máximo de marcas a visualizar en gráficos (ampliado)
+        self.max_brands = 50
     
     def generate_sov_chart(self, sov_data: Dict[str, float]) -> Optional[str]:
         """
@@ -107,11 +107,26 @@ class ChartGenerator:
         colors = ['#0066cc', '#28a745', '#ffc107', '#dc3545', '#6c757d', 
                  '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd']
         
-        # Crear pie chart
+        # Función personalizada para mostrar los valores REALES sin re-normalización
+        def make_autopct(values):
+            def my_autopct(pct):
+                # Encontrar el valor original basado en el porcentaje calculado por matplotlib
+                # pct es el porcentaje que matplotlib calcula (re-normalizado a 100%)
+                total = sum(values)
+                # Calcular el valor real desde el porcentaje re-normalizado
+                val = pct * total / 100.0
+                # Buscar el valor más cercano en nuestra lista original
+                for v in values:
+                    if abs(v - val) < 0.1:
+                        return f'{v:.1f}%'
+                return f'{val:.1f}%'
+            return my_autopct
+        
+        # Crear pie chart con función personalizada que muestra valores reales
         _, _, autotexts = ax.pie(
             valores, 
             labels=marcas, 
-            autopct='%1.1f%%',
+            autopct=make_autopct(valores),
             startangle=90,
             colors=colors[:len(marcas)],
             explode=[0.05 if i == 0 else 0 for i in range(len(marcas))],  # Explotar el líder
@@ -1148,14 +1163,11 @@ def generate_all_charts(report_data: Dict[str, Any]) -> Dict[str, str]:
         # Si no hay nada, retornar lista vacía (no se filtrará)
         return []
 
-    top_brands = select_top_brands(generator.max_brands)
+    # Desactivar filtrado por top brands para mostrar todas las marcas
+    top_brands = []
 
     def filter_dict_by_brands(data: Dict[str, Any]) -> Dict[str, Any]:
-        if not isinstance(data, dict) or not data:
-            return data
-        if not top_brands:
-            return data
-        return {k: v for k, v in data.items() if k in top_brands}
+        return data
     
     # SOV Charts (snapshot actual)
     competencia = report_data.get('competencia', {})

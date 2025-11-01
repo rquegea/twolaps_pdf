@@ -428,6 +428,10 @@ class BaseAgent(ABC):
                         rt = rt[:-3]
                 raw_text = rt.strip()
 
+                # Detectar respuesta vacía antes de parsear (fix para ESG/Packaging vacíos)
+                if not raw_text or raw_text in ['', 'null', 'None']:
+                    raise ValueError(f"El modelo devolvió una respuesta vacía o inválida: '{raw_text}'")
+
                 # Validación con Pydantic (compatibilidad v1/v2)
                 parsed_obj = None
                 try:

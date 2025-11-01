@@ -37,10 +37,20 @@ class PerplexityClient(BaseAIClient):
         self,
         prompt: str,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False
     ) -> Dict:
         """
         Genera una respuesta usando Perplexity (Chat Completions compatible)
+        
+        Args:
+            prompt: Texto del prompt
+            temperature: Temperatura (0-1)
+            max_tokens: Máximo de tokens
+            json_mode: Ignorado por Perplexity (no soportado)
+        
+        Returns:
+            Dict con respuesta y métricas
         """
         url = f"{self.base_url}/chat/completions"
         headers = {

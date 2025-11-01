@@ -241,7 +241,7 @@ class SentimentAgent(BaseAgent):
                     pydantic_model=SentimentInsights,
                     max_retries=2,
                     temperature=0.2,
-                    max_tokens=900,
+                    max_tokens=2500,  # Aumentado de 900 para evitar truncamiento
                 )
                 obj = gen.get('parsed') or {}
                 return (obj.get('insights') if isinstance(obj, dict) else []) or []

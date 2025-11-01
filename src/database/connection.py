@@ -28,6 +28,7 @@ engine = create_engine(
     pool_timeout=30,
     pool_recycle=3600,
     echo=False,  # Set to True for SQL query logging
+    connect_args={"connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "5"))},
 )
 
 # Session factory

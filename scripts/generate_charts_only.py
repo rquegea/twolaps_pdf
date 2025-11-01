@@ -75,6 +75,8 @@ def main():
         channel = _get_analysis(session, categoria.id, periodo, "channel_analysis")
         strategic = _get_analysis(session, categoria.id, periodo, "strategic")
         esg = _get_analysis(session, categoria.id, periodo, "esg_analysis")
+        pricing_power = _get_analysis(session, categoria.id, periodo, "pricing_power")
+        trends = _get_analysis(session, categoria.id, periodo, "trends")
 
         # Construir report_data mínimo para los generadores de gráficos
         report_data: Dict[str, Any] = {}
@@ -191,30 +193,61 @@ def main():
         report_data["plan_90_dias"] = {"iniciativas": iniciativas}
         
         # 8) Mapa perceptual (Precio vs Calidad, tamaño=SOV)
-        # Construir datos sintéticos si no existen
-        perceptual_brands = []
-        if isinstance(sov, dict):
-            for i, (marca, sov_val) in enumerate(list(sov.items())[:8]):
-                # Valores sintéticos para demo (idealmente deberían venir de análisis)
-                perceptual_brands.append({
-                    "marca": marca,
-                    "precio": 40 + (i * 8),  # Valores entre 40-100
-                    "calidad": 50 + (i * 7),  # Valores entre 50-100
-                    "sov": sov_val
-                })
-        
-        report_data["pricing_power"] = {
-            "perceptual_map": perceptual_brands
-        }
+        # USAR DATOS REALES del agente pricing_power
+        if pricing_power and pricing_power.get("perceptual_map"):
+            # Datos reales del análisis
+            report_data["pricing_power"] = {
+                "perceptual_map": pricing_power.get("perceptual_map")
+            }
+        else:
+            # Fallback: construir datos sintéticos solo si NO hay análisis real
+            perceptual_brands = []
+            if isinstance(sov, dict):
+                for i, (marca, sov_val) in enumerate(list(sov.items())[:8]):
+                    perceptual_brands.append({
+                        "marca": marca,
+                        "precio": 40 + (i * 8),  # Valores entre 40-100
+                        "calidad": 50 + (i * 7),  # Valores entre 50-100
+                        "sov": sov_val
+                    })
+            
+            report_data["pricing_power"] = {
+                "perceptual_map": perceptual_brands
+            }
+            print("⚠️  Usando datos sintéticos para mapa perceptual (no hay análisis pricing_power)")
         
         # 9) BCG Matrix (Market Share vs Growth Rate)
-        # Derivar de SOV actual (growth = 0 si no hay histórico)
+        # USAR DATOS REALES del agente trends para obtener growth_rate
         bcg_metrics = {}
         if isinstance(sov, dict):
+            # Intentar obtener growth_rate real del agente trends
+            tendencias = (trends or {}).get("tendencias", [])
+            growth_by_marca = {}
+            
+            # Extraer cambio_rel_pct (% de crecimiento) del agente trends
+            if isinstance(tendencias, list):
+                for t in tendencias:
+                    if isinstance(t, dict) and 'marca' in t:
+                        marca = t.get('marca')
+                        # Priorizar cambio_rel_pct, luego cambio_puntos
+                        growth = t.get('cambio_rel_pct')
+                        if growth is None:
+                            # Fallback: usar cambio en puntos porcentuales como proxy
+                            cambio_pp = t.get('cambio_puntos', 0)
+                            # Convertir puntos porcentuales a % aproximado (asumiendo base ~10%)
+                            sov_actual = sov.get(marca, 10)
+                            if sov_actual > 0:
+                                growth = (cambio_pp / sov_actual) * 100
+                            else:
+                                growth = 0
+                        growth_by_marca[marca] = float(growth) if growth is not None else 0.0
+            
+            # Construir BCG metrics con growth_rate real
             for marca, share in sov.items():
+                growth_rate = growth_by_marca.get(marca, 0.0)
                 bcg_metrics[marca] = {
                     "market_share": float(share),
-                    "growth_rate": 0.0,  # Sin histórico = 0% growth
+                    "growth_rate": growth_rate,
                     "size": float(share)
                 }
         

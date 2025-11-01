@@ -29,13 +29,25 @@ class AnthropicClient(BaseAIClient):
         
         # Inicializa cliente Anthropic
         self.client = Anthropic(api_key=api_key)
-        # Modelos de respaldo en caso de 404/not_found
+        
+        # Mapeo de versiones antiguas a modelos que funcionan
+        model_aliases = {
+            "claude-3-5-sonnet-20240620": "claude-3-7-sonnet-latest",
+            "claude-3-5-sonnet-20241022": "claude-3-7-sonnet-latest",
+            "claude-3-5-sonnet-20240229": "claude-3-7-sonnet-latest",
+            "claude-3-sonnet-20240229": "claude-3-7-sonnet-latest",
+        }
+        # Normalizar modelo si es una versión antigua
+        self.model = model_aliases.get(self.model, self.model)
+        
+        # Modelos de respaldo en caso de 404/not_found (en orden de preferencia)
+        # Solo incluimos modelos que sabemos que funcionan
         self._fallback_models: List[str] = [
             m for m in [
                 self.model,
-                "claude-3-7-sonnet-latest",
-                "claude-3-5-sonnet-latest",
-                "claude-3-opus-latest",
+                "claude-3-7-sonnet-latest",    # Modelo principal que funciona
+                "claude-3-5-sonnet-latest",    # Latest pointer (backup)
+                "claude-3-opus-latest",        # Opus latest (backup)
             ] if m is not None
         ]
     

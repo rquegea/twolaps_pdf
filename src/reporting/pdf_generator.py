@@ -15,7 +15,10 @@ def _load_weasyprint():
 from src.database.connection import get_session
 from src.database.models import Report, Categoria, Mercado
 from src.utils.logger import setup_logger, log_report_generation
-from src.reporting.chart_generator import generate_all_charts
+def _lazy_import_charts():
+    # Import diferido para evitar cargar matplotlib al iniciar la app
+    from src.reporting.chart_generator import generate_all_charts
+    return generate_all_charts
 import time
 
 logger = setup_logger(__name__)
@@ -151,6 +154,8 @@ class PDFGenerator:
         
         # Generar gráficos
         logger.info("Generando visualizaciones...", report_id=report.id)
+        # Cargar generador de gráficos de forma perezosa
+        generate_all_charts = _lazy_import_charts()
         charts = generate_all_charts(contenido)
         
         return {

@@ -56,7 +56,8 @@ class GoogleClient(BaseAIClient):
         self,
         prompt: str,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False
     ) -> Dict:
         """
         Genera una respuesta usando Gemini
@@ -65,6 +66,7 @@ class GoogleClient(BaseAIClient):
             prompt: Texto del prompt
             temperature: Temperatura (0-1)
             max_tokens: Máximo de tokens (max_output_tokens en Gemini)
+            json_mode: Ignorado por Google (no soportado)
         
         Returns:
             Dict con respuesta y métricas
